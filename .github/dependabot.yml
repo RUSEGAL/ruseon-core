@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Проверка обновлений для пакетов Go
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "go"
+
+  # Проверка обновлений для пакетов Node.js (фронтенд)
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "frontend"
