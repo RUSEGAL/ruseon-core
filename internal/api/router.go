@@ -1,0 +1,61 @@
+package api
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
+// SetupRouter инициализирует маршруты Gin.
+func SetupRouter(h *Handler, debug bool) *gin.Engine {
+	if !debug {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	r := gin.Default()
+
+	// CORS Middleware
+	r.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	})
+
+	// Роуты без авторизации
+	r.GET("/health", h.HealthCheck)
+	r.POST("/api/login", h.Login)
+
+	// API с авторизацией
+	api := r.Group("/api")
+	api.Use(func(c *gin.Context) {
+		token := c.GetHeader("Authorization")
+		if token != "Bearer demo-token-123" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+		c.Next()
+	})
+	
+	api.GET("/cameras", h.GetCameras)
+	api.POST("/cameras", h.AddCamera)
+	api.PUT("/cameras/:id", h.EditCamera)
+	api.DELETE("/cameras/:id", h.DeleteCamera)
+	api.GET("/stats", h.GetServerStats)
+
+	// HLS стриминг
+	r.GET("/stream/hls/:id/index.m3u8", h.GetHLSPlaylist)
+	r.GET("/stream/hls/:id/:segment", h.GetHLSSegment)
+
+	// Статика фронтенда
+	r.Static("/assets", "./web/dist/assets")
+	r.NoRoute(func(c *gin.Context) {
+		c.File("./web/dist/index.html")
+	})
+
+	return r
+}
