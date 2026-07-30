@@ -37,8 +37,17 @@ export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails, globalTag
             <div className="camera-info" style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Status:</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div className={`status-indicator ${cam.connected ? 'online' : 'offline'}`}></div>
-                <span style={{ fontWeight: 600 }}>{cam.connected ? 'Online' : 'Offline'}</span>
+                {cam.disabled ? (
+                  <>
+                    <div className="status-indicator error"></div>
+                    <span style={{ fontWeight: 600, color: 'var(--danger)' }}>Disabled</span>
+                  </>
+                ) : (
+                  <>
+                    <div className={`status-indicator ${cam.connected ? 'online' : 'offline'}`}></div>
+                    <span style={{ fontWeight: 600 }}>{cam.connected ? 'Online' : 'Offline'}</span>
+                  </>
+                )}
               </div>
             </div>
             
@@ -87,12 +96,12 @@ export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails, globalTag
             )}
             
             <div className="video-container" style={{ marginTop: 'auto', cursor: 'pointer', borderRadius: '8px', overflow: 'hidden' }} onClick={() => onOpenDetails(cam)}>
-              {cam.connected ? (
+              {cam.connected && !cam.disabled ? (
                 <VideoPlayer streamId={cam.id} />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', color: 'var(--text-muted)' }}>
                   <ShieldAlert size={36} style={{ color: 'var(--danger)', opacity: 0.8 }} />
-                  <span>Stream Disconnected</span>
+                  <span>{cam.disabled ? 'Stream Disabled' : 'Stream Disconnected'}</span>
                 </div>
               )}
             </div>

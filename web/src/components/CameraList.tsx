@@ -22,6 +22,15 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
             <div style={{ fontWeight: 600, fontSize: '1.1rem', textTransform: 'uppercase', minWidth: '80px' }}>{cam.id}</div>
             <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cam.url}</div>
             
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {cam.disabled && <span className="status-badge error">Disabled</span>}
+              {!cam.disabled && (
+                <span className={`status-badge ${cam.connected ? 'success' : 'error'}`}>
+                  {cam.connected ? 'Online' : 'Offline'}
+                </span>
+              )}
+            </div>
+
             {cam.tags && cam.tags.length > 0 && (
               <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxWidth: '200px' }}>
                 {cam.tags.map(tId => {

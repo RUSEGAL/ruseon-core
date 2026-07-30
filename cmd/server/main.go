@@ -35,8 +35,12 @@ func main() {
 
 	// Добавляем камеры из конфигурации
 	for _, cam := range cfg.Cameras {
-		manager.AddStream(cam.ID, cam.URL, cam.Record)
-		log.Info().Str("id", cam.ID).Str("url", cam.URL).Bool("record", cam.Record).Msg("Added camera from config")
+		if !cam.Disabled {
+			manager.AddStream(cam.ID, cam.URL, cam.Record)
+			log.Info().Str("id", cam.ID).Str("url", cam.URL).Bool("record", cam.Record).Msg("Added camera from config")
+		} else {
+			log.Info().Str("id", cam.ID).Msg("Camera is disabled, skipping stream creation")
+		}
 	}
 
 	// 4. Инициализация HTTP сервера (Gin)

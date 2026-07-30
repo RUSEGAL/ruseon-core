@@ -166,7 +166,7 @@ export default function App() {
 
   const openAddModal = () => {
     setIsEditing(false);
-    setCamForm({ id: '', url: '', record: false, retentionDays: 0, tags: [], comment: '', simPhone: '', simICCID: '' });
+    setCamForm({ id: '', url: '', record: false, retentionDays: 0, tags: [], comment: '', simPhone: '', simICCID: '', disabled: false, disableReason: 'technical' });
     setShowModal(true);
   };
 
@@ -180,7 +180,9 @@ export default function App() {
       tags: cam.tags || [],
       comment: cam.comment || '',
       simPhone: cam.simPhone || '',
-      simICCID: cam.simICCID || ''
+      simICCID: cam.simICCID || '',
+      disabled: cam.disabled || false,
+      disableReason: cam.disableReason || 'technical'
     });
     setShowModal(true);
   };

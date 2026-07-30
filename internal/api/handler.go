@@ -100,36 +100,54 @@ func (h *Handler) GetCameras(c *gin.Context) {
 		Frames        uint64   `json:"frames"`
 		KeyFrames     uint64   `json:"keyFrames"`
 		Codec         string   `json:"codec"`
-	}
-
-	// Собираем данные из конфига
-	configMap := make(map[string]config.CameraConfig)
-	for _, cam := range h.cfg.Cameras {
-		configMap[cam.ID] = cam
+		Disabled      bool                   `json:"disabled"`
+		DisableReason string                 `json:"disableReason"`
+		DisableHistory []config.DisableRecord `json:"disableHistory"`
 	}
 
 	var result []CameraInfo
-	for _, st := range streams {
-		stats := st.GetStats()
-		cfg := configMap[st.ID]
+	for _, cam := range h.cfg.Cameras {
+		var stats *stream.Stream
+		for _, st := range streams {
+			if st.ID == cam.ID {
+				stats = st
+				break
+			}
+		}
+
+		connected := false
+		var uptime, bytesReceived, bytesSent, frames, keyFrames uint64
+		if stats != nil {
+			s := stats.GetStats()
+			connected = s.Connected
+			uptime = uint64(s.Uptime)
+			bytesReceived = s.BytesReceived
+			bytesSent = s.BytesSent
+			frames = s.Frames
+			keyFrames = s.KeyFrames
+		}
+
 		result = append(result, CameraInfo{
-			ID:            st.ID,
-			URL:           st.URL,
-			Connected:     stats.Connected,
-			Record:        cfg.Record,
-			RetentionDays: cfg.RetentionDays,
-			Tags:          cfg.Tags,
-			Comment:       cfg.Comment,
-			SimPhone:      cfg.SimPhone,
-			SimICCID:      cfg.SimICCID,
-			TrafficLimit:  cfg.TrafficLimit,
-			TrafficUsed:   cfg.TrafficUsed,
-			Uptime:        uint64(stats.Uptime),
-			BytesReceived: stats.BytesReceived,
-			BytesSent:     stats.BytesSent,
-			Frames:        stats.Frames,
-			KeyFrames:     stats.KeyFrames,
-			Codec:         "H.264",
+			ID:            cam.ID,
+			URL:           cam.URL,
+			Connected:     connected,
+			Record:        cam.Record,
+			RetentionDays: cam.RetentionDays,
+			Tags:          cam.Tags,
+			Comment:       cam.Comment,
+			SimPhone:      cam.SimPhone,
+			SimICCID:      cam.SimICCID,
+			TrafficLimit:  cam.TrafficLimit,
+			TrafficUsed:   cam.TrafficUsed,
+			Disabled:      cam.Disabled,
+			DisableReason: cam.DisableReason,
+			DisableHistory: cam.DisableHistory,
+			Uptime:        uptime,
+			BytesReceived: bytesReceived,
+			BytesSent:     bytesSent,
+			Frames:        frames,
+			KeyFrames:     keyFrames,
+			Codec:         "H.264/H.265",
 		})
 	}
 
@@ -174,10 +192,12 @@ func (h *Handler) AddCamera(c *gin.Context) {
 		return
 	}
 
-	// Запускаем поток
-	if err := h.manager.AddStream(cam.ID, cam.URL, cam.Record); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	// Запускаем поток, если он не отключен
+	if !cam.Disabled {
+		if err := h.manager.AddStream(cam.ID, cam.URL, cam.Record); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -227,6 +247,22 @@ func (h *Handler) EditCamera(c *gin.Context) {
 	found := false
 	for i, cam := range h.cfg.Cameras {
 		if cam.ID == id {
+			// Отслеживание изменения статуса
+			if cam.Disabled != req.Disabled {
+				action := "enable"
+				if req.Disabled {
+					action = "disable"
+				}
+				record := config.DisableRecord{
+					Timestamp: time.Now().Format(time.RFC3339),
+					Action:    action,
+					Reason:    req.DisableReason,
+				}
+				req.DisableHistory = append(cam.DisableHistory, record)
+			} else {
+				req.DisableHistory = cam.DisableHistory
+			}
+
 			h.cfg.Cameras[i] = req
 			found = true
 			break
@@ -243,9 +279,11 @@ func (h *Handler) EditCamera(c *gin.Context) {
 		return
 	}
 
-	// Перезапускаем поток
+	// Перезапускаем поток если он включен
 	h.manager.RemoveStream(id)
-	h.manager.AddStream(req.ID, req.URL, req.Record)
+	if !req.Disabled {
+		h.manager.AddStream(req.ID, req.URL, req.Record)
+	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }

@@ -9,13 +9,20 @@ export interface CameraInfo {
   simPhone?: string;
   simICCID?: string;
   trafficLimit?: number;
-  trafficUsed?: number;
+  trafficUsed: number;
   uptime: number;
   bytesReceived: number;
   bytesSent: number;
   frames: number;
   keyFrames: number;
   codec: string;
+  disabled: boolean;
+  disableReason: string;
+  disableHistory: {
+    timestamp: string;
+    action: string;
+    reason: string;
+  }[];
 }
 
 export interface TagConfig {

@@ -10,6 +10,8 @@ export interface CamFormState {
   comment: string;
   simPhone: string;
   simICCID: string;
+  disabled: boolean;
+  disableReason: string;
 }
 
 interface CameraFormModalProps {
@@ -75,6 +77,32 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
             />
             <label htmlFor="record-check" style={{ marginBottom: 0, cursor: 'pointer' }}>Enable Archive Recording (fMP4)</label>
           </div>
+          
+          <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '12px' }}>
+            <input 
+              type="checkbox" 
+              id="disable-check"
+              checked={camForm.disabled}
+              onChange={e => setCamForm({...camForm, disabled: e.target.checked})}
+              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+            />
+            <label htmlFor="disable-check" style={{ marginBottom: 0, cursor: 'pointer', color: camForm.disabled ? 'var(--danger)' : 'var(--text-main)' }}>Disable Stream</label>
+          </div>
+
+          {camForm.disabled && (
+            <div className="form-group">
+              <label>Disable Reason</label>
+              <select 
+                className="input-field" 
+                value={camForm.disableReason}
+                onChange={e => setCamForm({...camForm, disableReason: e.target.value})}
+              >
+                <option value="technical">Technical Issue</option>
+                <option value="requested">Requested by User</option>
+                <option value="payment">Unpaid Bill</option>
+              </select>
+            </div>
+          )}
           
           <div className="form-group">
             <label>Tags</label>

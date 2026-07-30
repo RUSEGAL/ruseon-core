@@ -30,6 +30,13 @@ type TagConfig struct {
 	Color string `yaml:"color" json:"color"`
 }
 
+// DisableRecord описывает событие изменения статуса отключения.
+type DisableRecord struct {
+	Timestamp string `yaml:"timestamp" json:"timestamp"`
+	Action    string `yaml:"action" json:"action"` // "disable" или "enable"
+	Reason    string `yaml:"reason,omitempty" json:"reason"`
+}
+
 // CameraConfig описывает настройки подключения для отдельной камеры.
 type CameraConfig struct {
 	ID            string   `yaml:"id" json:"id"`
@@ -45,6 +52,11 @@ type CameraConfig struct {
 	TrafficLimit   uint64 `yaml:"traffic_limit" json:"trafficLimit"`     // Лимит в байтах
 	TrafficUsed    uint64 `yaml:"traffic_used" json:"trafficUsed"`       // Использовано в байтах
 	LastResetMonth string `yaml:"last_reset_month" json:"lastResetMonth"` // Месяц последнего сброса (YYYY-MM)
+
+	// Отключение
+	Disabled       bool            `yaml:"disabled" json:"disabled"`
+	DisableReason  string          `yaml:"disable_reason,omitempty" json:"disableReason"`
+	DisableHistory []DisableRecord `yaml:"disable_history,omitempty" json:"disableHistory"`
 }
 
 // Load считывает конфигурацию из файла.

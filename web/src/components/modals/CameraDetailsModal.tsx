@@ -36,7 +36,9 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
           </div>
           <div className="details-stat">
             <div className="details-stat-label">Uptime</div>
-            <div className="details-stat-val">{detailsCam.connected ? formatUptime(detailsCam.uptime) : 'Offline'}</div>
+            <div className="details-stat-val">
+              {detailsCam.disabled ? <span style={{ color: 'var(--danger)' }}>Disabled</span> : (detailsCam.connected ? formatUptime(detailsCam.uptime) : 'Offline')}
+            </div>
           </div>
           <div className="details-stat">
             <div className="details-stat-label">Current Bitrate</div>
@@ -124,9 +126,33 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
               <div className="details-stat-val" style={{ whiteSpace: 'pre-wrap' }}>{detailsCam.comment}</div>
             </div>
           )}
+          {detailsCam.disabled && (
+            <div className="details-stat" style={{ gridColumn: '1 / -1', background: 'rgba(239, 68, 68, 0.1)', borderColor: 'var(--danger)' }}>
+              <div className="details-stat-label" style={{ color: 'var(--danger)' }}>Disable Reason</div>
+              <div className="details-stat-val">{detailsCam.disableReason}</div>
+            </div>
+          )}
+          {detailsCam.disableHistory && detailsCam.disableHistory.length > 0 && (
+            <div className="details-stat" style={{ gridColumn: '1 / -1' }}>
+              <div className="details-stat-label">Disable / Enable History</div>
+              <div className="details-stat-val">
+                <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '0.85rem' }}>
+                  {detailsCam.disableHistory.slice().reverse().slice(0, 10).map((h, i) => (
+                    <li key={i} style={{ marginBottom: '4px' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>{new Date(h.timestamp).toLocaleString()}</span>: 
+                      <span style={{ color: h.action === 'enable' ? 'var(--success)' : 'var(--danger)', margin: '0 6px', fontWeight: 'bold' }}>
+                        {h.action.toUpperCase()}
+                      </span>
+                      {h.reason && <span>({h.reason})</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
 
-        {detailsCam.connected ? (
+        {detailsCam.connected && !detailsCam.disabled ? (
           <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--card-border)', maxWidth: '400px', margin: '0 auto', width: '100%' }}>
             <VideoPlayer streamId={detailsCam.id} />
           </div>
@@ -134,7 +160,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
           <div className="video-container" style={{ borderRadius: '8px', background: 'rgba(0,0,0,0.8)', maxWidth: '400px', margin: '0 auto', width: '100%', aspectRatio: '16/9' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', color: 'var(--text-muted)' }}>
               <ShieldAlert size={36} style={{ color: 'var(--danger)', opacity: 0.8 }} />
-              <span>Stream Disconnected</span>
+              <span>{detailsCam.disabled ? 'Stream Disabled' : 'Stream Disconnected'}</span>
             </div>
           </div>
         )}
