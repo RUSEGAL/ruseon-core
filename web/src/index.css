@@ -257,7 +257,7 @@ body {
 .camera-list-item:hover { background: rgba(255,255,255,0.05); }
 .camera-list-info { display: flex; align-items: center; gap: 1rem; }
 /* Details Modal (Engineer Style) */
-.details-modal { max-width: 850px !important; width: 95%; max-height: 95vh; overflow-y: hidden; display: flex; flex-direction: column; }
+.details-modal { max-width: 1440px !important; width: 95%; max-height: 95vh; overflow-y: hidden; display: flex; flex-direction: column; }
 .details-grid { background: #050505; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 1rem; margin: 1rem 0; font-family: 'Fira Code', 'Courier New', monospace; font-size: 1.1rem; display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
 .details-stat { display: flex; flex-direction: row; align-items: flex-start; gap: 12px; }
 .details-stat-label { color: #64748b; min-width: 160px; font-weight: 500; }

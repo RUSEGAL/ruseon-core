@@ -22,7 +22,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
       <div 
         className="modal-content glass details-modal" 
         onClick={e => e.stopPropagation()}
-        style={{ maxWidth: '900px', width: '100%', padding: '0', overflow: 'hidden' }}
+        style={{ maxWidth: '1440px', width: '100%', padding: '0', overflow: 'hidden' }}
       >
         {/* HEADER */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.5rem', borderBottom: '1px solid var(--card-border)', background: 'rgba(255,255,255,0.02)' }}>
