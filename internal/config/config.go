@@ -40,6 +40,11 @@ type CameraConfig struct {
 	Comment       string   `yaml:"comment,omitempty" json:"comment"`
 	SimPhone      string   `yaml:"sim_phone,omitempty" json:"simPhone"`
 	SimICCID      string   `yaml:"sim_iccid,omitempty" json:"simICCID"`
+
+	// Биллинг и трафик
+	TrafficLimit   uint64 `yaml:"traffic_limit" json:"trafficLimit"`     // Лимит в байтах
+	TrafficUsed    uint64 `yaml:"traffic_used" json:"trafficUsed"`       // Использовано в байтах
+	LastResetMonth string `yaml:"last_reset_month" json:"lastResetMonth"` // Месяц последнего сброса (YYYY-MM)
 }
 
 // Load считывает конфигурацию из файла.

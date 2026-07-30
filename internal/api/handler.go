@@ -92,6 +92,8 @@ func (h *Handler) GetCameras(c *gin.Context) {
 		Comment       string   `json:"comment"`
 		SimPhone      string   `json:"simPhone"`
 		SimICCID      string   `json:"simICCID"`
+		TrafficLimit  uint64   `json:"trafficLimit"`
+		TrafficUsed   uint64   `json:"trafficUsed"`
 		Uptime        uint64   `json:"uptime"`
 		BytesReceived uint64   `json:"bytesReceived"`
 		BytesSent     uint64   `json:"bytesSent"`
@@ -120,6 +122,8 @@ func (h *Handler) GetCameras(c *gin.Context) {
 			Comment:       cfg.Comment,
 			SimPhone:      cfg.SimPhone,
 			SimICCID:      cfg.SimICCID,
+			TrafficLimit:  cfg.TrafficLimit,
+			TrafficUsed:   cfg.TrafficUsed,
 			Uptime:        uint64(stats.Uptime),
 			BytesReceived: stats.BytesReceived,
 			BytesSent:     stats.BytesSent,

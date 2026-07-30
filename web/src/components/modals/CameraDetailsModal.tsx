@@ -24,7 +24,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
             <X size={20} />
           </button>
         </div>
-        
+
         <div className="details-grid">
           <div className="details-stat">
             <div className="details-stat-label">Source URL (RTSP)</div>
@@ -62,6 +62,22 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
             <div className="details-stat-label">Total Data Sent (HLS)</div>
             <div className="details-stat-val">{formatBytes(detailsCam.bytesSent || 0)}</div>
           </div>
+          <div className="details-stat" style={{ gridColumn: '1 / -1' }}>
+            <div className="details-stat-label">Monthly Traffic Usage (SIM)</div>
+            <div className="details-stat-val">
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span>{formatBytes(detailsCam.trafficUsed || 0)} used </span>
+                <span style={{ fontWeight: 'bold' }}>{formatBytes(detailsCam.trafficLimit || 200 * 1024 * 1024 * 1024)} total</span>
+              </div>
+              <div style={{ width: '100%', height: '8px', background: 'var(--card-bg)', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--card-border)' }}>
+                <div style={{
+                  height: '100%',
+                  width: `${Math.min(100, ((detailsCam.trafficUsed || 0) / (detailsCam.trafficLimit || 200 * 1024 * 1024 * 1024)) * 100)}%`,
+                  background: ((detailsCam.trafficUsed || 0) / (detailsCam.trafficLimit || 200 * 1024 * 1024 * 1024)) > 0.9 ? 'var(--danger)' : 'var(--primary)'
+                }}></div>
+              </div>
+            </div>
+          </div>
           <div className="details-stat">
             <div className="details-stat-label">Recording to fMP4</div>
             <div className="details-stat-val">{detailsCam.record ? 'Enabled' : 'Disabled'}</div>
@@ -74,14 +90,14 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                   const tag = globalTags.find(gt => gt.id === tId);
                   if (!tag) return null;
                   return (
-                    <span key={tag.id} style={{ 
-                      background: `${tag.color}33`, 
+                    <span key={tag.id} style={{
+                      background: `${tag.color}33`,
                       border: `1px solid ${tag.color}`,
                       color: '#fff',
-                      padding: '2px 6px', 
-                      borderRadius: '12px', 
-                      fontSize: '0.8rem', 
-                      marginRight: '4px' 
+                      padding: '2px 6px',
+                      borderRadius: '12px',
+                      fontSize: '0.8rem',
+                      marginRight: '4px'
                     }}>
                       {tag.name}
                     </span>
@@ -111,11 +127,11 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
         </div>
 
         {detailsCam.connected ? (
-          <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--card-border)' }}>
+          <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--card-border)', maxWidth: '400px', margin: '0 auto', width: '100%' }}>
             <VideoPlayer streamId={detailsCam.id} />
           </div>
         ) : (
-          <div className="video-container" style={{ borderRadius: '8px', background: 'rgba(0,0,0,0.8)' }}>
+          <div className="video-container" style={{ borderRadius: '8px', background: 'rgba(0,0,0,0.8)', maxWidth: '400px', margin: '0 auto', width: '100%', aspectRatio: '16/9' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', color: 'var(--text-muted)' }}>
               <ShieldAlert size={36} style={{ color: 'var(--danger)', opacity: 0.8 }} />
               <span>Stream Disconnected</span>

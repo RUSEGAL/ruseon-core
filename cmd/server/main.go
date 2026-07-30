@@ -29,6 +29,9 @@ func main() {
 	
 	// Запускаем фоновую очистку записей
 	recorder.StartCleanupTask("recordings", cfg)
+	
+	// Запускаем трекинг трафика
+	stream.StartBillingTask(cfg, manager)
 
 	// Добавляем камеры из конфигурации
 	for _, cam := range cfg.Cameras {

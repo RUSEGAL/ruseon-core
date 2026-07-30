@@ -8,6 +8,8 @@ export interface CameraInfo {
   comment?: string;
   simPhone?: string;
   simICCID?: string;
+  trafficLimit?: number;
+  trafficUsed?: number;
   uptime: number;
   bytesReceived: number;
   bytesSent: number;
