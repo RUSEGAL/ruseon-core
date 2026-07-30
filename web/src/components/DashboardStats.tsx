@@ -31,9 +31,19 @@ export function DashboardStats({ serverStats, onOpenAdvancedStats }: DashboardSt
         <Camera size={18} style={{ color: 'var(--text-muted)' }} />
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cameras</span>
-          <span style={{ fontSize: '1rem', fontWeight: 600 }}>
-            <span style={{ color: serverStats.onlineCameras === serverStats.totalCameras ? 'var(--success)' : 'var(--danger)' }}>{serverStats.onlineCameras}</span> / {serverStats.totalCameras}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '1rem', fontWeight: 600 }} title="Online / Total">
+              <span style={{ color: serverStats.onlineCameras === serverStats.totalCameras - (serverStats.disabledCameras || 0) ? 'var(--success)' : 'var(--danger)' }}>{serverStats.onlineCameras}</span> / {serverStats.totalCameras}
+            </span>
+            {(serverStats.disabledCameras || 0) > 0 && (
+              <span 
+                style={{ fontSize: '0.7rem', color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '2px 6px', borderRadius: '4px', cursor: 'help' }}
+                title={`Disabled: \nTech: ${serverStats.disabledReasons?.technical || 0}\nUser: ${serverStats.disabledReasons?.requested || 0}\nBill: ${serverStats.disabledReasons?.payment || 0}`}
+              >
+                {serverStats.disabledCameras} Disabled
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

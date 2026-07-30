@@ -364,6 +364,22 @@ func (h *Handler) GetServerStats(c *gin.Context) {
 		}
 	}
 
+	disabledCameras := 0
+	disabledReasons := map[string]int{
+		"technical": 0,
+		"requested": 0,
+		"payment":   0,
+	}
+
+	for _, cam := range h.cfg.Cameras {
+		if cam.Disabled {
+			disabledCameras++
+			if cam.DisableReason != "" {
+				disabledReasons[cam.DisableReason]++
+			}
+		}
+	}
+
 	activeClients := h.tracker.GetActiveClients(15 * time.Second)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -374,15 +390,17 @@ func (h *Handler) GetServerStats(c *gin.Context) {
 		"heapSys":        m.HeapSys,
 		"heapObjects":    m.HeapObjects,
 		"numGC":          m.NumGC,
-		"numCPU":         runtime.NumCPU(),
-		"goroutines":     runtime.NumGoroutine(),
-		"totalCameras":   len(streams),
-		"onlineCameras":  onlineCameras,
-		"totalBytes":     totalBytes,
-		"totalBytesSent": totalBytesSent,
-		"totalFrames":    totalFrames,
-		"activeClients":  len(activeClients),
-		"clients":        activeClients,
+		"numCPU":          runtime.NumCPU(),
+		"goroutines":      runtime.NumGoroutine(),
+		"totalCameras":    len(h.cfg.Cameras),
+		"onlineCameras":   onlineCameras,
+		"disabledCameras": disabledCameras,
+		"disabledReasons": disabledReasons,
+		"totalBytes":      totalBytes,
+		"totalBytesSent":  totalBytesSent,
+		"totalFrames":     totalFrames,
+		"activeClients":   len(activeClients),
+		"clients":         activeClients,
 	})
 }
 

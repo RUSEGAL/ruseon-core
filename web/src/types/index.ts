@@ -37,6 +37,8 @@ export interface ServerStats {
   goroutines: number;
   totalCameras: number;
   onlineCameras: number;
+  disabledCameras: number;
+  disabledReasons: Record<string, number>;
   totalBytes: number;
   totalBytesSent: number;
   totalFrames: number;
