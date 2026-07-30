@@ -17,7 +17,7 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
     <div className="camera-list">
       {cameras.map(cam => (
         <div key={cam.id} className="camera-list-item glass" onClick={() => onOpenDetails(cam)}>
-          <div className="camera-list-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', justifyContent: 'center' }}>
+          <div className="camera-list-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center', alignItems: 'flex-start' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div className={`status-indicator ${cam.connected && !cam.disabled ? 'online' : 'offline'}`} style={{ backgroundColor: cam.disabled ? 'var(--danger)' : undefined }}></div>
               <div style={{ fontWeight: 600, fontSize: '1.1rem', textTransform: 'uppercase' }}>{cam.id}</div>
