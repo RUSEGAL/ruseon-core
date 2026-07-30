@@ -17,22 +17,31 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
     <div className="camera-list">
       {cameras.map(cam => (
         <div key={cam.id} className="camera-list-item glass" onClick={() => onOpenDetails(cam)}>
-          <div className="camera-list-info" style={{ flex: 1 }}>
-            <div className={`status-indicator ${cam.connected ? 'online' : 'offline'}`}></div>
-            <div style={{ fontWeight: 600, fontSize: '1.1rem', textTransform: 'uppercase', minWidth: '80px' }}>{cam.id}</div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cam.url}</div>
-            
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              {cam.disabled && <span className="status-badge error">Disabled</span>}
-              {!cam.disabled && (
-                <span className={`status-badge ${cam.connected ? 'success' : 'error'}`}>
-                  {cam.connected ? 'Online' : 'Offline'}
-                </span>
-              )}
+          <div className="camera-list-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className={`status-indicator ${cam.connected && !cam.disabled ? 'online' : 'offline'}`} style={{ backgroundColor: cam.disabled ? 'var(--danger)' : undefined }}></div>
+              <div style={{ fontWeight: 600, fontSize: '1.1rem', textTransform: 'uppercase' }}>{cam.id}</div>
+              
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: '4px' }}>
+                {cam.disabled && (
+                  <span className="status-badge error">
+                    Disabled: {cam.disableReason === 'technical' ? 'Tech. Issue' : cam.disableReason === 'requested' ? 'By User' : cam.disableReason === 'payment' ? 'Unpaid Bill' : cam.disableReason}
+                  </span>
+                )}
+                {!cam.disabled && !cam.connected && (
+                  <span className="status-badge error">Offline</span>
+                )}
+                {cam.record && (
+                  <span className="status-badge warning" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div className="status-indicator" style={{ backgroundColor: 'var(--danger)', width: '6px', height: '6px', margin: 0 }}></div>
+                    REC
+                  </span>
+                )}
+              </div>
             </div>
 
             {cam.tags && cam.tags.length > 0 && (
-              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxWidth: '200px' }}>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', flex: 1 }}>
                 {cam.tags.map(tId => {
                   const tag = globalTags.find(gt => gt.id === tId);
                   if (!tag) return null;
@@ -41,21 +50,15 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
                       background: `${tag.color}33`, 
                       border: `1px solid ${tag.color}`,
                       color: '#fff',
-                      padding: '2px 6px', 
+                      padding: '2px 8px', 
                       borderRadius: '12px', 
-                      fontSize: '0.7rem' 
+                      fontSize: '0.75rem',
+                      whiteSpace: 'nowrap'
                     }}>
                       {tag.name}
                     </span>
                   );
                 })}
-              </div>
-            )}
-
-            {cam.record && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'var(--danger)', fontWeight: 'bold' }}>
-                <div className="status-indicator" style={{ backgroundColor: 'var(--danger)', width: '8px', height: '8px' }}></div>
-                REC
               </div>
             )}
           </div>
