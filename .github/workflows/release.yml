@@ -44,6 +44,9 @@ jobs:
           cat << 'EOF' > config.yaml
           server:
             port: 8080
+          auth:
+            username: gritprof
+            password: "gritprof"
           hls:
             segment_duration: 2
             list_size: 5
