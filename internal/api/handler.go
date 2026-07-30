@@ -252,7 +252,6 @@ func (h *Handler) EditCamera(c *gin.Context) {
 	for i, cam := range h.cfg.Cameras {
 		if cam.ID == id {
 			cam.URL = req.URL
-			cam.Record = req.Record
 			cam.RetentionDays = req.RetentionDays
 			cam.Tags = req.Tags
 			cam.Comment = req.Comment
