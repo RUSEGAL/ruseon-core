@@ -28,6 +28,10 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'id' | 'uptime' | 'traffic' | 'status'>('id');
 
+  const [filterStatus, setFilterStatus] = useState<'all' | 'online' | 'offline'>('all');
+  const [filterRecord, setFilterRecord] = useState<'all' | 'recording' | 'not_recording'>('all');
+  const [filterTraffic, setFilterTraffic] = useState<'all' | 'high'>('all');
+
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [detailsCam, setDetailsCam] = useState<CameraInfo | null>(null);
 
@@ -183,6 +187,18 @@ export default function App() {
 
   const filteredCameras = useMemo(() => {
     let result = cameras.filter(c => {
+      if (filterStatus === 'online' && !c.connected) return false;
+      if (filterStatus === 'offline' && c.connected) return false;
+
+      if (filterRecord === 'recording' && !c.record) return false;
+      if (filterRecord === 'not_recording' && c.record) return false;
+
+      if (filterTraffic === 'high') {
+        const limit = c.trafficLimit || 200*1024*1024*1024;
+        const used = c.trafficUsed || 0;
+        if (used / limit <= 0.7) return false;
+      }
+
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
       if (c.id.toLowerCase().includes(q)) return true;
@@ -206,7 +222,7 @@ export default function App() {
     });
 
     return result;
-  }, [cameras, searchQuery, sortBy, globalTags]);
+  }, [cameras, searchQuery, sortBy, globalTags, filterStatus, filterRecord, filterTraffic]);
 
   if (!token) {
     return <Login onLogin={setToken} />;
@@ -263,6 +279,25 @@ export default function App() {
                 <option value="traffic" style={{ background: '#1e1e2d' }}>Traffic (Highest)</option>
               </select>
             </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+          <div className="view-toggle">
+            <button className={`view-btn ${filterStatus === 'all' ? 'active' : ''}`} onClick={() => setFilterStatus('all')}>All Status</button>
+            <button className={`view-btn ${filterStatus === 'online' ? 'active' : ''}`} onClick={() => setFilterStatus('online')}>Online</button>
+            <button className={`view-btn ${filterStatus === 'offline' ? 'active' : ''}`} onClick={() => setFilterStatus('offline')}>Offline</button>
+          </div>
+          
+          <div className="view-toggle">
+            <button className={`view-btn ${filterRecord === 'all' ? 'active' : ''}`} onClick={() => setFilterRecord('all')}>All Rec</button>
+            <button className={`view-btn ${filterRecord === 'recording' ? 'active' : ''}`} onClick={() => setFilterRecord('recording')}>Recording</button>
+            <button className={`view-btn ${filterRecord === 'not_recording' ? 'active' : ''}`} onClick={() => setFilterRecord('not_recording')}>No Rec</button>
+          </div>
+
+          <div className="view-toggle">
+            <button className={`view-btn ${filterTraffic === 'all' ? 'active' : ''}`} onClick={() => setFilterTraffic('all')}>All Traffic</button>
+            <button className={`view-btn ${filterTraffic === 'high' ? 'active' : ''}`} onClick={() => setFilterTraffic('high')}>&gt;70% Used</button>
           </div>
         </div>
 
