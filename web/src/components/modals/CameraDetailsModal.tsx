@@ -44,7 +44,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
         </div>
 
         {/* BODY */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', padding: '1.5rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
           
           {/* LEFT COLUMN: Player & Traffic */}
           <div style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
