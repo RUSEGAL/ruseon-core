@@ -91,6 +91,24 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                 })}
               </div>
             )}
+
+            <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px' }}>
+              <h4 style={{ margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><HardDrive size={16} color="var(--primary)"/> Processing</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Data In</div>
+                  <div style={{ fontSize: '0.85rem', color: '#fff' }}>{formatBytes(detailsCam.bytesReceived)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Data Out (HLS)</div>
+                  <div style={{ fontSize: '0.85rem', color: '#fff' }}>{formatBytes(detailsCam.bytesSent || 0)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Frames</div>
+                  <div style={{ fontSize: '0.85rem', color: '#fff' }}>{detailsCam.frames}</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* RIGHT COLUMN: Stats & Info */}
@@ -164,30 +182,21 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
               )}
             </div>
 
-            {/* Additional Info */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-               <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px' }}>
-                  <h4 style={{ margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><HardDrive size={16} color="var(--primary)"/> Processing</h4>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Data In: <span style={{ color: '#fff' }}>{formatBytes(detailsCam.bytesReceived)}</span></div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Data Out (HLS): <span style={{ color: '#fff' }}>{formatBytes(detailsCam.bytesSent || 0)}</span></div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Frames: <span style={{ color: '#fff' }}>{detailsCam.frames}</span></div>
-               </div>
-
-               {detailsCam.comment && (
-                 <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px' }}>
-                    <h4 style={{ margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><FileText size={16} color="var(--primary)"/> Comment</h4>
-                    <div style={{ fontSize: '0.9rem', color: '#fff', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>{detailsCam.comment}</div>
-                 </div>
-               )}
-            </div>
+            {/* Comment */}
+            {detailsCam.comment && (
+              <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px' }}>
+                <h4 style={{ margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><FileText size={16} color="var(--primary)"/> Comment</h4>
+                <div style={{ fontSize: '0.9rem', color: '#fff', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>{detailsCam.comment}</div>
+              </div>
+            )}
 
             {/* History */}
             {detailsCam.disableHistory && detailsCam.disableHistory.length > 0 && (
-              <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px' }}>
+              <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px', flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <h4 style={{ margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><Clock size={16} color="var(--primary)"/> Status History</h4>
-                <div style={{ maxHeight: '120px', overflowY: 'auto', paddingRight: '8px' }}>
+                <div style={{ maxHeight: '250px', overflowY: 'auto', paddingRight: '8px' }}>
                   {detailsCam.disableHistory.slice().reverse().map((h, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.85rem', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.85rem', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                       <span style={{ color: 'var(--text-muted)', minWidth: '130px' }}>{new Date(h.timestamp).toLocaleString()}</span>
                       <span style={{ color: h.action === 'enable' ? 'var(--success)' : 'var(--danger)', fontWeight: 600, width: '60px' }}>{h.action.toUpperCase()}</span>
                       <span style={{ color: '#fff' }}>{h.reason || '-'}</span>
