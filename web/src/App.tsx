@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from 'react';
-import { Camera } from 'lucide-react';
+import { useEffect, useState, useRef, useMemo } from 'react';
+import { Camera, Search, SlidersHorizontal } from 'lucide-react';
 import type { CameraInfo, ServerStats } from './types';
 import { Login } from './components/Login';
 import { Header } from './components/Header';
@@ -24,6 +24,9 @@ export default function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [camForm, setCamForm] = useState<CamFormState>({ id: '', url: '', record: false, retentionDays: 0, tags: [], comment: '', simPhone: '', simICCID: '' });
   const [globalTags, setGlobalTags] = useState<TagConfig[]>([]);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'id' | 'uptime' | 'traffic' | 'status'>('id');
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [detailsCam, setDetailsCam] = useState<CameraInfo | null>(null);
@@ -178,6 +181,33 @@ export default function App() {
     setShowModal(true);
   };
 
+  const filteredCameras = useMemo(() => {
+    let result = cameras.filter(c => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      if (c.id.toLowerCase().includes(q)) return true;
+      if (c.simPhone?.toLowerCase().includes(q)) return true;
+      if (c.simICCID?.toLowerCase().includes(q)) return true;
+      if (c.tags && c.tags.length > 0) {
+        for (const tId of c.tags) {
+          const t = globalTags.find(gt => gt.id === tId);
+          if (t && t.name.toLowerCase().includes(q)) return true;
+        }
+      }
+      return false;
+    });
+
+    result.sort((a, b) => {
+      if (sortBy === 'id') return a.id.localeCompare(b.id);
+      if (sortBy === 'uptime') return b.uptime - a.uptime;
+      if (sortBy === 'traffic') return (b.trafficUsed || 0) - (a.trafficUsed || 0);
+      if (sortBy === 'status') return (b.connected ? 1 : 0) - (a.connected ? 1 : 0);
+      return 0;
+    });
+
+    return result;
+  }, [cameras, searchQuery, sortBy, globalTags]);
+
   if (!token) {
     return <Login onLogin={setToken} />;
   }
@@ -200,10 +230,41 @@ export default function App() {
           />
         )}
 
-        <h2 className="section-title">
-          <Camera size={24} style={{ color: 'var(--primary)' }} />
-          Live Cameras
-        </h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '1.5rem' }}>
+          <h2 className="section-title" style={{ margin: 0 }}>
+            <Camera size={24} style={{ color: 'var(--primary)' }} />
+            Live Cameras
+          </h2>
+
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', width: '250px' }}>
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <input 
+                type="text" 
+                className="input-field" 
+                style={{ width: '100%', paddingLeft: '36px', height: '40px' }} 
+                placeholder="Search ID, Tag, SIM..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '4px 12px', borderRadius: '8px', border: '1px solid var(--card-border)', height: '40px' }}>
+              <SlidersHorizontal size={16} color="var(--text-muted)" />
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Sort by:</span>
+              <select 
+                value={sortBy} 
+                onChange={(e) => setSortBy(e.target.value as any)}
+                style={{ background: 'transparent', color: 'white', border: 'none', outline: 'none', fontSize: '0.9rem', cursor: 'pointer' }}
+              >
+                <option value="id" style={{ background: '#1e1e2d' }}>ID (A-Z)</option>
+                <option value="status" style={{ background: '#1e1e2d' }}>Status (Online)</option>
+                <option value="uptime" style={{ background: '#1e1e2d' }}>Uptime (Longest)</option>
+                <option value="traffic" style={{ background: '#1e1e2d' }}>Traffic (Highest)</option>
+              </select>
+            </div>
+          </div>
+        </div>
 
         {loading ? (
           <div className="loader-container">
@@ -211,7 +272,7 @@ export default function App() {
           </div>
         ) : viewMode === 'grid' ? (
           <CameraGrid 
-            cameras={cameras} 
+            cameras={filteredCameras} 
             onEdit={openEditModal} 
             onDelete={deleteCamera} 
             onOpenDetails={setDetailsCam} 
@@ -219,7 +280,7 @@ export default function App() {
           />
         ) : (
           <CameraList 
-            cameras={cameras} 
+            cameras={filteredCameras} 
             bitrates={bitrates} 
             fpsMap={fpsMap}
             onEdit={openEditModal} 
