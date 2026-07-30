@@ -8,4 +8,5 @@ type CameraStats struct {
 	Uptime        int64
 	Frames        uint64
 	KeyFrames     uint64
+	Codec         string
 }

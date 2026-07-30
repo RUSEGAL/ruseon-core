@@ -150,6 +150,17 @@ func (s *Stream) GetStats() models.CameraStats {
 	if s.connected.Load() {
 		uptime = int64(time.Since(s.connectedAt).Seconds())
 	}
+	
+	codec := "-"
+	if s.ringBuffer != nil {
+		vps, sps, _ := s.ringBuffer.GetParams()
+		if len(vps) > 0 {
+			codec = "H.265 / HEVC"
+		} else if len(sps) > 0 {
+			codec = "H.264 / AVC"
+		}
+	}
+
 	return models.CameraStats{
 		Connected:     s.connected.Load(),
 		BytesReceived: s.bytesReceived.Load(),
@@ -157,5 +168,6 @@ func (s *Stream) GetStats() models.CameraStats {
 		Uptime:        uptime,
 		Frames:        s.framesReceived.Load(),
 		KeyFrames:     s.keyFramesReceived.Load(),
+		Codec:         codec,
 	}
 }

@@ -117,6 +117,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 
 		connected := false
 		var uptime, bytesReceived, bytesSent, frames, keyFrames uint64
+		codec := "-"
 		if stats != nil {
 			s := stats.GetStats()
 			connected = s.Connected
@@ -125,6 +126,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 			bytesSent = s.BytesSent
 			frames = s.Frames
 			keyFrames = s.KeyFrames
+			codec = s.Codec
 		}
 
 		result = append(result, CameraInfo{
@@ -147,7 +149,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 			BytesSent:     bytesSent,
 			Frames:        frames,
 			KeyFrames:     keyFrames,
-			Codec:         "H.264/H.265",
+			Codec:         codec,
 		})
 	}
 
