@@ -1,4 +1,4 @@
-import { Activity } from 'lucide-react';
+import { Activity, Server, Users, Network, Camera, Clock } from 'lucide-react';
 import type { ServerStats } from '../types';
 import { formatBytes, formatUptime } from '../utils/formatters';
 
@@ -9,62 +9,78 @@ interface DashboardStatsProps {
 
 export function DashboardStats({ serverStats, onOpenAdvancedStats }: DashboardStatsProps) {
   return (
-    <>
-      <h2 className="section-title" style={{ marginTop: 0 }}>
-        <Activity size={24} style={{ color: 'var(--primary)' }} />
-        System Dashboard
-      </h2>
-      <div style={{ marginBottom: '2.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-        <div 
-          className="glass" 
-          style={{ padding: '1.2rem', borderRadius: '8px', borderLeft: '4px solid var(--primary)', cursor: 'pointer' }}
-          onClick={onOpenAdvancedStats}
-          title="Click for detailed server stats"
-        >
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
-            <span>Server Load</span>
-            <Activity size={14} style={{ color: 'var(--primary)' }} />
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 600 }}>
-            {serverStats.goroutines} <span style={{ fontSize: '1rem', fontWeight: 'normal', color: 'var(--text-muted)' }}>threads</span>
-          </div>
-          <div style={{ fontSize: '0.9rem', color: 'var(--primary)', marginTop: '4px' }}>
-            {formatBytes(serverStats.memoryUsed)} RAM Used
-          </div>
+    <div className="glass" style={{ 
+      display: 'flex', 
+      flexWrap: 'wrap', 
+      alignItems: 'center',
+      gap: '2rem', 
+      padding: '1rem 1.5rem', 
+      marginBottom: '1.5rem', 
+      borderRadius: '12px' 
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ padding: '8px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '8px', color: 'var(--primary)' }}>
+          <Activity size={20} />
         </div>
-        <div className="glass" style={{ padding: '1.2rem', borderRadius: '8px', borderLeft: '4px solid #8b5cf6' }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '8px' }}>System Uptime</div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 600 }}>{formatUptime(serverStats.uptime)}</div>
-          <div style={{ fontSize: '0.9rem', color: '#8b5cf6', marginTop: '4px' }}>Continuous Operation</div>
-        </div>
-        <div className="glass" style={{ padding: '1.2rem', borderRadius: '8px', borderLeft: '4px solid #10b981' }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '8px' }}>Network Traffic</div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 600 }}>In: {formatBytes(serverStats.totalBytes)}</div>
-          <div style={{ fontSize: '1.4rem', fontWeight: 600 }}>Out: {formatBytes(serverStats.totalBytesSent)}</div>
-          <div style={{ fontSize: '0.9rem', color: '#10b981', marginTop: '4px' }}>{serverStats.totalFrames.toLocaleString()} frames parsed</div>
-        </div>
-        <div className="glass" style={{ padding: '1.2rem', borderRadius: '8px', borderLeft: `4px solid ${serverStats.onlineCameras === serverStats.totalCameras ? '#3b82f6' : '#ef4444'}` }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '8px' }}>Cameras Status</div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 600 }}>{serverStats.onlineCameras} / {serverStats.totalCameras}</div>
-          <div style={{ fontSize: '0.9rem', color: serverStats.onlineCameras === serverStats.totalCameras ? '#3b82f6' : '#ef4444', marginTop: '4px' }}>Online & Streaming</div>
-        </div>
-        <div className="glass" style={{ padding: '1.2rem', borderRadius: '8px', borderLeft: '4px solid #f59e0b', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '8px' }}>Active Clients (HLS)</div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 600, marginBottom: '8px' }}>{serverStats.activeClients || 0}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto', maxHeight: '60px' }}>
-            {serverStats.clients && serverStats.clients.length > 0 ? (
-              serverStats.clients.map((client, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
-                  <span style={{ color: '#f8fafc' }}>{client.ip}</span>
-                  <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>{client.streamId.toUpperCase()}</span>
-                </div>
-              ))
-            ) : (
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No active viewers</div>
-            )}
-          </div>
+        <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>Dashboard</span>
+      </div>
+
+      <div style={{ height: '32px', width: '1px', background: 'var(--card-border)' }}></div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <Camera size={18} style={{ color: 'var(--text-muted)' }} />
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cameras</span>
+          <span style={{ fontSize: '1rem', fontWeight: 600 }}>
+            <span style={{ color: serverStats.onlineCameras === serverStats.totalCameras ? 'var(--success)' : 'var(--danger)' }}>{serverStats.onlineCameras}</span> / {serverStats.totalCameras}
+          </span>
         </div>
       </div>
-    </>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <Network size={18} style={{ color: 'var(--text-muted)' }} />
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Traffic</span>
+          <span style={{ fontSize: '0.95rem', fontWeight: 500, fontFamily: 'monospace' }}>
+            <span style={{ color: 'var(--success)' }}>↓{formatBytes(serverStats.totalBytes)}</span> <span style={{ color: 'var(--primary)', marginLeft: '6px' }}>↑{formatBytes(serverStats.totalBytesSent)}</span>
+          </span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <Users size={18} style={{ color: 'var(--text-muted)' }} />
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Viewers</span>
+          <span style={{ fontSize: '1rem', fontWeight: 600, color: '#f59e0b' }}>
+            {serverStats.activeClients || 0}
+          </span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <Clock size={18} style={{ color: 'var(--text-muted)' }} />
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Uptime</span>
+          <span style={{ fontSize: '0.95rem', fontWeight: 500 }}>
+            {formatUptime(serverStats.uptime)}
+          </span>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, minWidth: '20px' }}></div>
+
+      <div 
+        style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '8px 12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', transition: '0.2s', border: '1px solid rgba(255,255,255,0.05)' }} 
+        onClick={onOpenAdvancedStats}
+        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+        title="View detailed stats"
+      >
+        <Server size={16} style={{ color: 'var(--primary)' }} />
+        <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+          {formatBytes(serverStats.memoryUsed)} / {serverStats.goroutines} Thr
+        </span>
+      </div>
+    </div>
   );
 }
