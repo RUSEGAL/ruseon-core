@@ -1,32 +1,33 @@
 # Gritprof Media Server
 
-Gritprof Media Server is a high-performance, modern RTSP to HLS transmuxing server built with Go and React. It provides real-time streaming, dynamic camera management, and an advanced statistics dashboard.
+Gritprof Media Server — это высокопроизводительный, современный сервер ретрансляции (transmuxing) RTSP в HLS, написанный на Go и React. Он обеспечивает потоковое вещание в реальном времени, динамическое управление камерами и имеет продвинутую панель статистики.
 
-## Features
+## Возможности
 
-- **Blazing Fast Transmuxing**: Uses Go with `gortsplib` and `mediacommon` to pull RTSP streams and transmux them into in-memory HLS (HTTP Live Streaming) on the fly, with zero disk I/O overhead.
-- **Dynamic Camera Management**: Add, edit, or delete IP cameras directly from the web interface without restarting the server.
-- **Advanced Dashboard**: Built with React (Vite, TypeScript), featuring a stunning modern Glassmorphism UI.
-- **Live Statistics**: Real-time metrics for network traffic, memory heap allocations, goroutines, frames processed, and currently active HLS viewers.
-- **Standalone Delivery**: The Go server statically serves the compiled React frontend, meaning you get a single unified application out of the box.
+- **Молниеносная ретрансляция**: Использует Go с библиотеками `gortsplib` и `mediacommon` для получения RTSP потоков и их "на лету" упаковки в HLS (HTTP Live Streaming) прямо в оперативной памяти (без накладных расходов на дисковый I/O).
+- **Динамическое управление камерами**: Добавление, редактирование или удаление IP-камер прямо через веб-интерфейс без необходимости перезапускать сервер. Продвинутые возможности отключения потоков и фильтрации.
+- **Современный Дашборд**: Написан на React (Vite, TypeScript), отличается потрясающим современным интерфейсом в стиле Glassmorphism.
+- **Статистика в реальном времени**: Живые метрики сетевого трафика, расхода памяти (RAM), горутин, обработанных кадров (H.264 / HEVC) и активных HLS зрителей. Учет трафика для каждой камеры.
+- **Единый бинарный файл**: Go-сервер может отдавать скомпилированный фронтенд React напрямую, что означает, что вы получаете единое приложение "всё-в-одном" из коробки.
 
-## Architecture
+## Архитектура
 
-- **Backend**: Go 1.23+ with Gin web framework.
-- **Frontend**: React 19, TypeScript, Vite, Lucide Icons, and standard CSS (Flex/Grid).
-- **Video Protocol**: RTSP ingestion -> H.264 video tracking -> TS segments over HLS (`.m3u8`).
+- **Backend**: Go 1.23+ с веб-фреймворком Gin.
+- **Frontend**: React 19, TypeScript, Vite, Lucide Icons, современный CSS (Flex/Grid).
+- **Видеопротокол**: RTSP вход -> H.264/H.265 трекинг видео -> TS сегменты через HLS (`.m3u8`).
+- **Хранение данных**: Локальные записи в MP4 с ротацией и постоянное хранение настроек в `config.yaml`.
 
-## Requirements
+## Требования
 
-- [Go](https://go.dev/) 1.23 or newer
-- [Node.js](https://nodejs.org/) 18+ (for building the frontend)
-- Any RTSP camera (or simulated stream) supporting H.264 video.
+- [Go](https://go.dev/) 1.23 или новее
+- [Node.js](https://nodejs.org/) 18+ (для сборки фронтенда)
+- Любая RTSP камера (или эмулятор потока), поддерживающая H.264 или H.265 (HEVC).
 
-## Quick Start
+## Быстрый старт
 
-### 1. Build the Frontend
+### 1. Сборка фронтенда
 
-First, you need to compile the React dashboard so the Go server can serve it.
+Сначала вам нужно скомпилировать React дашборд, чтобы Go сервер мог его раздавать.
 
 ```bash
 cd web
@@ -35,26 +36,26 @@ npm run build
 cd ..
 ```
 
-### 2. Run the Backend
+### 2. Запуск бэкенда
 
 ```bash
 go mod tidy
 go run ./cmd/server
 ```
 
-### 3. Access the Dashboard
+### 3. Доступ к дашборду
 
-Open your browser and navigate to: [http://localhost:8080](http://localhost:8080)
+Откройте браузер и перейдите по адресу: [http://localhost:8080](http://localhost:8080)
 
-*Default Login credentials (can be configured in `config.yaml`):*
+*Учетные данные для входа по умолчанию (могут быть изменены в `config.yaml`):*
 - **Username**: admin
 - **Password**: admin
 
-## Configuration
+## Конфигурация
 
-When the server runs for the first time, it generates a `config.yaml` file in the root directory. You can edit this file to change the server port, authentication details, or modify the initial list of cameras.
+При первом запуске сервер генерирует файл `config.yaml` в корневой директории. Вы можете отредактировать этот файл, чтобы изменить порт сервера, данные аутентификации или изменить начальный список камер.
 
-Example `config.yaml`:
+Пример `config.yaml`:
 ```yaml
 server:
   port: 8080
@@ -66,7 +67,9 @@ cameras:
     url: rtsp://user:pass@192.168.1.100:554/stream1
     record: true
     retention_days: 7
+    disabled: false
+    traffic_limit: 214748364800
 ```
 
-## Contributing
-Feel free to open issues or submit pull requests. See `docs/ROADMAP.MD` for upcoming features and planned improvements.
+## Участие в разработке
+Не стесняйтесь открывать issue или предлагать pull request-ы. Загляните в `docs/ROADMAP.MD` чтобы узнать о запланированных функциях и будущих улучшениях.
