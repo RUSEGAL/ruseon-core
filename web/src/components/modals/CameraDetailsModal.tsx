@@ -1,4 +1,5 @@
-import { X, ShieldAlert, Activity, HardDrive, Wifi, Tag, Phone, Key, Clock, FileText } from 'lucide-react';
+import { X, ShieldAlert, Activity, HardDrive, Wifi, Tag, Phone, Key, Clock, FileText, Copy, Check } from 'lucide-react';
+import { useState } from 'react';
 import type { CameraInfo, TagConfig } from '../../types';
 import { formatBytes, formatUptime } from '../../utils/formatters';
 import { VideoPlayer } from '../VideoPlayer';
@@ -12,6 +13,7 @@ interface CameraDetailsModalProps {
 }
 
 export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, globalTags }: CameraDetailsModalProps) {
+  const [copied, setCopied] = useState(false);
   const isOnline = detailsCam.connected && !detailsCam.disabled;
   const trafficPercent = Math.min(100, ((detailsCam.trafficUsed || 0) / (detailsCam.trafficLimit || 200 * 1024 * 1024 * 1024)) * 100);
 
@@ -118,9 +120,30 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
             <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem' }}><Wifi size={16} color="var(--primary)"/> Network Info</h4>
               
-              <div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '2px' }}>Source RTSP URL</div>
-                <div style={{ fontSize: '0.9rem', wordBreak: 'break-all', fontFamily: 'monospace', background: 'rgba(0,0,0,0.2)', padding: '6px', borderRadius: '6px' }}>{detailsCam.url}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '2px' }}>Source RTSP URL</div>
+                  <div style={{ fontSize: '0.9rem', wordBreak: 'break-all', fontFamily: 'monospace', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px' }}>{detailsCam.url}</div>
+                </div>
+                
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '2px' }}>Output HLS URL</div>
+                  <div 
+                    style={{ fontSize: '0.9rem', wordBreak: 'break-all', fontFamily: 'monospace', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: '0.2s' }}
+                    onClick={() => {
+                      const hlsUrl = `${window.location.protocol}//${window.location.hostname}:8080/stream/hls/${detailsCam.id}/index.m3u8`;
+                      navigator.clipboard.writeText(hlsUrl);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                    onMouseOut={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.2)'}
+                    title="Click to copy URL"
+                  >
+                    <span>{`${window.location.protocol}//${window.location.hostname}:8080/stream/hls/${detailsCam.id}/index.m3u8`}</span>
+                    {copied ? <Check size={16} color="var(--success)" /> : <Copy size={16} style={{ color: 'var(--text-muted)' }} />}
+                  </div>
+                </div>
               </div>
               
               {(detailsCam.simPhone || detailsCam.simICCID) && (
