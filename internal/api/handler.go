@@ -247,6 +247,14 @@ func (h *Handler) EditCamera(c *gin.Context) {
 	found := false
 	for i, cam := range h.cfg.Cameras {
 		if cam.ID == id {
+			cam.URL = req.URL
+			cam.Record = req.Record
+			cam.RetentionDays = req.RetentionDays
+			cam.Tags = req.Tags
+			cam.Comment = req.Comment
+			cam.SimPhone = req.SimPhone
+			cam.SimICCID = req.SimICCID
+
 			// Отслеживание изменения статуса
 			if cam.Disabled != req.Disabled {
 				action := "enable"
@@ -258,12 +266,13 @@ func (h *Handler) EditCamera(c *gin.Context) {
 					Action:    action,
 					Reason:    req.DisableReason,
 				}
-				req.DisableHistory = append(cam.DisableHistory, record)
-			} else {
-				req.DisableHistory = cam.DisableHistory
+				cam.DisableHistory = append(cam.DisableHistory, record)
 			}
 
-			h.cfg.Cameras[i] = req
+			cam.Disabled = req.Disabled
+			cam.DisableReason = req.DisableReason
+
+			h.cfg.Cameras[i] = cam
 			found = true
 			break
 		}
