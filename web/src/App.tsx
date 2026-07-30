@@ -22,7 +22,7 @@ export default function App() {
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showTagModal, setShowTagModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [camForm, setCamForm] = useState<CamFormState>({ id: '', url: '', record: false, retentionDays: 0, tags: [], comment: '', simPhone: '', simICCID: '' });
+  const [camForm, setCamForm] = useState<CamFormState>({ id: '', url: '', record: false, retentionDays: 0, tags: [], comment: '', simPhone: '', simICCID: '', disabled: false, disableReason: 'technical' });
   const [globalTags, setGlobalTags] = useState<TagConfig[]>([]);
 
   const [searchQuery, setSearchQuery] = useState('');
