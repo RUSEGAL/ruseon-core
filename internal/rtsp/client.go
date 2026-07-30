@@ -15,7 +15,7 @@ import (
 type OnFrameCallback func(nalus [][]byte, pts time.Duration, isKeyFrame bool)
 
 // OnParamsCallback вызывается при получении параметров кодека.
-type OnParamsCallback func(sps, pps []byte)
+type OnParamsCallback func(vps, sps, pps []byte)
 
 // Client обертка над gortsplib.Client
 type Client struct {
@@ -58,32 +58,27 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 		return fmt.Errorf("failed to setup all: %w", err)
 	}
 
-	// Ищем видео трек (H264) и подписываемся на него
+	// Ищем видео трек (H264 или H265) и подписываемся на него
 	for _, media := range session.Medias {
 		for _, forma := range media.Formats {
-			if f, ok := forma.(*format.H264); ok {
-				// Создаем декодер RTP -> H264 NALUs
+			switch f := forma.(type) {
+			case *format.H264:
 				rtpDec, err := f.CreateDecoder()
 				if err != nil {
 					return fmt.Errorf("failed to create H264 decoder: %w", err)
 				}
 				
-				// Передаем параметры кодека, если они есть
 				sps, pps := f.SafeParams()
 				if sps != nil && pps != nil {
-					onParams(sps, pps)
+					onParams(nil, sps, pps)
 				}
 
 				c.client.OnPacketRTP(media, f, func(pkt *rtp.Packet) {
-					// Декодируем RTP пакет в сырые NALU
 					nalus, err := rtpDec.Decode(pkt)
 					if err == nil && len(nalus) > 0 {
 						isKeyFrame := false
-						
-						// Вычисляем PTS (RTP timestamp для H264 использует 90000 Hz)
 						pts := time.Duration(pkt.Timestamp) * time.Second / 90000
 
-						// Проверяем тип NALU. IDR (тип 5) означает ключевой кадр.
 						for _, nalu := range nalus {
 							if len(nalu) > 0 {
 								typ := nalu[0] & 0x1F
@@ -93,7 +88,36 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 								}
 							}
 						}
-						
+						onFrame(nalus, pts, isKeyFrame)
+					}
+				})
+			case *format.H265:
+				rtpDec, err := f.CreateDecoder()
+				if err != nil {
+					return fmt.Errorf("failed to create H265 decoder: %w", err)
+				}
+				
+				vps, sps, pps := f.SafeParams()
+				if vps != nil && sps != nil && pps != nil {
+					onParams(vps, sps, pps)
+				}
+
+				c.client.OnPacketRTP(media, f, func(pkt *rtp.Packet) {
+					nalus, err := rtpDec.Decode(pkt)
+					if err == nil && len(nalus) > 0 {
+						isKeyFrame := false
+						pts := time.Duration(pkt.Timestamp) * time.Second / 90000
+
+						for _, nalu := range nalus {
+							if len(nalu) > 0 {
+								typ := (nalu[0] >> 1) & 0x3F
+								// 16 to 21 are IRAP pictures (CRA, BLA, IDR)
+								if typ >= 16 && typ <= 21 {
+									isKeyFrame = true
+									break
+								}
+							}
+						}
 						onFrame(nalus, pts, isKeyFrame)
 					}
 				})

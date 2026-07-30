@@ -13,6 +13,7 @@ type RingBuffer struct {
 	head     uint64 // монотонно возрастающий индекс (текущая позиция для записи)
 	closed   bool
 
+	vps []byte
 	sps []byte
 	pps []byte
 }
@@ -38,10 +39,11 @@ func (rb *RingBuffer) Write(f *Frame) {
 	rb.cond.Broadcast()
 }
 
-// SetParams сохраняет параметры кодека (SPS/PPS).
-func (rb *RingBuffer) SetParams(sps, pps []byte) {
+// SetParams сохраняет параметры кодека (VPS, SPS, PPS).
+func (rb *RingBuffer) SetParams(vps, sps, pps []byte) {
 	rb.mu.Lock()
 	defer rb.mu.Unlock()
+	rb.vps = vps
 	rb.sps = sps
 	rb.pps = pps
 }
@@ -54,11 +56,11 @@ func (rb *RingBuffer) Close() {
 	rb.cond.Broadcast()
 }
 
-// GetParams возвращает текущие параметры кодека.
-func (rb *RingBuffer) GetParams() ([]byte, []byte) {
+// GetParams возвращает текущие параметры кодека (VPS, SPS, PPS).
+func (rb *RingBuffer) GetParams() ([]byte, []byte, []byte) {
 	rb.mu.RLock()
 	defer rb.mu.RUnlock()
-	return rb.sps, rb.pps
+	return rb.vps, rb.sps, rb.pps
 }
 
 // Reader предоставляет интерфейс для чтения из RingBuffer.

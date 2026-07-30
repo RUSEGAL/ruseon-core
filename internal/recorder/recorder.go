@@ -64,13 +64,13 @@ func (r *Recorder) run() {
 	}
 
 	// Ждем получения параметров кодека
-	sps, pps := r.ringBuffer.GetParams()
+	vps, sps, pps := r.ringBuffer.GetParams()
 	for sps == nil || pps == nil {
 		if r.ctx.Err() != nil {
 			return
 		}
 		time.Sleep(100 * time.Millisecond)
-		sps, pps = r.ringBuffer.GetParams()
+		vps, sps, pps = r.ringBuffer.GetParams()
 	}
 
 	for {
@@ -131,13 +131,20 @@ func (r *Recorder) run() {
 
 			log.Info().Str("file", currentFilename).Msg("Started recording fMP4")
 
-			sps, pps = r.ringBuffer.GetParams()
+			vps, sps, pps = r.ringBuffer.GetParams()
+
+			var codec fmp4.Codec
+			if vps != nil {
+				codec = &fmp4.CodecH265{VPS: vps, SPS: sps, PPS: pps}
+			} else {
+				codec = &fmp4.CodecH264{SPS: sps, PPS: pps}
+			}
 
 			init := &fmp4.Init{
 				Tracks: []*fmp4.InitTrack{{
 					ID:         1,
 					TimeScale:  90000,
-					Codec:      &fmp4.CodecH264{SPS: sps, PPS: pps},
+					Codec:      codec,
 				}},
 			}
 			if err := init.Marshal(file); err != nil {

@@ -97,9 +97,9 @@ func (s *Stream) run() {
 				NALUs:      nalus,
 			}
 			s.ringBuffer.Write(f)
-		}, func(sps, pps []byte) {
-			s.ringBuffer.SetParams(sps, pps)
-			log.Info().Str("id", s.ID).Msg("Received codec parameters (SPS/PPS)")
+		}, func(vps, sps, pps []byte) {
+			s.ringBuffer.SetParams(vps, sps, pps)
+			log.Info().Str("id", s.ID).Msg("Received codec parameters")
 		})
 
 		s.connected.Store(false)

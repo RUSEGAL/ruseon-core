@@ -56,7 +56,7 @@ func (m *Muxer) run() {
 	var segmentStart time.Duration
 
 	// Читаем параметры кодека из буфера
-	sps, pps := m.ringBuffer.GetParams()
+	vps, sps, pps := m.ringBuffer.GetParams()
 
 	for {
 		if m.ctx.Err() != nil {
@@ -64,7 +64,7 @@ func (m *Muxer) run() {
 		}
 
 		if sps == nil || pps == nil {
-			sps, pps = m.ringBuffer.GetParams()
+			vps, sps, pps = m.ringBuffer.GetParams()
 		}
 
 		frame := reader.Read()
@@ -98,8 +98,14 @@ func (m *Muxer) run() {
 				continue
 			}
 			currentBuf = &bytes.Buffer{}
+			var t mpegts.Codec
+			if vps != nil {
+				t = &mpegts.CodecH265{}
+			} else {
+				t = &mpegts.CodecH264{}
+			}
 			track = &mpegts.Track{
-				Codec: &mpegts.CodecH264{},
+				Codec: t,
 			}
 			// NewWriter автоматически запишет PAT/PMT таблицы
 			tsWriter = mpegts.NewWriter(currentBuf, []*mpegts.Track{track})
@@ -108,18 +114,34 @@ func (m *Muxer) run() {
 
 		nalus := frame.NALUs
 
-		// Для H264 перед ключевым кадром добавляем параметры (SPS/PPS), 
+		// Для H264/H265 перед ключевым кадром добавляем параметры (VPS/SPS/PPS), 
 		// чтобы клиенты могли инициализировать декодер, если они подключились к этому сегменту.
 		if frame.IsKeyFrame && sps != nil && pps != nil {
-			hasSPS := false
+			hasParams := false
 			for _, n := range nalus {
-				if len(n) > 0 && n[0]&0x1F == 7 {
-					hasSPS = true
-					break
+				if len(n) > 0 {
+					var typ uint8
+					if vps != nil {
+						typ = (n[0] >> 1) & 0x3F
+						if typ == 32 || typ == 33 || typ == 34 { // VPS, SPS, PPS for HEVC
+							hasParams = true
+							break
+						}
+					} else {
+						typ = n[0] & 0x1F
+						if typ == 7 || typ == 8 { // SPS, PPS for H264
+							hasParams = true
+							break
+						}
+					}
 				}
 			}
-			if !hasSPS {
-				nalus = append([][]byte{sps, pps}, nalus...)
+			if !hasParams {
+				if vps != nil {
+					nalus = append([][]byte{vps, sps, pps}, nalus...)
+				} else {
+					nalus = append([][]byte{sps, pps}, nalus...)
+				}
 			}
 		}
 
