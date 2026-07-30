@@ -247,10 +247,31 @@ export default function App() {
         )}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '1.5rem' }}>
-          <h2 className="section-title" style={{ margin: 0 }}>
-            <Camera size={24} style={{ color: 'var(--primary)' }} />
-            Live Cameras
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+            <h2 className="section-title" style={{ margin: 0 }}>
+              <Camera size={24} style={{ color: 'var(--primary)' }} />
+              Live Cameras
+            </h2>
+            
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <div className="view-toggle">
+                <button className={`view-btn ${filterStatus === 'all' ? 'active' : ''}`} onClick={() => setFilterStatus('all')}>All</button>
+                <button className={`view-btn ${filterStatus === 'online' ? 'active' : ''}`} onClick={() => setFilterStatus('online')}>Online</button>
+                <button className={`view-btn ${filterStatus === 'offline' ? 'active' : ''}`} onClick={() => setFilterStatus('offline')}>Offline</button>
+              </div>
+              
+              <div className="view-toggle">
+                <button className={`view-btn ${filterRecord === 'all' ? 'active' : ''}`} onClick={() => setFilterRecord('all')}>All</button>
+                <button className={`view-btn ${filterRecord === 'recording' ? 'active' : ''}`} onClick={() => setFilterRecord('recording')}>REC</button>
+                <button className={`view-btn ${filterRecord === 'not_recording' ? 'active' : ''}`} onClick={() => setFilterRecord('not_recording')}>No REC</button>
+              </div>
+
+              <div className="view-toggle">
+                <button className={`view-btn ${filterTraffic === 'all' ? 'active' : ''}`} onClick={() => setFilterTraffic('all')}>All Data</button>
+                <button className={`view-btn ${filterTraffic === 'high' ? 'active' : ''}`} onClick={() => setFilterTraffic('high')}>&gt;70% Used</button>
+              </div>
+            </div>
+          </div>
 
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ position: 'relative', width: '250px' }}>
@@ -282,24 +303,7 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-          <div className="view-toggle">
-            <button className={`view-btn ${filterStatus === 'all' ? 'active' : ''}`} onClick={() => setFilterStatus('all')}>All Status</button>
-            <button className={`view-btn ${filterStatus === 'online' ? 'active' : ''}`} onClick={() => setFilterStatus('online')}>Online</button>
-            <button className={`view-btn ${filterStatus === 'offline' ? 'active' : ''}`} onClick={() => setFilterStatus('offline')}>Offline</button>
-          </div>
-          
-          <div className="view-toggle">
-            <button className={`view-btn ${filterRecord === 'all' ? 'active' : ''}`} onClick={() => setFilterRecord('all')}>All Rec</button>
-            <button className={`view-btn ${filterRecord === 'recording' ? 'active' : ''}`} onClick={() => setFilterRecord('recording')}>Recording</button>
-            <button className={`view-btn ${filterRecord === 'not_recording' ? 'active' : ''}`} onClick={() => setFilterRecord('not_recording')}>No Rec</button>
-          </div>
 
-          <div className="view-toggle">
-            <button className={`view-btn ${filterTraffic === 'all' ? 'active' : ''}`} onClick={() => setFilterTraffic('all')}>All Traffic</button>
-            <button className={`view-btn ${filterTraffic === 'high' ? 'active' : ''}`} onClick={() => setFilterTraffic('high')}>&gt;70% Used</button>
-          </div>
-        </div>
 
         {loading ? (
           <div className="loader-container">
