@@ -191,20 +191,40 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
             )}
 
             {/* History */}
-            {detailsCam.disableHistory && detailsCam.disableHistory.length > 0 && (
-              <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h4 style={{ margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><Clock size={16} color="var(--primary)"/> Status History</h4>
-                <div style={{ maxHeight: '250px', overflowY: 'auto', paddingRight: '8px' }}>
-                  {detailsCam.disableHistory.slice().reverse().map((h, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.85rem', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <span style={{ color: 'var(--text-muted)', minWidth: '130px' }}>{new Date(h.timestamp).toLocaleString()}</span>
-                      <span style={{ color: h.action === 'enable' ? 'var(--success)' : 'var(--danger)', fontWeight: 600, width: '60px' }}>{h.action.toUpperCase()}</span>
-                      <span style={{ color: '#fff' }}>{h.reason || '-'}</span>
+            {(detailsCam.disableHistory && detailsCam.disableHistory.length > 0) || (detailsCam.recordHistory && detailsCam.recordHistory.length > 0) ? (
+              <div style={{ display: 'flex', gap: '1rem', flex: 1, flexWrap: 'wrap' }}>
+                {detailsCam.disableHistory && detailsCam.disableHistory.length > 0 && (
+                  <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px', flex: '1 1 200px', display: 'flex', flexDirection: 'column' }}>
+                    <h4 style={{ margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><Clock size={16} color="var(--primary)"/> Stream History</h4>
+                    <div style={{ maxHeight: '250px', overflowY: 'auto', paddingRight: '8px' }}>
+                      {detailsCam.disableHistory.slice().reverse().map((h, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.85rem', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <span style={{ color: 'var(--text-muted)', minWidth: '130px' }}>{new Date(h.timestamp).toLocaleString()}</span>
+                          <span style={{ color: h.action === 'enable' ? 'var(--success)' : 'var(--danger)', fontWeight: 600, width: '60px' }}>{h.action.toUpperCase()}</span>
+                          <span style={{ color: '#fff' }}>{h.reason || '-'}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
+
+                {detailsCam.recordHistory && detailsCam.recordHistory.length > 0 && (
+                  <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px', flex: '1 1 200px', display: 'flex', flexDirection: 'column' }}>
+                    <h4 style={{ margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><HardDrive size={16} color="var(--primary)"/> Record History</h4>
+                    <div style={{ maxHeight: '250px', overflowY: 'auto', paddingRight: '8px' }}>
+                      {detailsCam.recordHistory.slice().reverse().map((h, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.85rem', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <span style={{ color: 'var(--text-muted)', minWidth: '130px' }}>{new Date(h.timestamp).toLocaleString()}</span>
+                          <span style={{ color: h.action === 'enable' ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
+                            {h.action === 'enable' ? 'START REC' : 'STOP REC'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            ) : null}
 
           </div>
         </div>

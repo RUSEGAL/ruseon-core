@@ -23,6 +23,11 @@ export interface CameraInfo {
     action: string;
     reason: string;
   }[];
+  recordHistory: {
+    timestamp: string;
+    action: string;
+    reason: string;
+  }[];
 }
 
 export interface TagConfig {

@@ -57,6 +57,7 @@ type CameraConfig struct {
 	Disabled       bool            `yaml:"disabled" json:"disabled"`
 	DisableReason  string          `yaml:"disable_reason,omitempty" json:"disableReason"`
 	DisableHistory []DisableRecord `yaml:"disable_history,omitempty" json:"disableHistory"`
+	RecordHistory  []DisableRecord `yaml:"record_history,omitempty" json:"recordHistory"`
 }
 
 // Load считывает конфигурацию из файла.

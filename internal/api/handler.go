@@ -103,6 +103,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 		Disabled      bool                   `json:"disabled"`
 		DisableReason string                 `json:"disableReason"`
 		DisableHistory []config.DisableRecord `json:"disableHistory"`
+		RecordHistory  []config.DisableRecord `json:"recordHistory"`
 	}
 
 	var result []CameraInfo
@@ -144,6 +145,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 			Disabled:      cam.Disabled,
 			DisableReason: cam.DisableReason,
 			DisableHistory: cam.DisableHistory,
+			RecordHistory: cam.RecordHistory,
 			Uptime:        uptime,
 			BytesReceived: bytesReceived,
 			BytesSent:     bytesSent,
@@ -257,7 +259,20 @@ func (h *Handler) EditCamera(c *gin.Context) {
 			cam.SimPhone = req.SimPhone
 			cam.SimICCID = req.SimICCID
 
-			// Отслеживание изменения статуса
+			// Отслеживание изменения статуса записи
+			if cam.Record != req.Record {
+				action := "enable"
+				if !req.Record {
+					action = "disable"
+				}
+				recordEvent := config.DisableRecord{
+					Timestamp: time.Now().Format(time.RFC3339),
+					Action:    action,
+				}
+				cam.RecordHistory = append(cam.RecordHistory, recordEvent)
+			}
+
+			// Отслеживание изменения статуса отключения камеры
 			if cam.Disabled != req.Disabled {
 				action := "enable"
 				if req.Disabled {
@@ -273,6 +288,7 @@ func (h *Handler) EditCamera(c *gin.Context) {
 
 			cam.Disabled = req.Disabled
 			cam.DisableReason = req.DisableReason
+			cam.Record = req.Record
 
 			h.cfg.Cameras[i] = cam
 			found = true
