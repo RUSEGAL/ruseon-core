@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Срабатывает при создании тега, например v1.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Build Frontend
+        working-directory: ./web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build Backend (Windows)
+        run: GOOS=windows GOARCH=amd64 go build -o GritprofMediaServer.exe ./cmd/server
+
+      - name: Build Backend (Linux)
+        run: GOOS=linux GOARCH=amd64 go build -o GritprofMediaServer-linux ./cmd/server
+
+      - name: Package Release (Windows)
+        run: |
+          mkdir -p release-windows/web
+          cp -r GritprofMediaServer.exe release-windows/
+          cp -r web/dist release-windows/web/
+          cp config.yaml release-windows/ || true
+          cd release-windows && zip -r ../GritprofMediaServer-Windows.zip ./*
+
+      - name: Package Release (Linux)
+        run: |
+          mkdir -p release-linux/web
+          cp -r GritprofMediaServer-linux release-linux/
+          cp -r web/dist release-linux/web/
+          cp config.yaml release-linux/ || true
+          cd release-linux && zip -r ../GritprofMediaServer-Linux.zip ./*
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            GritprofMediaServer-Windows.zip
+            GritprofMediaServer-Linux.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
