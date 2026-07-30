@@ -34,10 +34,23 @@ jobs:
           go-version: '1.21'
 
       - name: Build Backend (Windows)
-        run: GOOS=windows GOARCH=amd64 go build -o GritprofMediaServer.exe ./cmd/server
+        run: GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o GritprofMediaServer.exe ./cmd/server
 
       - name: Build Backend (Linux)
-        run: GOOS=linux GOARCH=amd64 go build -o GritprofMediaServer-linux ./cmd/server
+        run: GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o GritprofMediaServer-linux ./cmd/server
+
+      - name: Create Default Config
+        run: |
+          cat << 'EOF' > config.yaml
+          server:
+            port: 8080
+          hls:
+            segment_duration: 2
+            list_size: 5
+            directory: "./recordings"
+          cameras: []
+          tags: []
+          EOF
 
       - name: Package Release (Windows)
         run: |
