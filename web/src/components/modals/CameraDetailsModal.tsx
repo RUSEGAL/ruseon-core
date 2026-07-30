@@ -1,4 +1,4 @@
-import { X, Info, ShieldAlert, Activity, HardDrive, Wifi, Tag, Phone, Key, Clock, Settings, FileText } from 'lucide-react';
+import { X, ShieldAlert, Activity, HardDrive, Wifi, Tag, Phone, Key, Clock, FileText } from 'lucide-react';
 import type { CameraInfo, TagConfig } from '../../types';
 import { formatBytes, formatUptime } from '../../utils/formatters';
 import { VideoPlayer } from '../VideoPlayer';
