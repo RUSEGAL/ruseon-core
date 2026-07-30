@@ -1,5 +1,5 @@
 import { X, Info, ShieldAlert } from 'lucide-react';
-import type { CameraInfo } from '../../types';
+import type { CameraInfo, TagConfig } from '../../types';
 import { formatBytes, formatUptime } from '../../utils/formatters';
 import { VideoPlayer } from '../VideoPlayer';
 
@@ -8,9 +8,10 @@ interface CameraDetailsModalProps {
   bitrates: Record<string, number>;
   fpsMap: Record<string, number>;
   onClose: () => void;
+  globalTags: TagConfig[];
 }
 
-export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose }: CameraDetailsModalProps) {
+export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, globalTags }: CameraDetailsModalProps) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content glass details-modal" onClick={e => e.stopPropagation()}>
@@ -65,6 +66,48 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose }: Ca
             <div className="details-stat-label">Recording to fMP4</div>
             <div className="details-stat-val">{detailsCam.record ? 'Enabled' : 'Disabled'}</div>
           </div>
+          {detailsCam.tags && detailsCam.tags.length > 0 && (
+            <div className="details-stat">
+              <div className="details-stat-label">Tags</div>
+              <div className="details-stat-val">
+                {detailsCam.tags.map(tId => {
+                  const tag = globalTags.find(gt => gt.id === tId);
+                  if (!tag) return null;
+                  return (
+                    <span key={tag.id} style={{ 
+                      background: `${tag.color}33`, 
+                      border: `1px solid ${tag.color}`,
+                      color: '#fff',
+                      padding: '2px 6px', 
+                      borderRadius: '12px', 
+                      fontSize: '0.8rem', 
+                      marginRight: '4px' 
+                    }}>
+                      {tag.name}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {detailsCam.simPhone && (
+            <div className="details-stat">
+              <div className="details-stat-label">SIM Phone</div>
+              <div className="details-stat-val">{detailsCam.simPhone}</div>
+            </div>
+          )}
+          {detailsCam.simICCID && (
+            <div className="details-stat">
+              <div className="details-stat-label">SIM ICCID</div>
+              <div className="details-stat-val">{detailsCam.simICCID}</div>
+            </div>
+          )}
+          {detailsCam.comment && (
+            <div className="details-stat" style={{ gridColumn: '1 / -1' }}>
+              <div className="details-stat-label">Comment</div>
+              <div className="details-stat-val" style={{ whiteSpace: 'pre-wrap' }}>{detailsCam.comment}</div>
+            </div>
+          )}
         </div>
 
         {detailsCam.connected ? (

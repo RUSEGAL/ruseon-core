@@ -1,5 +1,5 @@
 import { Trash2, Edit2, ShieldAlert } from 'lucide-react';
-import type { CameraInfo } from '../types';
+import type { CameraInfo, TagConfig } from '../types';
 import { VideoPlayer } from './VideoPlayer';
 
 interface CameraGridProps {
@@ -7,9 +7,10 @@ interface CameraGridProps {
   onEdit: (cam: CameraInfo) => void;
   onDelete: (id: string) => void;
   onOpenDetails: (cam: CameraInfo) => void;
+  globalTags: TagConfig[];
 }
 
-export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails }: CameraGridProps) {
+export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails, globalTags }: CameraGridProps) {
   return (
     <div className="camera-grid">
       {cameras.map(cam => (
@@ -44,6 +45,27 @@ export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails }: CameraG
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'var(--danger)', fontWeight: 'bold' }}>
                 <div className="status-indicator" style={{ backgroundColor: 'var(--danger)', width: '8px', height: '8px' }}></div>
                 REC
+              </div>
+            )}
+
+            {cam.tags && cam.tags.length > 0 && (
+              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '8px', marginBottom: '8px' }}>
+                {cam.tags.map(tId => {
+                  const tag = globalTags.find(gt => gt.id === tId);
+                  if (!tag) return null;
+                  return (
+                    <span key={tag.id} style={{ 
+                      background: `${tag.color}33`, 
+                      border: `1px solid ${tag.color}`,
+                      color: '#fff',
+                      padding: '2px 6px', 
+                      borderRadius: '12px', 
+                      fontSize: '0.7rem' 
+                    }}>
+                      {tag.name}
+                    </span>
+                  );
+                })}
               </div>
             )}
             

@@ -83,36 +83,43 @@ func (h *Handler) GetCameras(c *gin.Context) {
 	streams := h.manager.GetStreams()
 	
 	type CameraInfo struct {
-		ID            string `json:"id"`
-		URL           string `json:"url"`
-		Connected     bool   `json:"connected"`
-		Record        bool   `json:"record"`
-		RetentionDays int    `json:"retentionDays"`
-		Uptime        uint64 `json:"uptime"`
-		BytesReceived uint64 `json:"bytesReceived"`
-		BytesSent     uint64 `json:"bytesSent"`
-		Frames        uint64 `json:"frames"`
-		KeyFrames     uint64 `json:"keyFrames"`
-		Codec         string `json:"codec"`
+		ID            string   `json:"id"`
+		URL           string   `json:"url"`
+		Connected     bool     `json:"connected"`
+		Record        bool     `json:"record"`
+		RetentionDays int      `json:"retentionDays"`
+		Tags          []string `json:"tags"`
+		Comment       string   `json:"comment"`
+		SimPhone      string   `json:"simPhone"`
+		SimICCID      string   `json:"simICCID"`
+		Uptime        uint64   `json:"uptime"`
+		BytesReceived uint64   `json:"bytesReceived"`
+		BytesSent     uint64   `json:"bytesSent"`
+		Frames        uint64   `json:"frames"`
+		KeyFrames     uint64   `json:"keyFrames"`
+		Codec         string   `json:"codec"`
 	}
 
 	// Собираем данные из конфига
-	configRecordMap := make(map[string]bool)
-	configRetentionMap := make(map[string]int)
+	configMap := make(map[string]config.CameraConfig)
 	for _, cam := range h.cfg.Cameras {
-		configRecordMap[cam.ID] = cam.Record
-		configRetentionMap[cam.ID] = cam.RetentionDays
+		configMap[cam.ID] = cam
 	}
 
 	var result []CameraInfo
 	for _, st := range streams {
 		stats := st.GetStats()
+		cfg := configMap[st.ID]
 		result = append(result, CameraInfo{
 			ID:            st.ID,
 			URL:           st.URL,
 			Connected:     stats.Connected,
-			Record:        configRecordMap[st.ID],
-			RetentionDays: configRetentionMap[st.ID],
+			Record:        cfg.Record,
+			RetentionDays: cfg.RetentionDays,
+			Tags:          cfg.Tags,
+			Comment:       cfg.Comment,
+			SimPhone:      cfg.SimPhone,
+			SimICCID:      cfg.SimICCID,
 			Uptime:        uint64(stats.Uptime),
 			BytesReceived: stats.BytesReceived,
 			BytesSent:     stats.BytesSent,
@@ -324,5 +331,86 @@ func (h *Handler) GetServerStats(c *gin.Context) {
 		"activeClients":  len(activeClients),
 		"clients":        activeClients,
 	})
+}
+
+// GetTags возвращает глобальный список тегов
+func (h *Handler) GetTags(c *gin.Context) {
+	if h.cfg.GlobalTags == nil {
+		c.JSON(http.StatusOK, []config.TagConfig{})
+		return
+	}
+	c.JSON(http.StatusOK, h.cfg.GlobalTags)
+}
+
+// AddTag добавляет новый тег
+func (h *Handler) AddTag(c *gin.Context) {
+	var tag config.TagConfig
+	if err := c.ShouldBindJSON(&tag); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+	h.cfg.GlobalTags = append(h.cfg.GlobalTags, tag)
+	if err := h.cfg.Save("config.yaml"); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save config"})
+		return
+	}
+	c.JSON(http.StatusOK, tag)
+}
+
+// EditTag изменяет тег
+func (h *Handler) EditTag(c *gin.Context) {
+	id := c.Param("id")
+	var req config.TagConfig
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+	
+	found := false
+	for i, t := range h.cfg.GlobalTags {
+		if t.ID == id {
+			h.cfg.GlobalTags[i] = req
+			found = true
+			break
+		}
+	}
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Tag not found"})
+		return
+	}
+	if err := h.cfg.Save("config.yaml"); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save config"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// DeleteTag удаляет тег по ID
+func (h *Handler) DeleteTag(c *gin.Context) {
+	id := c.Param("id")
+	var newTags []config.TagConfig
+	for _, t := range h.cfg.GlobalTags {
+		if t.ID != id {
+			newTags = append(newTags, t)
+		}
+	}
+	h.cfg.GlobalTags = newTags
+	
+	// Очищаем удаленный тег у всех камер
+	for i := range h.cfg.Cameras {
+		var newCamTags []string
+		for _, tID := range h.cfg.Cameras[i].Tags {
+			if tID != id {
+				newCamTags = append(newCamTags, tID)
+			}
+		}
+		h.cfg.Cameras[i].Tags = newCamTags
+	}
+	
+	if err := h.cfg.Save("config.yaml"); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save config"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 

@@ -4,12 +4,22 @@ export interface CameraInfo {
   connected: boolean;
   record?: boolean;
   retentionDays?: number;
+  tags?: string[];
+  comment?: string;
+  simPhone?: string;
+  simICCID?: string;
   uptime: number;
   bytesReceived: number;
   bytesSent: number;
   frames: number;
   keyFrames: number;
   codec: string;
+}
+
+export interface TagConfig {
+  id: string;
+  name: string;
+  color: string;
 }
 
 export interface ServerStats {

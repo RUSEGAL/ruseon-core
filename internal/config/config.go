@@ -19,15 +19,27 @@ type Config struct {
 		Password string `yaml:"password"`
 	} `yaml:"auth"`
 
-	Cameras []CameraConfig `yaml:"cameras"`
+	GlobalTags []TagConfig    `yaml:"global_tags"`
+	Cameras    []CameraConfig `yaml:"cameras"`
+}
+
+// TagConfig описывает пользовательскую метку (тег)
+type TagConfig struct {
+	ID    string `yaml:"id" json:"id"`
+	Name  string `yaml:"name" json:"name"`
+	Color string `yaml:"color" json:"color"`
 }
 
 // CameraConfig описывает настройки подключения для отдельной камеры.
 type CameraConfig struct {
-	ID            string `yaml:"id" json:"id"`
-	URL           string `yaml:"url" json:"url"`
-	Record        bool   `yaml:"record" json:"record"`
-	RetentionDays int    `yaml:"retention_days" json:"retentionDays"` // 0 означает использование глобального значения
+	ID            string   `yaml:"id" json:"id"`
+	URL           string   `yaml:"url" json:"url"`
+	Record        bool     `yaml:"record" json:"record"`
+	RetentionDays int      `yaml:"retention_days" json:"retentionDays"` // 0 означает использование глобального значения
+	Tags          []string `yaml:"tags,omitempty" json:"tags"`
+	Comment       string   `yaml:"comment,omitempty" json:"comment"`
+	SimPhone      string   `yaml:"sim_phone,omitempty" json:"simPhone"`
+	SimICCID      string   `yaml:"sim_iccid,omitempty" json:"simICCID"`
 }
 
 // Load считывает конфигурацию из файла.

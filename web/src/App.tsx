@@ -10,6 +10,8 @@ import { CameraFormModal } from './components/modals/CameraFormModal';
 import type { CamFormState } from './components/modals/CameraFormModal';
 import { CameraDetailsModal } from './components/modals/CameraDetailsModal';
 import { ServerStatsModal } from './components/modals/ServerStatsModal';
+import { TagManagerModal } from './components/modals/TagManagerModal';
+import type { TagConfig } from './types';
 
 export default function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
@@ -18,8 +20,10 @@ export default function App() {
   
   const [showModal, setShowModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
+  const [showTagModal, setShowTagModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [camForm, setCamForm] = useState<CamFormState>({ id: '', url: '', record: false, retentionDays: 0 });
+  const [camForm, setCamForm] = useState<CamFormState>({ id: '', url: '', record: false, retentionDays: 0, tags: [], comment: '', simPhone: '', simICCID: '' });
+  const [globalTags, setGlobalTags] = useState<TagConfig[]>([]);
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [detailsCam, setDetailsCam] = useState<CameraInfo | null>(null);
@@ -38,9 +42,10 @@ export default function App() {
     
     const fetchData = async () => {
       try {
-        const [camsRes, statsRes] = await Promise.all([
+        const [camsRes, statsRes, tagsRes] = await Promise.all([
           fetch('/api/cameras', { headers: { 'Authorization': `Bearer ${token}` } }),
-          fetch('/api/stats', { headers: { 'Authorization': `Bearer ${token}` } })
+          fetch('/api/stats', { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch('/api/tags', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
         
         if (camsRes.status === 401 || statsRes.status === 401) {
@@ -55,6 +60,9 @@ export default function App() {
         }
         if (statsRes.ok) {
           setServerStats(await statsRes.json());
+        }
+        if (tagsRes.ok) {
+          setGlobalTags(await tagsRes.json());
         }
       } catch (e) {
         console.error(e);
@@ -151,13 +159,22 @@ export default function App() {
 
   const openAddModal = () => {
     setIsEditing(false);
-    setCamForm({ id: '', url: '', record: false, retentionDays: 0 });
+    setCamForm({ id: '', url: '', record: false, retentionDays: 0, tags: [], comment: '', simPhone: '', simICCID: '' });
     setShowModal(true);
   };
 
   const openEditModal = (cam: CameraInfo) => {
     setIsEditing(true);
-    setCamForm({ id: cam.id, url: cam.url, record: cam.record || false, retentionDays: cam.retentionDays || 0 });
+    setCamForm({ 
+      id: cam.id, 
+      url: cam.url, 
+      record: cam.record || false, 
+      retentionDays: cam.retentionDays || 0,
+      tags: cam.tags || [],
+      comment: cam.comment || '',
+      simPhone: cam.simPhone || '',
+      simICCID: cam.simICCID || ''
+    });
     setShowModal(true);
   };
 
@@ -171,6 +188,7 @@ export default function App() {
         viewMode={viewMode} 
         setViewMode={setViewMode} 
         onOpenAdd={openAddModal} 
+        onOpenTags={() => setShowTagModal(true)}
         onLogout={handleLogout} 
       />
 
@@ -197,6 +215,7 @@ export default function App() {
             onEdit={openEditModal} 
             onDelete={deleteCamera} 
             onOpenDetails={setDetailsCam} 
+            globalTags={globalTags}
           />
         ) : (
           <CameraList 
@@ -206,6 +225,7 @@ export default function App() {
             onEdit={openEditModal} 
             onDelete={deleteCamera} 
             onOpenDetails={setDetailsCam} 
+            globalTags={globalTags}
           />
         )}
 
@@ -216,6 +236,20 @@ export default function App() {
             setCamForm={setCamForm}
             onSave={saveCamera}
             onClose={() => setShowModal(false)}
+            globalTags={globalTags}
+          />
+        )}
+
+        {showTagModal && (
+          <TagManagerModal 
+            tags={globalTags}
+            token={token}
+            onClose={() => setShowTagModal(false)}
+            onTagsChange={() => {
+              fetch('/api/tags', { headers: { 'Authorization': `Bearer ${token}` } })
+                .then(r => r.json())
+                .then(setGlobalTags);
+            }}
           />
         )}
 
@@ -225,6 +259,7 @@ export default function App() {
             bitrates={bitrates} 
             fpsMap={fpsMap} 
             onClose={() => setDetailsCam(null)} 
+            globalTags={globalTags}
           />
         )}
 

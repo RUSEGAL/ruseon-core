@@ -1,5 +1,5 @@
 import { Trash2, Edit2 } from 'lucide-react';
-import type { CameraInfo } from '../types';
+import type { CameraInfo, TagConfig } from '../types';
 import { formatBytes, formatUptime } from '../utils/formatters';
 
 interface CameraListProps {
@@ -9,9 +9,10 @@ interface CameraListProps {
   onEdit: (cam: CameraInfo) => void;
   onDelete: (id: string) => void;
   onOpenDetails: (cam: CameraInfo) => void;
+  globalTags: TagConfig[];
 }
 
-export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpenDetails }: CameraListProps) {
+export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpenDetails, globalTags }: CameraListProps) {
   return (
     <div className="camera-list">
       {cameras.map(cam => (
@@ -19,8 +20,29 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
           <div className="camera-list-info" style={{ flex: 1 }}>
             <div className={`status-indicator ${cam.connected ? 'online' : 'offline'}`}></div>
             <div style={{ fontWeight: 600, fontSize: '1.1rem', textTransform: 'uppercase', minWidth: '80px' }}>{cam.id}</div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cam.url}</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cam.url}</div>
             
+            {cam.tags && cam.tags.length > 0 && (
+              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', maxWidth: '200px' }}>
+                {cam.tags.map(tId => {
+                  const tag = globalTags.find(gt => gt.id === tId);
+                  if (!tag) return null;
+                  return (
+                    <span key={tag.id} style={{ 
+                      background: `${tag.color}33`, 
+                      border: `1px solid ${tag.color}`,
+                      color: '#fff',
+                      padding: '2px 6px', 
+                      borderRadius: '12px', 
+                      fontSize: '0.7rem' 
+                    }}>
+                      {tag.name}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
             {cam.record && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'var(--danger)', fontWeight: 'bold' }}>
                 <div className="status-indicator" style={{ backgroundColor: 'var(--danger)', width: '8px', height: '8px' }}></div>
