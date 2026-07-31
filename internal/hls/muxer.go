@@ -109,7 +109,9 @@ func (m *Muxer) run() {
 			if !frame.IsKeyFrame {
 				continue
 			}
-			currentBuf = &bytes.Buffer{}
+			// Предварительно выделяем буфер на 1 МБ (Этап 23.3: Memory Pooling & Zero-Copy)
+			// Это предотвращает множественные реаллокации при склейке TS-сегмента.
+			currentBuf = bytes.NewBuffer(make([]byte, 0, 1024*1024))
 			var t mpegts.Codec
 			if vps != nil {
 				t = &mpegts.CodecH265{}

@@ -232,7 +232,7 @@ func GenerateHLSSegment(recordDir, cameraID, filename string, seq int) ([]byte, 
 	}
 
 	// 3. Создаем MPEG-TS Writer в памяти
-	var outBuf bytes.Buffer
+	outBuf := bytes.NewBuffer(make([]byte, 0, 1024*1024)) // Этап 23.3: Preallocate to avoid GC pressure
 	var tsTrack *mpegts.Track
 	var tsWriter *mpegts.Writer
 
@@ -246,7 +246,7 @@ func GenerateHLSSegment(recordDir, cameraID, filename string, seq int) ([]byte, 
 		return nil, fmt.Errorf("unsupported codec")
 	}
 
-	tsWriter = mpegts.NewWriter(&outBuf, []*mpegts.Track{tsTrack})
+	tsWriter = mpegts.NewWriter(outBuf, []*mpegts.Track{tsTrack})
 
 	// 4. Перепаковываем NALU в TS
 	pts := int64(part.Tracks[0].BaseTime)
