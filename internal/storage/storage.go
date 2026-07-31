@@ -142,6 +142,27 @@ func (s *Storage) DeleteTag(id string) error {
 	})
 }
 
+// GetTag возвращает тег по ID.
+func (s *Storage) GetTag(id string) (*config.TagConfig, error) {
+	key := []byte(PrefixTag + id)
+	var tag config.TagConfig
+
+	err := s.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err != nil {
+			return err
+		}
+		return item.Value(func(val []byte) error {
+			return json.Unmarshal(val, &tag)
+		})
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return &tag, nil
+}
+
 // ListTags возвращает список всех тегов.
 func (s *Storage) ListTags() ([]config.TagConfig, error) {
 	var tags []config.TagConfig
