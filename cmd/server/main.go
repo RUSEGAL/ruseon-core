@@ -24,7 +24,10 @@ func main() {
 	logger.Init(cfg.Server.Debug)
 	log.Info().Msg("Starting GritprofMediaServer...")
 
-	// 3. Инициализация StreamManager
+	// 3. Восстановление архивов (Защита от сбоев питания)
+	recorder.RecoverCrashedFiles("recordings")
+
+	// 4. Инициализация StreamManager
 	manager := stream.NewManager()
 	
 	// Запускаем фоновую очистку записей
@@ -43,11 +46,11 @@ func main() {
 		}
 	}
 
-	// 4. Инициализация HTTP сервера (Gin)
+	// 5. Инициализация HTTP сервера (Gin)
 	handler := api.NewHandler(manager, cfg)
 	router := api.SetupRouter(handler, cfg.Server.Debug)
 
-	// 5. Запуск сервера
+	// 6. Запуск сервера
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	log.Info().Str("addr", addr).Msg("Starting API server")
 	
