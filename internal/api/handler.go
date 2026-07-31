@@ -144,7 +144,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 		RecordHistory  []config.DisableRecord `json:"recordHistory"`
 	}
 
-	var result []CameraInfo
+	result := make([]CameraInfo, 0)
 	cams, err := h.store.ListCameras()
 	if err != nil {
 		cams = []config.CameraConfig{}

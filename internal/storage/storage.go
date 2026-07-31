@@ -132,7 +132,7 @@ func (s *Storage) DeleteCamera(id string) error {
 
 // ListCameras возвращает список всех камер.
 func (s *Storage) ListCameras() ([]config.CameraConfig, error) {
-	var cameras []config.CameraConfig
+	cameras := make([]config.CameraConfig, 0)
 
 	err := s.db.View(func(txn *badger.Txn) error {
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
@@ -203,7 +203,7 @@ func (s *Storage) GetTag(id string) (*config.TagConfig, error) {
 
 // ListTags возвращает список всех тегов.
 func (s *Storage) ListTags() ([]config.TagConfig, error) {
-	var tags []config.TagConfig
+	tags := make([]config.TagConfig, 0)
 
 	err := s.db.View(func(txn *badger.Txn) error {
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
