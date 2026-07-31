@@ -26,7 +26,15 @@ type Storage struct {
 func NewStorage(dir string) (*Storage, error) {
 	opts := badger.DefaultOptions(dir)
 	opts.Logger = nil // Отключаем дефолтные логи Badger (они слишком шумные)
-
+	
+	// Оптимизация потребления ресурсов (Этап 23.2)
+	opts.MemTableSize = 16 << 20          // Уменьшаем MemTable с 64MB до 16MB
+	opts.ValueLogFileSize = 64 << 20      // Уменьшаем файлы логов с 1GB до 64MB
+	opts.NumMemtables = 1                 // Держим максимум 1 memtable в памяти (вместо 5)
+	opts.NumLevelZeroTables = 1           // Меньше таблиц нулевого уровня в памяти
+	opts.NumLevelZeroTablesStall = 2      // Сброс на диск происходит быстрее
+	opts.SyncWrites = false               // Асинхронная запись (для скорости, у нас есть бэкапы)
+	
 	db, err := badger.Open(opts)
 	if err != nil {
 		return nil, err
