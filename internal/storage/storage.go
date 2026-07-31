@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
@@ -256,4 +257,66 @@ func (s *Storage) MigrateFromConfig(cfg *config.Config) error {
 	}
 
 	return nil
+}
+
+// BackupData представляет структуру JSON-файла для ручного бэкапа.
+type BackupData struct {
+	Cameras []config.CameraConfig `json:"cameras"`
+	Tags    []config.TagConfig    `json:"tags"`
+}
+
+// ExportJSON собирает все конфигурации камер и тегов в JSON-дамп.
+func (s *Storage) ExportJSON() ([]byte, error) {
+	cams, err := s.ListCameras()
+	if err != nil {
+		return nil, err
+	}
+	tags, err := s.ListTags()
+	if err != nil {
+		return nil, err
+	}
+	data := BackupData{
+		Cameras: cams,
+		Tags:    tags,
+	}
+	// Используем отступы для человекочитаемости
+	return json.MarshalIndent(data, "", "  ")
+}
+
+// ImportJSON парсит JSON-дамп и атомарно записывает все камеры и теги.
+func (s *Storage) ImportJSON(data []byte) error {
+	var backup BackupData
+	if err := json.Unmarshal(data, &backup); err != nil {
+		return err
+	}
+
+	return s.db.Update(func(txn *badger.Txn) error {
+		for _, cam := range backup.Cameras {
+			c := cam
+			val, err := json.Marshal(&c)
+			if err != nil {
+				return err
+			}
+			if err := txn.Set([]byte(PrefixCamera+c.ID), val); err != nil {
+				return err
+			}
+		}
+		for _, tag := range backup.Tags {
+			t := tag
+			val, err := json.Marshal(&t)
+			if err != nil {
+				return err
+			}
+			if err := txn.Set([]byte(PrefixTag+t.ID), val); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// BackupBadger делает нативный дамп БД и пишет его в переданный io.Writer.
+func (s *Storage) BackupBadger(w io.Writer) error {
+	_, err := s.db.Backup(w, 0)
+	return err
 }

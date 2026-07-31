@@ -109,6 +109,10 @@ func SetupRouter(h *Handler, debug bool) *gin.Engine {
 	api.GET("/stats", h.GetServerStats)
 	api.GET("/logs/stream", h.StreamLogs)
 	
+	// Backup
+	api.GET("/system/backup/export", h.ExportBackupJSON)
+	api.POST("/system/backup/import", h.ImportBackupJSON)
+	
 	api.GET("/tags", h.GetTags)
 	api.POST("/tags", h.AddTag)
 	api.PUT("/tags/:id", h.EditTag)

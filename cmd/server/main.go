@@ -6,11 +6,14 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"gritprofmediaserver/internal/api"
+	"gritprofmediaserver/internal/backup"
 	"gritprofmediaserver/internal/config"
 	"gritprofmediaserver/internal/logger"
 	"gritprofmediaserver/internal/recorder"
 	"gritprofmediaserver/internal/storage"
 	"gritprofmediaserver/internal/stream"
+	"context"
+	"time"
 )
 
 func main() {
@@ -59,6 +62,10 @@ func main() {
 	
 	// Запускаем трекинг трафика
 	stream.StartBillingTask(cfg, manager, store)
+
+	// Запускаем фоновый бэкап базы данных (раз в 24 часа, храним 7 дней)
+	backupWorker := backup.NewWorker(store, "data/backups", 24*time.Hour, 7)
+	go backupWorker.Run(context.Background())
 
 	// Добавляем камеры из БД
 	cams, err := store.ListCameras()

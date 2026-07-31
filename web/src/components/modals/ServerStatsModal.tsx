@@ -55,6 +55,56 @@ export function ServerStatsModal({ serverStats, onClose }: ServerStatsModalProps
             <div className="details-stat-val">{(serverStats.numGC || 0).toLocaleString()}</div>
           </div>
         </div>
+        <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <h4 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>Database Backups</h4>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <a 
+              href="/api/system/backup/export" 
+              className="btn btn-primary" 
+              style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              Download JSON Backup
+            </a>
+            
+            <label className="btn btn-secondary" style={{ cursor: 'pointer', margin: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+              Upload JSON Backup
+              <input 
+                type="file" 
+                accept=".json"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  
+                  const formData = new FormData();
+                  formData.append('backup', file);
+                  
+                  try {
+                    const res = await fetch('/api/system/backup/import', {
+                      method: 'POST',
+                      body: formData,
+                    });
+                    
+                    if (res.ok) {
+                      alert('Backup imported successfully! Please reload the page and consider restarting the server if cameras do not connect immediately.');
+                      window.location.reload();
+                    } else {
+                      const err = await res.json();
+                      alert('Failed to import backup: ' + (err.error || 'Unknown error'));
+                    }
+                  } catch (err) {
+                    alert('Error uploading backup');
+                    console.error(err);
+                  }
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          </div>
+          <p style={{ marginTop: '12px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            System automatically creates binary snapshots in the <code>data/backups/</code> directory every 24 hours.
+          </p>
+        </div>
       </div>
     </div>
   );
