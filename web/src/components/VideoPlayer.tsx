@@ -192,53 +192,52 @@ export function VideoPlayer({ streamId, autoPlay = true }: VideoPlayerProps) {
 
   return (
     <div 
-      className="video-container relative group overflow-hidden bg-black/90 w-full h-full flex items-center justify-center"
+      className="video-container"
       ref={containerRef}
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
-      style={{ position: 'relative' }}
     >
       <video
         ref={videoRef}
-        className={`w-full h-full object-contain transition-opacity duration-300 ${status === 'reconnecting' || status === 'loading' ? 'opacity-50 blur-sm' : 'opacity-100'} ${status === 'error' ? 'hidden' : 'block'}`}
+        className={`video-player ${status === 'reconnecting' || status === 'loading' ? 'blurred' : ''} ${status === 'error' ? 'hidden' : ''}`}
         muted
         playsInline
       />
       
       {/* State Overlays */}
       {status === 'loading' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-white/80 z-10 pointer-events-none">
-          <Loader2 className="animate-spin mb-2" size={36} />
-          <span className="text-sm font-medium tracking-wide">Connecting...</span>
+        <div className="player-overlay">
+          <Loader2 className="spinner mb-2" size={36} />
+          <span className="text-sm font-semibold tracking-wide text-white-80">Connecting...</span>
         </div>
       )}
       
       {status === 'reconnecting' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-white/90 z-10 bg-black/40 pointer-events-none">
-          <Loader2 className="animate-spin mb-3 text-[var(--primary)]" size={42} />
-          <span className="text-base font-semibold tracking-wide">Reconnecting ({retryCount}/{maxRetries})</span>
-          <span className="text-xs text-white/60 mt-1">Please wait, restoring signal...</span>
+        <div className="player-overlay bg-dark">
+          <Loader2 className="spinner mb-3 text-primary" size={42} />
+          <span className="text-base font-semibold tracking-wide text-white-90">Reconnecting ({retryCount}/{maxRetries})</span>
+          <span className="text-sm text-white-60 mt-1">Please wait, restoring signal...</span>
         </div>
       )}
 
       {status === 'error' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-[#ef4444] z-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9IiMxMTEiLz48cmVjdCB3aWR0aD0iMSIgaGVpZ2h0PSIxIiBmaWxsPSIjMzMzIi8+PC9zdmc+')] pointer-events-none">
-          <div className="bg-black/60 p-6 rounded-xl flex flex-col items-center backdrop-blur-sm border border-white/10 shadow-2xl">
-            <WifiOff size={48} className="mb-3 opacity-80" />
-            <h3 className="text-lg font-bold text-white mb-1 uppercase tracking-wider">Signal Lost</h3>
-            <p className="text-sm text-white/60 max-w-[200px] text-center">{errorMsg}</p>
+        <div className="player-overlay bg-error">
+          <div className="error-box">
+            <WifiOff size={48} className="error-icon text-danger" />
+            <h3>Signal Lost</h3>
+            <p>{errorMsg}</p>
           </div>
         </div>
       )}
 
       {/* Custom Controls UI (Hover) */}
-      <div className={`absolute inset-0 pointer-events-none transition-opacity duration-300 z-20 ${showControls || status !== 'playing' ? 'opacity-100' : 'opacity-0'}`}>
+      <div className={`player-controls ${showControls || status !== 'playing' ? 'visible' : 'hidden'}`}>
         
         {/* Top-left LIVE badge */}
         {status === 'playing' && (
-          <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
-            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-            <span className="text-xs font-bold text-white tracking-widest uppercase">Live</span>
+          <div className="badge-live">
+            <div className="dot"></div>
+            <span>Live</span>
           </div>
         )}
 
@@ -246,7 +245,7 @@ export function VideoPlayer({ streamId, autoPlay = true }: VideoPlayerProps) {
         {(status === 'playing' || status === 'reconnecting' || status === 'loading') && (
           <button 
             onClick={toggleFullscreen}
-            className="pointer-events-auto absolute bottom-4 right-4 bg-black/50 hover:bg-black/80 backdrop-blur-md p-2.5 rounded-xl border border-white/10 text-white transition-all transform hover:scale-105 active:scale-95"
+            className="btn-fullscreen"
             title="Toggle Fullscreen"
           >
             {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
