@@ -257,9 +257,9 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
             {(detailsCam.disableHistory && detailsCam.disableHistory.length > 0) || (detailsCam.recordHistory && detailsCam.recordHistory.length > 0) ? (
               <div style={{ display: 'flex', gap: '1rem', flex: 1, flexWrap: 'wrap' }}>
                 {detailsCam.disableHistory && detailsCam.disableHistory.length > 0 && (
-                  <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px', flex: '1 1 200px', display: 'flex', flexDirection: 'column' }}>
+                  <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px', flex: '1 1 200px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                     <h4 style={{ margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><Clock size={16} color="var(--primary)"/> Stream History</h4>
-                    <div style={{ flex: 1, maxHeight: '250px', overflowY: 'auto', paddingRight: '8px' }}>
+                    <div style={{ flex: 1, overflowY: 'auto', paddingRight: '8px', minHeight: 0 }}>
                       {detailsCam.disableHistory.slice().reverse().map((h, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.85rem', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                           <span style={{ color: 'var(--text-muted)', minWidth: '130px' }}>{new Date(h.timestamp).toLocaleString()}</span>
@@ -272,9 +272,9 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                 )}
 
                 {detailsCam.recordHistory && detailsCam.recordHistory.length > 0 && (
-                  <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px', flex: '1 1 200px', display: 'flex', flexDirection: 'column' }}>
+                  <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px', flex: '1 1 200px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                     <h4 style={{ margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><HardDrive size={16} color="var(--primary)"/> Record History</h4>
-                    <div style={{ flex: 1, maxHeight: '250px', overflowY: 'auto', paddingRight: '8px' }}>
+                    <div style={{ flex: 1, overflowY: 'auto', paddingRight: '8px', minHeight: 0 }}>
                       {detailsCam.recordHistory.slice().reverse().map((h, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.85rem', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                           <span style={{ color: 'var(--text-muted)', minWidth: '130px' }}>{new Date(h.timestamp).toLocaleString()}</span>
