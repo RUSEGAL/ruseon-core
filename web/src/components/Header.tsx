@@ -1,14 +1,15 @@
-import { MonitorPlay, LayoutGrid, List, Plus, LogOut, Tag } from 'lucide-react';
+import { MonitorPlay, LayoutGrid, List, Plus, LogOut, Tag, Terminal } from 'lucide-react';
 
 interface HeaderProps {
   viewMode: 'grid' | 'list';
   setViewMode: (mode: 'grid' | 'list') => void;
   onOpenAdd: () => void;
   onOpenTags: () => void;
+  onOpenLogs: () => void;
   onLogout: () => void;
 }
 
-export function Header({ viewMode, setViewMode, onOpenAdd, onOpenTags, onLogout }: HeaderProps) {
+export function Header({ viewMode, setViewMode, onOpenAdd, onOpenTags, onOpenLogs, onLogout }: HeaderProps) {
   return (
     <header className="dashboard-header glass">
       <div className="brand">
@@ -33,6 +34,9 @@ export function Header({ viewMode, setViewMode, onOpenAdd, onOpenTags, onLogout 
         </div>
         <button onClick={onOpenTags} className="btn btn-secondary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <Tag size={16} /> Tags
+        </button>
+        <button onClick={onOpenLogs} className="btn btn-secondary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <Terminal size={16} /> Logs
         </button>
         <button onClick={onOpenAdd} className="btn btn-primary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <Plus size={16} /> Add Camera

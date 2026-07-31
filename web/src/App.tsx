@@ -11,6 +11,7 @@ import type { CamFormState } from './components/modals/CameraFormModal';
 import { CameraDetailsModal } from './components/modals/CameraDetailsModal';
 import { ServerStatsModal } from './components/modals/ServerStatsModal';
 import { TagManagerModal } from './components/modals/TagManagerModal';
+import { LogsModal } from './components/modals/LogsModal';
 import type { TagConfig } from './types';
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
   const [showModal, setShowModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showTagModal, setShowTagModal] = useState(false);
+  const [showLogsModal, setShowLogsModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [camForm, setCamForm] = useState<CamFormState>({ id: '', url: '', record: false, retentionDays: 0, tags: [], comment: '', simPhone: '', simICCID: '', disabled: false, disableReason: 'technical' });
   const [globalTags, setGlobalTags] = useState<TagConfig[]>([]);
@@ -237,6 +239,7 @@ export default function App() {
         setViewMode={setViewMode} 
         onOpenAdd={openAddModal} 
         onOpenTags={() => setShowTagModal(true)}
+        onOpenLogs={() => setShowLogsModal(true)}
         onLogout={handleLogout} 
       />
 
@@ -370,6 +373,10 @@ export default function App() {
             serverStats={serverStats} 
             onClose={() => setShowStatsModal(false)} 
           />
+        )}
+
+        {showLogsModal && (
+          <LogsModal onClose={() => setShowLogsModal(false)} />
         )}
       </main>
     </>

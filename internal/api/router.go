@@ -46,6 +46,7 @@ func SetupRouter(h *Handler, debug bool) *gin.Engine {
 	api.PUT("/cameras/:id", h.EditCamera)
 	api.DELETE("/cameras/:id", h.DeleteCamera)
 	api.GET("/stats", h.GetServerStats)
+	api.GET("/logs/stream", h.StreamLogs)
 	
 	api.GET("/tags", h.GetTags)
 	api.POST("/tags", h.AddTag)

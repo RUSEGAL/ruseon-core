@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"gritprofmediaserver/internal/config"
+	"gritprofmediaserver/internal/logger"
 	"gritprofmediaserver/internal/stream"
 )
 
@@ -76,6 +77,30 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",
 	})
+}
+
+// StreamLogs streams server logs to clients via SSE.
+func (h *Handler) StreamLogs(c *gin.Context) {
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+
+	ch := logger.GlobalBroadcaster.Subscribe()
+	defer logger.GlobalBroadcaster.Unsubscribe(ch)
+
+	c.Writer.Flush()
+
+	for {
+		select {
+		case <-c.Request.Context().Done():
+			return
+		case msg := <-ch:
+			c.Writer.Write([]byte("data: "))
+			c.Writer.Write(msg)
+			c.Writer.Write([]byte("\n\n"))
+			c.Writer.Flush()
+		}
+	}
 }
 
 // GetCameras возвращает список доступных камер и их статус.

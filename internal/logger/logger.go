@@ -18,6 +18,9 @@ func Init(debug bool) {
 
 	zerolog.SetGlobalLevel(level)
 
-	// Используем консольный вывод для удобства разработки
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
+	// Используем консольный вывод для удобства разработки и бродкастер для SSE
+	consoleWriter := zerolog.ConsoleWriter{Out: os.Stdout}
+	multi := zerolog.MultiLevelWriter(consoleWriter, GlobalBroadcaster)
+	
+	log.Logger = zerolog.New(multi).With().Timestamp().Logger()
 }
