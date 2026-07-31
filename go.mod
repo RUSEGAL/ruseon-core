@@ -1,6 +1,6 @@
 module gritprofmediaserver
 
-go 1.24.0
+go 1.26
 
 require (
 	github.com/bluenviron/gortsplib/v4 v4.12.2
