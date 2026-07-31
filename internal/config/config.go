@@ -22,8 +22,8 @@ type Config struct {
 		Secret   string `yaml:"secret,omitempty"` // Секретный ключ для JWT
 	} `yaml:"auth"`
 
-	GlobalTags []TagConfig    `yaml:"global_tags"`
-	Cameras    []CameraConfig `yaml:"cameras"`
+	GlobalTags []TagConfig    `yaml:"global_tags,omitempty"`
+	Cameras    []CameraConfig `yaml:"cameras,omitempty"`
 }
 
 // TagConfig описывает пользовательскую метку (тег)
