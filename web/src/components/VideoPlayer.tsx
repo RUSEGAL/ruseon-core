@@ -2,14 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { Loader2, Maximize, Minimize, WifiOff } from 'lucide-react';
 
+import type { HlsTelemetry } from '../types';
+
 interface VideoPlayerProps {
   streamId: string;
   autoPlay?: boolean;
+  onTelemetryUpdate?: (stats: HlsTelemetry | null) => void;
 }
 
 type PlayerStatus = 'loading' | 'playing' | 'reconnecting' | 'error';
 
-export function VideoPlayer({ streamId, autoPlay = true }: VideoPlayerProps) {
+export function VideoPlayer({ streamId, autoPlay = true, onTelemetryUpdate }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -54,6 +57,29 @@ export function VideoPlayer({ streamId, autoPlay = true }: VideoPlayerProps) {
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         if (autoPlay) {
           video.play().catch(e => console.warn('AutoPlay failed:', e));
+        }
+      });
+
+      hls.on(Hls.Events.FRAG_CHANGED, () => {
+        if (onTelemetryUpdate) {
+          const v = videoRef.current;
+          let dropped = 0;
+          if (v && (v as any).webkitDroppedFrameCount !== undefined) {
+             dropped = (v as any).webkitDroppedFrameCount;
+          }
+          
+          let bufLen = 0;
+          if (v && v.buffered.length > 0) {
+             bufLen = v.buffered.end(v.buffered.length - 1) - v.currentTime;
+          }
+          if (bufLen < 0) bufLen = 0;
+
+          onTelemetryUpdate({
+            bandwidth: hls.bandwidthEstimate || 0,
+            bufferLength: bufLen,
+            latency: hls.latency || 0,
+            droppedFrames: dropped
+          });
         }
       });
 
@@ -132,6 +158,7 @@ export function VideoPlayer({ streamId, autoPlay = true }: VideoPlayerProps) {
     setStatus('loading');
     setRetryCount(0);
     setErrorMsg(null);
+    if (onTelemetryUpdate) onTelemetryUpdate(null);
     initPlayer();
 
     return () => {
@@ -141,6 +168,7 @@ export function VideoPlayer({ streamId, autoPlay = true }: VideoPlayerProps) {
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
       }
+      if (onTelemetryUpdate) onTelemetryUpdate(null);
     };
   }, [streamId, autoPlay]);
 

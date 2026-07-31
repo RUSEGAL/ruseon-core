@@ -15,6 +15,7 @@ export interface CameraInfo {
   bytesSent: number;
   frames: number;
   keyFrames: number;
+  reconnects: number;
   codec: string;
   disabled: boolean;
   disableReason: string;
@@ -28,6 +29,13 @@ export interface CameraInfo {
     action: string;
     reason: string;
   }[];
+}
+
+export interface HlsTelemetry {
+  bandwidth: number;
+  bufferLength: number;
+  droppedFrames: number;
+  latency: number;
 }
 
 export interface TagConfig {

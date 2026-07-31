@@ -1,8 +1,9 @@
 import { X, ShieldAlert, Activity, HardDrive, Wifi, Tag, Phone, Key, Clock, FileText, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
-import type { CameraInfo, TagConfig } from '../../types';
+import type { CameraInfo, TagConfig, HlsTelemetry } from '../../types';
 import { formatBytes, formatUptime } from '../../utils/formatters';
 import { VideoPlayer } from '../VideoPlayer';
+import { ChevronDown, ChevronRight, Zap } from 'lucide-react';
 
 interface CameraDetailsModalProps {
   detailsCam: CameraInfo;
@@ -14,6 +15,9 @@ interface CameraDetailsModalProps {
 
 export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, globalTags }: CameraDetailsModalProps) {
   const [copied, setCopied] = useState(false);
+  const [telemetry, setTelemetry] = useState<HlsTelemetry | null>(null);
+  const [showTelemetry, setShowTelemetry] = useState(false);
+  
   const isOnline = detailsCam.connected && !detailsCam.disabled;
   const trafficPercent = Math.min(100, ((detailsCam.trafficUsed || 0) / (detailsCam.trafficLimit || 200 * 1024 * 1024 * 1024)) * 100);
 
@@ -50,7 +54,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
           <div style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--card-border)', background: '#000', aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {isOnline ? (
-                <VideoPlayer streamId={detailsCam.id} />
+                <VideoPlayer streamId={detailsCam.id} onTelemetryUpdate={setTelemetry} />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--text-muted)' }}>
                   <ShieldAlert size={48} style={{ color: 'var(--danger)', marginBottom: '1rem', opacity: 0.8 }} />
@@ -108,6 +112,65 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                   <div style={{ fontSize: '0.85rem', color: '#fff' }}>{detailsCam.frames}</div>
                 </div>
               </div>
+            </div>
+
+            {/* Technical Telemetry */}
+            <div className="glass" style={{ padding: '0', borderRadius: '12px', overflow: 'hidden' }}>
+              <div 
+                style={{ padding: '1.2rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                onClick={() => setShowTelemetry(!showTelemetry)}
+              >
+                <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
+                  <Zap size={16} color="var(--primary)"/> Technical Telemetry
+                </h4>
+                {showTelemetry ? <ChevronDown size={20} color="var(--text-muted)" /> : <ChevronRight size={20} color="var(--text-muted)" />}
+              </div>
+              
+              {showTelemetry && (
+                <div style={{ padding: '0 1.2rem 1.2rem 1.2rem', borderTop: '1px solid var(--card-border)', paddingTop: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <h5 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' }}>RTSP Backend</h5>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>Reconnects</span>
+                          <span style={{ color: detailsCam.reconnects > 0 ? 'var(--danger)' : '#fff' }}>{detailsCam.reconnects || 0}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>I-Frames</span>
+                          <span style={{ color: '#fff' }}>{detailsCam.keyFrames || 0}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>Frames Total</span>
+                          <span style={{ color: '#fff' }}>{detailsCam.frames || 0}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h5 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' }}>HLS Frontend</h5>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>Buffer</span>
+                          <span style={{ color: '#fff' }}>{telemetry ? `${telemetry.bufferLength.toFixed(2)} s` : '-'}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>Latency</span>
+                          <span style={{ color: '#fff' }}>{telemetry ? `${telemetry.latency.toFixed(2)} s` : '-'}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>Bandwidth</span>
+                          <span style={{ color: '#fff' }}>{telemetry ? `${(telemetry.bandwidth / 1024).toFixed(1)} kbps` : '-'}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>Dropped Frames</span>
+                          <span style={{ color: telemetry && telemetry.droppedFrames > 0 ? 'var(--danger)' : '#fff' }}>{telemetry ? telemetry.droppedFrames : '-'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

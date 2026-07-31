@@ -34,6 +34,7 @@ type Stream struct {
 	bytesSent         atomic.Uint64
 	framesReceived    atomic.Uint64
 	keyFramesReceived atomic.Uint64
+	reconnects        atomic.Uint64
 }
 
 // NewStream создает и запускает поток.
@@ -103,6 +104,7 @@ func (s *Stream) run() {
 		})
 
 		s.connected.Store(false)
+		s.reconnects.Add(1)
 
 		if s.ctx.Err() != nil {
 			log.Info().Str("id", s.ID).Msg("Stream stopped by context")
@@ -168,6 +170,7 @@ func (s *Stream) GetStats() models.CameraStats {
 		Uptime:        uptime,
 		Frames:        s.framesReceived.Load(),
 		KeyFrames:     s.keyFramesReceived.Load(),
+		Reconnects:    s.reconnects.Load(),
 		Codec:         codec,
 	}
 }
