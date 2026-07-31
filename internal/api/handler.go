@@ -600,20 +600,29 @@ func (h *Handler) ExportCameraArchive(c *gin.Context) {
 	startSeqStr := c.Query("startSeq")
 	endSeqStr := c.Query("endSeq")
 
-	if filename == "" || startSeqStr == "" || endSeqStr == "" {
-		c.String(http.StatusBadRequest, "file, startSeq and endSeq parameters are required")
+	if filename == "" {
+		c.String(http.StatusBadRequest, "file parameter is required")
 		return
 	}
 
-	startSeq, err1 := strconv.Atoi(startSeqStr)
-	endSeq, err2 := strconv.Atoi(endSeqStr)
-	if err1 != nil || err2 != nil {
-		c.String(http.StatusBadRequest, "invalid seq parameters")
-		return
+	startSeq := -1
+	endSeq := -1
+
+	if startSeqStr != "" {
+		s, err := strconv.Atoi(startSeqStr)
+		if err == nil {
+			startSeq = s
+		}
+	}
+	if endSeqStr != "" {
+		e, err := strconv.Atoi(endSeqStr)
+		if err == nil {
+			endSeq = e
+		}
 	}
 
 	c.Header("Content-Type", "video/mp4")
-	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="export_%s_%d-%d.mp4"`, filename, startSeq, endSeq))
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="export_%s.mp4"`, filename))
 	
 	err := archive.ExportMP4("recordings", id, filename, startSeq, endSeq, c.Writer)
 	if err != nil {

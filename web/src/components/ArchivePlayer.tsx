@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { VideoPlayer } from './VideoPlayer';
-import { Calendar } from 'lucide-react';
+import { Calendar, Download } from 'lucide-react';
 
 interface ArchiveInterval {
   start: string;
@@ -87,8 +87,20 @@ export function ArchivePlayer({ streamId }: { streamId: string }) {
                   ))}
                 </select>
               </div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                {activeIntervals.length} recordings this day
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  {activeIntervals.length} recordings this day
+                </div>
+                {selectedFile && (
+                  <button 
+                    onClick={() => {
+                      window.open(`/api/cameras/${streamId}/export?file=${selectedFile}`, '_blank');
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '6px', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}
+                  >
+                    <Download size={16} /> Export File
+                  </button>
+                )}
               </div>
             </div>
 

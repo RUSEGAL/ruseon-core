@@ -15,6 +15,13 @@ func ExportMP4(recordDir, cameraID, filename string, startSeq, endSeq int, w io.
 		return err
 	}
 
+	if startSeq == -1 {
+		startSeq = 0
+	}
+	if endSeq == -1 {
+		endSeq = len(idx.Parts) - 1
+	}
+
 	if startSeq < 0 || endSeq >= len(idx.Parts) || startSeq > endSeq {
 		return fmt.Errorf("invalid sequence range")
 	}
