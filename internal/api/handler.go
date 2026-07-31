@@ -15,6 +15,8 @@ import (
 	"gritprofmediaserver/internal/logger"
 	"gritprofmediaserver/internal/storage"
 	"gritprofmediaserver/internal/stream"
+	"strconv"
+	"strings"
 )
 
 type ClientInfo struct {
@@ -536,5 +538,57 @@ func (h *Handler) GetCameraArchive(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, intervals)
+}
+
+// GetArchiveHLSPlaylist отдает M3U8 манифест для конкретного файла архива
+func (h *Handler) GetArchiveHLSPlaylist(c *gin.Context) {
+	id := c.Param("id")
+	filename := c.Query("file")
+	
+	if filename == "" {
+		c.String(http.StatusBadRequest, "file parameter is required")
+		return
+	}
+
+	playlist, err := archive.GenerateHLSPlaylist("recordings", id, filename)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "failed to generate playlist: %v", err)
+		return
+	}
+
+	c.Header("Content-Type", "application/vnd.apple.mpegurl")
+	c.Header("Cache-Control", "no-cache")
+	c.String(http.StatusOK, playlist)
+}
+
+// GetArchiveHLSSegment отдает TS сегмент архива "на лету"
+func (h *Handler) GetArchiveHLSSegment(c *gin.Context) {
+	id := c.Param("id")
+	filename := c.Query("file")
+	seqStr := c.Query("seq")
+
+	if filename == "" || seqStr == "" {
+		c.String(http.StatusBadRequest, "file and seq parameters are required")
+		return
+	}
+
+	seq, err := strconv.Atoi(seqStr)
+	if err != nil {
+		c.String(http.StatusBadRequest, "invalid seq")
+		return
+	}
+
+	segment, err := archive.GenerateHLSSegment("recordings", id, filename, seq)
+	if err != nil {
+		c.String(http.StatusInternalServerError, "failed to generate segment: %v", err)
+		return
+	}
+
+	c.Header("Content-Type", "video/MP2T")
+	// Кешируем сегмент надолго, так как архив неизменен (кроме ongoing)
+	if !strings.HasSuffix(filename, "_ongoing.mp4") {
+		c.Header("Cache-Control", "public, max-age=86400")
+	}
+	c.Data(http.StatusOK, "video/MP2T", segment)
 }
 

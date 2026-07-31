@@ -106,9 +106,13 @@ func SetupRouter(h *Handler, debug bool) *gin.Engine {
 	api.PUT("/tags/:id", h.EditTag)
 	api.DELETE("/tags/:id", h.DeleteTag)
 
-	// HLS стриминг
+	// HLS стриминг (Live)
 	r.GET("/stream/hls/:id/index.m3u8", h.GetHLSPlaylist)
 	r.GET("/stream/hls/:id/:segment", h.GetHLSSegment)
+
+	// HLS стриминг (Archive)
+	r.GET("/hls/:id/archive.m3u8", h.GetArchiveHLSPlaylist)
+	r.GET("/hls/:id/segment.ts", h.GetArchiveHLSSegment)
 
 	// Статика фронтенда
 	r.Static("/assets", "./web/dist/assets")
