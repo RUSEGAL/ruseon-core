@@ -31,7 +31,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.23'
 
       - name: Build Backend (Windows)
         run: GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o GritprofMediaServer.exe ./cmd/server
@@ -44,15 +44,14 @@ jobs:
           cat << 'EOF' > config.yaml
           server:
             port: 8080
+            debug: false
+            record_retention_days: 14
+            gc_percent: 50
+            gc_memory_limit_mb: 2048
           auth:
-            username: gritprof
-            password: "gritprof"
-          hls:
-            segment_duration: 2
-            list_size: 5
-            directory: "./recordings"
-          cameras: []
-          tags: []
+            username: admin
+            password: admin
+            secret: ""
           EOF
 
       - name: Package Release (Windows)
