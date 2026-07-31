@@ -14,9 +14,10 @@ import (
 
 // Segment представляет один HLS ts-сегмент.
 type Segment struct {
-	Name     string
-	Duration time.Duration
-	Data     []byte
+	Name            string
+	Duration        time.Duration
+	Data            []byte
+	IsDiscontinuity bool
 }
 
 // Muxer читает кадры из RingBuffer и упаковывает их в HLS (MPEG-TS сегменты).
@@ -30,6 +31,9 @@ type Muxer struct {
 	mu       sync.RWMutex
 	segments []*Segment
 	seqCount uint64
+
+	lastFrameTime      time.Time
+	needsDiscontinuity bool
 }
 
 // NewMuxer создает новый Muxer для потока.
@@ -42,8 +46,10 @@ func NewMuxer(streamID string, rb *buffer.RingBuffer) *Muxer {
 		cancel:         cancel,
 		targetDuration: 2 * time.Second, // Целевая длина сегмента: 2 секунды (хорошо для low-latency)
 		segments:       make([]*Segment, 0, 10),
+		lastFrameTime:  time.Now(),
 	}
 	go m.run()
+	go m.watchdog()
 	return m
 }
 
@@ -72,15 +78,21 @@ func (m *Muxer) run() {
 			break
 		}
 
+		m.mu.Lock()
+		m.lastFrameTime = time.Now()
+		m.mu.Unlock()
+
 		// Если текущий сегмент достиг целевой длины и пришел новый I-кадр, закрываем сегмент
 		if currentBuf != nil && frame.IsKeyFrame && frame.Timestamp-segmentStart >= m.targetDuration {
 			m.mu.Lock()
 			m.seqCount++
 			seg := &Segment{
-				Name:     fmt.Sprintf("stream_%d.ts", m.seqCount),
-				Duration: frame.Timestamp - segmentStart,
-				Data:     currentBuf.Bytes(),
+				Name:            fmt.Sprintf("stream_%d.ts", m.seqCount),
+				Duration:        frame.Timestamp - segmentStart,
+				Data:            currentBuf.Bytes(),
+				IsDiscontinuity: m.needsDiscontinuity,
 			}
+			m.needsDiscontinuity = false
 			m.segments = append(m.segments, seg)
 			// Оставляем в памяти только последние 5 сегментов (окно Live в 10 секунд)
 			if len(m.segments) > 5 {
@@ -163,6 +175,46 @@ func (m *Muxer) Stop() {
 	m.cancel()
 }
 
+// watchdog следит за поступлением новых кадров. Если кадров нет больше 5 секунд (обрыв связи),
+// он берет последний готовый сегмент и добавляет его дубликат в плейлист с флагом Discontinuity.
+// Это заставляет сторонние плееры (VLC, OBS) "заморозить" последний кадр и не вылетать по таймауту.
+func (m *Muxer) watchdog() {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-ticker.C:
+			m.mu.Lock()
+			// Если кадра не было 5 секунд
+			if !m.lastFrameTime.IsZero() && time.Since(m.lastFrameTime) > 5*time.Second {
+				if len(m.segments) > 0 {
+					lastSeg := m.segments[len(m.segments)-1]
+					m.seqCount++
+					seg := &Segment{
+						Name:            fmt.Sprintf("stream_%d.ts", m.seqCount),
+						Duration:        lastSeg.Duration,
+						Data:            lastSeg.Data,
+						IsDiscontinuity: true, // Сигнал для плеера, что PTS может прыгнуть
+					}
+					m.segments = append(m.segments, seg)
+					if len(m.segments) > 5 {
+						m.segments = m.segments[1:]
+					}
+					// Сбрасываем таймер, чтобы следующий дубликат добавился еще через 5 секунд
+					m.lastFrameTime = time.Now()
+					// Следующий РЕАЛЬНЫЙ сегмент (когда связь восстановится) тоже должен начаться с разрыва,
+					// так как его PTS будет отличаться от PTS дубликата.
+					m.needsDiscontinuity = true
+				}
+			}
+			m.mu.Unlock()
+		}
+	}
+}
+
 // GetPlaylist генерирует M3U8 манифест.
 func (m *Muxer) GetPlaylist() string {
 	m.mu.RLock()
@@ -187,6 +239,9 @@ func (m *Muxer) GetPlaylist() string {
 	}
 
 	for _, seg := range m.segments {
+		if seg.IsDiscontinuity {
+			buf.WriteString("#EXT-X-DISCONTINUITY\n")
+		}
 		buf.WriteString(fmt.Sprintf("#EXTINF:%.3f,\n", seg.Duration.Seconds()))
 		buf.WriteString(seg.Name + "\n")
 	}
