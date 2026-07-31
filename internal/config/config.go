@@ -14,6 +14,8 @@ type Config struct {
 		Port                int  `yaml:"port"`
 		Debug               bool `yaml:"debug"`
 		RecordRetentionDays int  `yaml:"record_retention_days"` // Количество дней для хранения записей (0 - бесконечно)
+		GCPercent           int  `yaml:"gc_percent"`            // Тюнинг GOGC (по умолчанию 50)
+		GCMemoryLimitMB     int  `yaml:"gc_memory_limit_mb"`    // Тюнинг GOMEMLIMIT (в мегабайтах)
 	} `yaml:"server"`
 
 	Auth struct {
@@ -84,6 +86,11 @@ func Load(path string) (*Config, error) {
 			cfg.Auth.Secret = hex.EncodeToString(bytes)
 			cfg.Save(path)
 		}
+	}
+
+	// Устанавливаем дефолты для GC (если не заданы)
+	if cfg.Server.GCPercent == 0 {
+		cfg.Server.GCPercent = 50
 	}
 
 	return &cfg, nil

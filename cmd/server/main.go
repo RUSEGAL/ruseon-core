@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"runtime/debug"
+	"time"
 
 	"github.com/rs/zerolog/log"
 
@@ -12,8 +15,6 @@ import (
 	"gritprofmediaserver/internal/recorder"
 	"gritprofmediaserver/internal/storage"
 	"gritprofmediaserver/internal/stream"
-	"context"
-	"time"
 )
 
 func main() {
@@ -27,6 +28,17 @@ func main() {
 	// 2. Инициализация логгера
 	logger.Init(cfg.Server.Debug)
 	log.Info().Msg("Starting GritprofMediaServer...")
+
+	// 2.1 Тюнинг Garbage Collector (Этап 23.1)
+	if cfg.Server.GCPercent > 0 {
+		debug.SetGCPercent(cfg.Server.GCPercent)
+		log.Info().Int("gc_percent", cfg.Server.GCPercent).Msg("Applied GC tuning")
+	}
+	if cfg.Server.GCMemoryLimitMB > 0 {
+		limitBytes := int64(cfg.Server.GCMemoryLimitMB) * 1024 * 1024
+		debug.SetMemoryLimit(limitBytes)
+		log.Info().Int("limit_mb", cfg.Server.GCMemoryLimitMB).Msg("Applied GC memory limit")
+	}
 
 	// 3. Восстановление архивов (Защита от сбоев питания)
 	recorder.RecoverCrashedFiles("recordings")
