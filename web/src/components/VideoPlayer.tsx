@@ -6,13 +6,14 @@ import type { HlsTelemetry } from '../types';
 
 interface VideoPlayerProps {
   streamId: string;
+  sourceUrl?: string; // Optional custom URL (e.g. for archive)
   autoPlay?: boolean;
   onTelemetryUpdate?: (stats: HlsTelemetry | null) => void;
 }
 
 type PlayerStatus = 'loading' | 'playing' | 'reconnecting' | 'error';
 
-export function VideoPlayer({ streamId, autoPlay = true, onTelemetryUpdate }: VideoPlayerProps) {
+export function VideoPlayer({ streamId, sourceUrl, autoPlay = true, onTelemetryUpdate }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -35,7 +36,7 @@ export function VideoPlayer({ streamId, autoPlay = true, onTelemetryUpdate }: Vi
       hlsRef.current = null;
     }
 
-    const hlsUrl = `/stream/hls/${streamId}/index.m3u8`;
+    const hlsUrl = sourceUrl || `/stream/hls/${streamId}/index.m3u8`;
 
     if (Hls.isSupported()) {
       const hls = new Hls({

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { CameraInfo, TagConfig, HlsTelemetry } from '../../types';
 import { formatBytes, formatUptime } from '../../utils/formatters';
 import { VideoPlayer } from '../VideoPlayer';
+import { ArchivePlayer } from '../ArchivePlayer';
 import { ChevronDown, ChevronRight, Zap } from 'lucide-react';
 
 interface CameraDetailsModalProps {
@@ -17,6 +18,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
   const [copied, setCopied] = useState(false);
   const [telemetry, setTelemetry] = useState<HlsTelemetry | null>(null);
   const [showTelemetry, setShowTelemetry] = useState(false);
+  const [activeTab, setActiveTab] = useState<'live' | 'archive'>('live');
   
   const isOnline = detailsCam.connected && !detailsCam.disabled;
   const trafficPercent = Math.min(100, ((detailsCam.trafficUsed || 0) / (detailsCam.trafficLimit || 200 * 1024 * 1024 * 1024)) * 100);
@@ -52,16 +54,39 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
           
           {/* LEFT COLUMN: Player & Traffic */}
           <div style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--card-border)', background: '#000', aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {isOnline ? (
-                <VideoPlayer streamId={detailsCam.id} onTelemetryUpdate={setTelemetry} />
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--text-muted)' }}>
-                  <ShieldAlert size={48} style={{ color: 'var(--danger)', marginBottom: '1rem', opacity: 0.8 }} />
-                  <span style={{ fontSize: '1.1rem' }}>{detailsCam.disabled ? 'Stream is Disabled' : 'Camera Offline'}</span>
-                </div>
-              )}
-            </div>
+            
+            {/* Tabs */}
+            {detailsCam.record && (
+              <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--card-border)' }}>
+                <button 
+                  onClick={() => setActiveTab('live')}
+                  style={{ background: 'none', border: 'none', padding: '0.5rem 1rem', color: activeTab === 'live' ? 'var(--primary)' : 'var(--text-muted)', borderBottom: activeTab === 'live' ? '2px solid var(--primary)' : '2px solid transparent', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Live Stream
+                </button>
+                <button 
+                  onClick={() => setActiveTab('archive')}
+                  style={{ background: 'none', border: 'none', padding: '0.5rem 1rem', color: activeTab === 'archive' ? 'var(--primary)' : 'var(--text-muted)', borderBottom: activeTab === 'archive' ? '2px solid var(--primary)' : '2px solid transparent', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Archive
+                </button>
+              </div>
+            )}
+
+            {activeTab === 'live' ? (
+              <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--card-border)', background: '#000', aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {isOnline ? (
+                  <VideoPlayer streamId={detailsCam.id} onTelemetryUpdate={setTelemetry} />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--text-muted)' }}>
+                    <ShieldAlert size={48} style={{ color: 'var(--danger)', marginBottom: '1rem', opacity: 0.8 }} />
+                    <span style={{ fontSize: '1.1rem' }}>{detailsCam.disabled ? 'Stream is Disabled' : 'Camera Offline'}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <ArchivePlayer streamId={detailsCam.id} />
+            )}
 
             <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem' }}>
