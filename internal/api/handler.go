@@ -10,6 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
 
+	"gritprofmediaserver/internal/archive"
 	"gritprofmediaserver/internal/config"
 	"gritprofmediaserver/internal/logger"
 	"gritprofmediaserver/internal/storage"
@@ -517,5 +518,23 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 	}
 	
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// GetCameraArchive возвращает список доступных отрезков архива для камеры
+func (h *Handler) GetCameraArchive(c *gin.Context) {
+	id := c.Param("id")
+	// Проверяем существование камеры
+	if _, err := h.store.GetCamera(id); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Camera not found"})
+		return
+	}
+
+	intervals, err := archive.GetCameraArchive("recordings", id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read archive"})
+		return
+	}
+
+	c.JSON(http.StatusOK, intervals)
 }
 
