@@ -31,7 +31,12 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.26'
+
+      - name: Embed Windows Icon
+        run: |
+          go install github.com/tc-hib/go-winres@latest
+          go-winres make
 
       - name: Build Backend (Windows)
         run: GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o GritprofMediaServer.exe ./cmd/server
@@ -60,7 +65,7 @@ jobs:
           cp -r GritprofMediaServer.exe release-windows/
           cp -r web/dist release-windows/web/
           cp config.yaml release-windows/ || true
-          cd release-windows && zip -r ../GritprofMediaServer-Windows.zip ./*
+          cd release-windows && zip -r ../GritprofMediaServer-${{ github.ref_name }}-Windows.zip ./*
 
       - name: Package Release (Linux)
         run: |
@@ -68,13 +73,13 @@ jobs:
           cp -r GritprofMediaServer-linux release-linux/
           cp -r web/dist release-linux/web/
           cp config.yaml release-linux/ || true
-          cd release-linux && zip -r ../GritprofMediaServer-Linux.zip ./*
+          cd release-linux && zip -r ../GritprofMediaServer-${{ github.ref_name }}-Linux.zip ./*
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            GritprofMediaServer-Windows.zip
-            GritprofMediaServer-Linux.zip
+            GritprofMediaServer-${{ github.ref_name }}-Windows.zip
+            GritprofMediaServer-${{ github.ref_name }}-Linux.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
