@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"runtime"
 	"sync"
@@ -590,5 +591,34 @@ func (h *Handler) GetArchiveHLSSegment(c *gin.Context) {
 		c.Header("Cache-Control", "public, max-age=86400")
 	}
 	c.Data(http.StatusOK, "video/MP2T", segment)
+}
+
+// ExportCameraArchive скачивает фрагмент архива в виде MP4 файла
+func (h *Handler) ExportCameraArchive(c *gin.Context) {
+	id := c.Param("id")
+	filename := c.Query("file")
+	startSeqStr := c.Query("startSeq")
+	endSeqStr := c.Query("endSeq")
+
+	if filename == "" || startSeqStr == "" || endSeqStr == "" {
+		c.String(http.StatusBadRequest, "file, startSeq and endSeq parameters are required")
+		return
+	}
+
+	startSeq, err1 := strconv.Atoi(startSeqStr)
+	endSeq, err2 := strconv.Atoi(endSeqStr)
+	if err1 != nil || err2 != nil {
+		c.String(http.StatusBadRequest, "invalid seq parameters")
+		return
+	}
+
+	c.Header("Content-Type", "video/mp4")
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="export_%s_%d-%d.mp4"`, filename, startSeq, endSeq))
+	
+	err := archive.ExportMP4("recordings", id, filename, startSeq, endSeq, c.Writer)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to export MP4")
+		// Заголовки уже могут быть отправлены, но мы логируем ошибку
+	}
 }
 
