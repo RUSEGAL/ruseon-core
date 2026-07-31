@@ -8,7 +8,7 @@ require (
 	github.com/dgraph-io/badger/v4 v4.9.5
 	github.com/gin-gonic/gin v1.9.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
-	github.com/pion/rtp v1.8.11
+	github.com/pion/rtp v1.10.5
 	github.com/rs/zerolog v1.32.0
 	gopkg.in/yaml.v3 v3.0.1
 )
