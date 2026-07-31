@@ -9,11 +9,12 @@ interface VideoPlayerProps {
   sourceUrl?: string; // Optional custom URL (e.g. for archive)
   autoPlay?: boolean;
   onTelemetryUpdate?: (stats: HlsTelemetry | null) => void;
+  onTimeUpdate?: (time: number) => void;
 }
 
 type PlayerStatus = 'loading' | 'playing' | 'reconnecting' | 'error';
 
-export function VideoPlayer({ streamId, sourceUrl, autoPlay = true, onTelemetryUpdate }: VideoPlayerProps) {
+export function VideoPlayer({ streamId, sourceUrl, autoPlay = true, onTelemetryUpdate, onTimeUpdate }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -229,8 +230,9 @@ export function VideoPlayer({ streamId, sourceUrl, autoPlay = true, onTelemetryU
       <video
         ref={videoRef}
         className={`video-player ${status === 'reconnecting' || status === 'loading' ? 'blurred' : ''} ${status === 'error' ? 'hidden' : ''}`}
-        muted
+        muted={autoPlay}
         playsInline
+        onTimeUpdate={e => onTimeUpdate && onTimeUpdate((e.target as HTMLVideoElement).currentTime)}
       />
       
       {/* State Overlays */}

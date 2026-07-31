@@ -59,14 +59,26 @@ func getFileIndex(path string) (*FileIndex, error) {
 
 	idx = &FileIndex{}
 	
-	start, _ := f.Seek(0, io.SeekCurrent)
-	var init fmp4.Init
-	if err := init.Unmarshal(f); err != nil {
-		return nil, err
+	// Находим размер Init блока (ftyp + moov) вручную, 
+	// так как fmp4.Init.Unmarshal сканирует весь файл до конца
+	var initSize int64
+	for {
+		typ, size, err := readBoxHeader(f)
+		if err != nil {
+			break
+		}
+		if typ == "moof" {
+			// Нашли первый moof, возвращаемся к его началу
+			f.Seek(-8, io.SeekCurrent)
+			break
+		}
+		initSize += int64(size)
+		f.Seek(int64(size)-8, io.SeekCurrent)
 	}
-	endInit, _ := f.Seek(0, io.SeekCurrent)
-	idx.InitOffset = start
-	idx.InitSize = endInit - start
+
+	idx.InitOffset = 0
+	idx.InitSize = initSize
+	f.Seek(initSize, io.SeekStart)
 
 	for {
 		offset, _ := f.Seek(0, io.SeekCurrent)
@@ -95,21 +107,24 @@ func getFileIndex(path string) (*FileIndex, error) {
 				combined = append(combined, mdatData...)
 				
 				var parts fmp4.Parts
+				var dur uint32 = 90000 // Fallback: 1 second
 				if err := parts.Unmarshal(combined); err == nil && len(parts) > 0 {
 					part := parts[0]
-					var dur uint32
+					var parsedDur uint32
 					if len(part.Tracks) > 0 {
 						for _, s := range part.Tracks[0].Samples {
-							dur += s.Duration
+							parsedDur += s.Duration
 						}
 					}
-					if dur > 0 {
-						idx.Parts = append(idx.Parts, PartInfo{
-							Offset:   offset,
-							Duration: dur,
-						})
+					if parsedDur > 0 {
+						dur = parsedDur
 					}
 				}
+				
+				idx.Parts = append(idx.Parts, PartInfo{
+					Offset:   offset,
+					Duration: dur,
+				})
 			}
 		} else {
 			// Пропускаем неизвестный бокс

@@ -622,7 +622,13 @@ func (h *Handler) ExportCameraArchive(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", "video/mp4")
-	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="export_%s.mp4"`, filename))
+	
+	downloadFilename := fmt.Sprintf("export_%s", filename)
+	if startSeqStr != "" && endSeqStr != "" {
+		baseName := strings.TrimSuffix(filename, ".mp4")
+		downloadFilename = fmt.Sprintf("export_%s_part_%s_to_%s.mp4", baseName, startSeqStr, endSeqStr)
+	}
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, downloadFilename))
 	
 	err := archive.ExportMP4("recordings", id, filename, startSeq, endSeq, c.Writer)
 	if err != nil {
