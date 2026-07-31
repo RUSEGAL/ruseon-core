@@ -67,8 +67,7 @@ func (s *Stream) run() {
 		if s.ctx.Err() != nil {
 			break
 		}
-
-		client := rtsp.NewClient(s.URL)
+		client := rtsp.NewClient(s.ID, s.URL)
 
 		log.Info().Str("id", s.ID).Str("url", s.URL).Msg("Connecting to RTSP")
 		

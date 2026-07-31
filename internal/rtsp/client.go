@@ -9,6 +9,7 @@ import (
 	"github.com/bluenviron/gortsplib/v4/pkg/base"
 	"github.com/bluenviron/gortsplib/v4/pkg/format"
 	"github.com/pion/rtp"
+	"github.com/rs/zerolog/log"
 )
 
 // OnFrameCallback вызывается при получении полного кадра (Access Unit).
@@ -24,14 +25,24 @@ type Client struct {
 }
 
 // NewClient создает новый RTSP клиент.
-func NewClient(url string) *Client {
-	return &Client{
+func NewClient(id, url string) *Client {
+	c := &Client{
 		url: url,
 		client: &gortsplib.Client{
 			// Разрешаем любой порт для приема RTP/RTCP
 			AnyPortEnable: true,
 		},
 	}
+	
+	// Настраиваем перехват ошибок потерянных пакетов и декодирования
+	c.client.OnPacketLost = func(err error) {
+		log.Warn().Str("id", id).Str("url", url).Msg(err.Error())
+	}
+	c.client.OnDecodeError = func(err error) {
+		log.Warn().Str("id", id).Str("url", url).Msg(err.Error())
+	}
+	
+	return c
 }
 
 // Start подключается к камере и блокирует выполнение до отключения.
