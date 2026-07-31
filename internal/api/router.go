@@ -30,15 +30,20 @@ func SetupRouter(h *Handler, debug bool) *gin.Engine {
 		}
 
 		status := c.Writer.Status()
+		path := c.Request.URL.Path
+		
 		l := log.Info()
-		if status >= 400 && status < 500 {
+		
+		if status < 400 && c.Request.Method == "GET" && (path == "/api/cameras" || path == "/api/stats" || path == "/api/tags" || path == "/health") {
+			l = log.Debug()
+		} else if status >= 400 && status < 500 {
 			l = log.Warn()
 		} else if status >= 500 {
 			l = log.Error()
 		}
 
 		l.Str("method", c.Request.Method).
-			Str("path", c.Request.URL.Path).
+			Str("path", path).
 			Int("status", status).
 			Dur("duration", duration).
 			Str("ip", c.ClientIP()).
