@@ -12,6 +12,7 @@ import (
 
 	"gritprofmediaserver/internal/config"
 	"gritprofmediaserver/internal/logger"
+	"gritprofmediaserver/internal/storage"
 	"gritprofmediaserver/internal/stream"
 )
 
@@ -58,15 +59,17 @@ func (c *ClientTracker) GetActiveClients(timeout time.Duration) []ClientInfo {
 type Handler struct {
 	manager   *stream.Manager
 	cfg       *config.Config
+	store     *storage.Storage
 	startTime time.Time
 	tracker   *ClientTracker
 }
 
 // NewHandler создает новый обработчик API.
-func NewHandler(manager *stream.Manager, cfg *config.Config) *Handler {
+func NewHandler(manager *stream.Manager, cfg *config.Config, store *storage.Storage) *Handler {
 	return &Handler{
 		manager:   manager,
 		cfg:       cfg,
+		store:     store,
 		startTime: time.Now(),
 		tracker: &ClientTracker{
 			clients: make(map[string]map[string]time.Time),
@@ -138,7 +141,11 @@ func (h *Handler) GetCameras(c *gin.Context) {
 	}
 
 	var result []CameraInfo
-	for _, cam := range h.cfg.Cameras {
+	cams, err := h.store.ListCameras()
+	if err != nil {
+		cams = []config.CameraConfig{}
+	}
+	for _, cam := range cams {
 		var stats *stream.Stream
 		for _, st := range streams {
 			if st.ID == cam.ID {
@@ -230,10 +237,8 @@ func (h *Handler) AddCamera(c *gin.Context) {
 		return
 	}
 
-	// Обновляем конфиг
-	h.cfg.Cameras = append(h.cfg.Cameras, cam)
-	if err := h.cfg.Save("config.yaml"); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save config"})
+	if err := h.store.SaveCamera(&cam); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save camera to DB"})
 		return
 	}
 
@@ -252,25 +257,8 @@ func (h *Handler) AddCamera(c *gin.Context) {
 func (h *Handler) DeleteCamera(c *gin.Context) {
 	id := c.Param("id")
 
-	// Находим и удаляем из конфига
-	found := false
-	var newCams []config.CameraConfig
-	for _, cam := range h.cfg.Cameras {
-		if cam.ID == id {
-			found = true
-		} else {
-			newCams = append(newCams, cam)
-		}
-	}
-
-	if !found {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Camera not found"})
-		return
-	}
-
-	h.cfg.Cameras = newCams
-	if err := h.cfg.Save("config.yaml"); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save config"})
+	if err := h.store.DeleteCamera(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete camera"})
 		return
 	}
 
@@ -289,60 +277,52 @@ func (h *Handler) EditCamera(c *gin.Context) {
 		return
 	}
 
-	found := false
-	for i, cam := range h.cfg.Cameras {
-		if cam.ID == id {
-			cam.URL = req.URL
-			cam.RetentionDays = req.RetentionDays
-			cam.Tags = req.Tags
-			cam.Comment = req.Comment
-			cam.SimPhone = req.SimPhone
-			cam.SimICCID = req.SimICCID
-
-			// Отслеживание изменения статуса записи
-			if cam.Record != req.Record {
-				action := "enable"
-				if !req.Record {
-					action = "disable"
-				}
-				recordEvent := config.DisableRecord{
-					Timestamp: time.Now().Format(time.RFC3339),
-					Action:    action,
-				}
-				cam.RecordHistory = append(cam.RecordHistory, recordEvent)
-			}
-
-			// Отслеживание изменения статуса отключения камеры
-			if cam.Disabled != req.Disabled {
-				action := "enable"
-				if req.Disabled {
-					action = "disable"
-				}
-				record := config.DisableRecord{
-					Timestamp: time.Now().Format(time.RFC3339),
-					Action:    action,
-					Reason:    req.DisableReason,
-				}
-				cam.DisableHistory = append(cam.DisableHistory, record)
-			}
-
-			cam.Disabled = req.Disabled
-			cam.DisableReason = req.DisableReason
-			cam.Record = req.Record
-
-			h.cfg.Cameras[i] = cam
-			found = true
-			break
-		}
-	}
-
-	if !found {
+	cam, err := h.store.GetCamera(id)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Camera not found"})
 		return
 	}
 
-	if err := h.cfg.Save("config.yaml"); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save config"})
+	cam.URL = req.URL
+	cam.RetentionDays = req.RetentionDays
+	cam.Tags = req.Tags
+	cam.Comment = req.Comment
+	cam.SimPhone = req.SimPhone
+	cam.SimICCID = req.SimICCID
+
+	// Отслеживание изменения статуса записи
+	if cam.Record != req.Record {
+		action := "enable"
+		if !req.Record {
+			action = "disable"
+		}
+		recordEvent := config.DisableRecord{
+			Timestamp: time.Now().Format(time.RFC3339),
+			Action:    action,
+		}
+		cam.RecordHistory = append(cam.RecordHistory, recordEvent)
+	}
+
+	// Отслеживание изменения статуса отключения камеры
+	if cam.Disabled != req.Disabled {
+		action := "enable"
+		if req.Disabled {
+			action = "disable"
+		}
+		record := config.DisableRecord{
+			Timestamp: time.Now().Format(time.RFC3339),
+			Action:    action,
+			Reason:    req.DisableReason,
+		}
+		cam.DisableHistory = append(cam.DisableHistory, record)
+	}
+
+	cam.Disabled = req.Disabled
+	cam.DisableReason = req.DisableReason
+	cam.Record = req.Record
+
+	if err := h.store.SaveCamera(cam); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save camera"})
 		return
 	}
 
@@ -427,7 +407,8 @@ func (h *Handler) GetServerStats(c *gin.Context) {
 		"payment":   0,
 	}
 
-	for _, cam := range h.cfg.Cameras {
+	cams, _ := h.store.ListCameras()
+	for _, cam := range cams {
 		if cam.Disabled {
 			disabledCameras++
 			if cam.DisableReason != "" {
@@ -448,7 +429,7 @@ func (h *Handler) GetServerStats(c *gin.Context) {
 		"numGC":          m.NumGC,
 		"numCPU":          runtime.NumCPU(),
 		"goroutines":      runtime.NumGoroutine(),
-		"totalCameras":    len(h.cfg.Cameras),
+		"totalCameras":    len(cams),
 		"onlineCameras":   onlineCameras,
 		"disabledCameras": disabledCameras,
 		"disabledReasons": disabledReasons,
@@ -462,11 +443,11 @@ func (h *Handler) GetServerStats(c *gin.Context) {
 
 // GetTags возвращает глобальный список тегов
 func (h *Handler) GetTags(c *gin.Context) {
-	if h.cfg.GlobalTags == nil {
-		c.JSON(http.StatusOK, []config.TagConfig{})
-		return
+	tags, err := h.store.ListTags()
+	if err != nil {
+		tags = []config.TagConfig{}
 	}
-	c.JSON(http.StatusOK, h.cfg.GlobalTags)
+	c.JSON(http.StatusOK, tags)
 }
 
 // AddTag добавляет новый тег
@@ -476,9 +457,8 @@ func (h *Handler) AddTag(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
-	h.cfg.GlobalTags = append(h.cfg.GlobalTags, tag)
-	if err := h.cfg.Save("config.yaml"); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save config"})
+	if err := h.store.SaveTag(&tag); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save tag to db"})
 		return
 	}
 	c.JSON(http.StatusOK, tag)
@@ -493,20 +473,17 @@ func (h *Handler) EditTag(c *gin.Context) {
 		return
 	}
 	
-	found := false
-	for i, t := range h.cfg.GlobalTags {
-		if t.ID == id {
-			h.cfg.GlobalTags[i] = req
-			found = true
-			break
-		}
-	}
-	if !found {
+	t, err := h.store.GetTag(id)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Tag not found"})
 		return
 	}
-	if err := h.cfg.Save("config.yaml"); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save config"})
+
+	t.Name = req.Name
+	t.Color = req.Color
+
+	if err := h.store.SaveTag(t); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save tag"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -515,29 +492,30 @@ func (h *Handler) EditTag(c *gin.Context) {
 // DeleteTag удаляет тег по ID
 func (h *Handler) DeleteTag(c *gin.Context) {
 	id := c.Param("id")
-	var newTags []config.TagConfig
-	for _, t := range h.cfg.GlobalTags {
-		if t.ID != id {
-			newTags = append(newTags, t)
-		}
-	}
-	h.cfg.GlobalTags = newTags
-	
-	// Очищаем удаленный тег у всех камер
-	for i := range h.cfg.Cameras {
-		var newCamTags []string
-		for _, tID := range h.cfg.Cameras[i].Tags {
-			if tID != id {
-				newCamTags = append(newCamTags, tID)
-			}
-		}
-		h.cfg.Cameras[i].Tags = newCamTags
-	}
-	
-	if err := h.cfg.Save("config.yaml"); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save config"})
+
+	if err := h.store.DeleteTag(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete tag"})
 		return
 	}
+	
+	// Очищаем удаленный тег у всех камер
+	cams, _ := h.store.ListCameras()
+	for _, cam := range cams {
+		var newCamTags []string
+		changed := false
+		for _, tID := range cam.Tags {
+			if tID != id {
+				newCamTags = append(newCamTags, tID)
+			} else {
+				changed = true
+			}
+		}
+		if changed {
+			cam.Tags = newCamTags
+			h.store.SaveCamera(&cam)
+		}
+	}
+	
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 

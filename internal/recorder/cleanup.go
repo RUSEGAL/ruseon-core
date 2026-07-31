@@ -7,24 +7,26 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"gritprofmediaserver/internal/config"
+	"gritprofmediaserver/internal/storage"
 )
 
 // StartCleanupTask запускает фоновую задачу для удаления старых записей.
-func StartCleanupTask(recordDir string, cfg *config.Config) {
+func StartCleanupTask(recordDir string, cfg *config.Config, store *storage.Storage) {
 	go func() {
 		for {
-			cleanupOldFiles(recordDir, cfg)
+			cleanupOldFiles(recordDir, cfg, store)
 			time.Sleep(1 * time.Hour)
 		}
 	}()
 }
 
-func cleanupOldFiles(recordDir string, cfg *config.Config) {
+func cleanupOldFiles(recordDir string, cfg *config.Config, store *storage.Storage) {
 	globalRetention := cfg.Server.RecordRetentionDays
 	
 	// Собираем мапу retention для камер
 	camRetention := make(map[string]int)
-	for _, cam := range cfg.Cameras {
+	cams, _ := store.ListCameras()
+	for _, cam := range cams {
 		if cam.RetentionDays > 0 {
 			camRetention[cam.ID] = cam.RetentionDays
 		} else {

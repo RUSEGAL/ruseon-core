@@ -9,6 +9,7 @@ import (
 	"gritprofmediaserver/internal/config"
 	"gritprofmediaserver/internal/logger"
 	"gritprofmediaserver/internal/recorder"
+	"gritprofmediaserver/internal/storage"
 	"gritprofmediaserver/internal/stream"
 )
 
@@ -27,27 +28,55 @@ func main() {
 	// 3. Восстановление архивов (Защита от сбоев питания)
 	recorder.RecoverCrashedFiles("recordings")
 
+	// Инициализация БД
+	store, err := storage.NewStorage("data")
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to open storage")
+	}
+	defer store.Close()
+
+	// Миграция данных из config.yaml в БД (при первом запуске)
+	if err := store.MigrateFromConfig(cfg); err != nil {
+		log.Fatal().Err(err).Msg("Failed to migrate data from config")
+	}
+
+	// Очищаем камеры и теги из конфига, теперь они живут в BadgerDB
+	if len(cfg.Cameras) > 0 || len(cfg.GlobalTags) > 0 {
+		cfg.Cameras = nil
+		cfg.GlobalTags = nil
+		if err := cfg.Save("config.yaml"); err != nil {
+			log.Error().Err(err).Msg("Failed to clean up config.yaml")
+		} else {
+			log.Info().Msg("Successfully cleaned dynamic data from config.yaml")
+		}
+	}
+
 	// 4. Инициализация StreamManager
 	manager := stream.NewManager()
 	
 	// Запускаем фоновую очистку записей
-	recorder.StartCleanupTask("recordings", cfg)
+	recorder.StartCleanupTask("recordings", cfg, store)
 	
 	// Запускаем трекинг трафика
-	stream.StartBillingTask(cfg, manager)
+	stream.StartBillingTask(cfg, manager, store)
 
-	// Добавляем камеры из конфигурации
-	for _, cam := range cfg.Cameras {
+	// Добавляем камеры из БД
+	cams, err := store.ListCameras()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to load cameras from DB")
+	}
+
+	for _, cam := range cams {
 		if !cam.Disabled {
 			manager.AddStream(cam.ID, cam.URL, cam.Record)
-			log.Info().Str("id", cam.ID).Str("url", cam.URL).Bool("record", cam.Record).Msg("Added camera from config")
+			log.Info().Str("id", cam.ID).Str("url", cam.URL).Bool("record", cam.Record).Msg("Added camera from DB")
 		} else {
 			log.Info().Str("id", cam.ID).Msg("Camera is disabled, skipping stream creation")
 		}
 	}
 
 	// 5. Инициализация HTTP сервера (Gin)
-	handler := api.NewHandler(manager, cfg)
+	handler := api.NewHandler(manager, cfg, store)
 	router := api.SetupRouter(handler, cfg.Server.Debug)
 
 	// 6. Запуск сервера

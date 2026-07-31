@@ -4,10 +4,11 @@ import (
 	"time"
 
 	"gritprofmediaserver/internal/config"
+	"gritprofmediaserver/internal/storage"
 )
 
 // StartBillingTask запускает фоновую задачу для трекинга трафика
-func StartBillingTask(cfg *config.Config, manager *Manager) {
+func StartBillingTask(cfg *config.Config, manager *Manager, store *storage.Storage) {
 	ticker := time.NewTicker(1 * time.Minute)
 	
 	// Храним последние значения байт для вычисления дельты
@@ -15,43 +16,45 @@ func StartBillingTask(cfg *config.Config, manager *Manager) {
 
 	go func() {
 		for range ticker.C {
-			changed := false
 			nowMonth := time.Now().Format("2006-01")
 
-			for i, camCfg := range cfg.Cameras {
+			cams, _ := store.ListCameras()
+			for _, cam := range cams {
+				changed := false
+				
 				// 1. Проверяем сброс трафика (1-е число месяца обрабатывается сменой месяца)
-				if camCfg.LastResetMonth != nowMonth {
-					cfg.Cameras[i].TrafficUsed = 0
-					cfg.Cameras[i].LastResetMonth = nowMonth
+				if cam.LastResetMonth != nowMonth {
+					cam.TrafficUsed = 0
+					cam.LastResetMonth = nowMonth
 					changed = true
 				}
 
 				// Дефолтный лимит 200 ГБ, если не задан
-				if cfg.Cameras[i].TrafficLimit == 0 {
-					cfg.Cameras[i].TrafficLimit = 200 * 1024 * 1024 * 1024 // 200 GB
+				if cam.TrafficLimit == 0 {
+					cam.TrafficLimit = 200 * 1024 * 1024 * 1024 // 200 GB
 					changed = true
 				}
 
 				// 2. Считаем дельту
-				if st, ok := manager.GetStream(camCfg.ID); ok {
+				if st, ok := manager.GetStream(cam.ID); ok {
 					currentBytes := st.GetStats().BytesReceived
-					prev := lastBytes[camCfg.ID]
+					prev := lastBytes[cam.ID]
 					
 					if currentBytes > prev {
 						delta := currentBytes - prev
-						cfg.Cameras[i].TrafficUsed += delta
+						cam.TrafficUsed += delta
 						changed = true
 					} else if currentBytes < prev {
 						// Поток был перезапущен, статистика обнулилась
-						cfg.Cameras[i].TrafficUsed += currentBytes
+						cam.TrafficUsed += currentBytes
 						changed = true
 					}
-					lastBytes[camCfg.ID] = currentBytes
+					lastBytes[cam.ID] = currentBytes
 				}
-			}
 
-			if changed {
-				_ = cfg.Save("config.yaml")
+				if changed {
+					_ = store.SaveCamera(&cam)
+				}
 			}
 		}
 	}()
