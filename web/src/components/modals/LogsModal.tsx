@@ -44,7 +44,8 @@ export function LogsModal({ onClose }: LogsModalProps) {
       try {
         const response = await fetch(url, {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'text/event-stream'
           },
           signal: abortController.signal
         });

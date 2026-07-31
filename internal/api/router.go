@@ -3,7 +3,10 @@ package api
 import (
 	"net/http"
 
+	"time"
+
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 )
 
 // SetupRouter инициализирует маршруты Gin.
@@ -12,7 +15,35 @@ func SetupRouter(h *Handler, debug bool) *gin.Engine {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
+
+	// Zerolog middleware for Gin
+	r.Use(func(c *gin.Context) {
+		start := time.Now()
+		c.Next()
+		duration := time.Since(start)
+
+		// Игнорируем логирование самого лог-стрима, чтобы не было бесконечного цикла
+		if c.Request.URL.Path == "/api/logs/stream" {
+			return
+		}
+
+		status := c.Writer.Status()
+		l := log.Info()
+		if status >= 400 && status < 500 {
+			l = log.Warn()
+		} else if status >= 500 {
+			l = log.Error()
+		}
+
+		l.Str("method", c.Request.Method).
+			Str("path", c.Request.URL.Path).
+			Int("status", status).
+			Dur("duration", duration).
+			Str("ip", c.ClientIP()).
+			Msg("HTTP Request")
+	})
 
 	// CORS Middleware
 	r.Use(func(c *gin.Context) {
