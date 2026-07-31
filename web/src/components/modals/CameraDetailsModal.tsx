@@ -159,8 +159,8 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                           <span style={{ color: '#fff' }}>{telemetry ? `${telemetry.latency.toFixed(2)} s` : '-'}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>Bandwidth</span>
-                          <span style={{ color: '#fff' }}>{telemetry ? `${(telemetry.bandwidth / 1024).toFixed(1)} kbps` : '-'}</span>
+                          <span style={{ color: 'var(--text-muted)' }}>Link Capacity</span>
+                          <span style={{ color: '#fff' }}>{telemetry ? `${(telemetry.bandwidth / 1000000).toFixed(1)} Mbps` : '-'}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                           <span style={{ color: 'var(--text-muted)' }}>Dropped Frames</span>
