@@ -59,7 +59,7 @@ export function ServerStatsModal({ serverStats, onClose }: ServerStatsModalProps
           <h4 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>Database Backups</h4>
           <div style={{ display: 'flex', gap: '12px' }}>
             <a 
-              href="/api/system/backup/export" 
+              href={`/api/system/backup/export?token=${localStorage.getItem('token')}`}
               className="btn btn-primary" 
               style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
             >
@@ -82,6 +82,9 @@ export function ServerStatsModal({ serverStats, onClose }: ServerStatsModalProps
                   try {
                     const res = await fetch('/api/system/backup/import', {
                       method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                      },
                       body: formData,
                     });
                     
