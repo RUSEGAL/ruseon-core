@@ -66,8 +66,9 @@ export function LogsModal({ onClose }: LogsModalProps) {
           buffer = lines.pop() || '';
 
           for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.substring(6);
+            const trimmedLine = line.trim();
+            if (trimmedLine.startsWith('data: ')) {
+              const data = trimmedLine.substring(6);
               try {
                 const parsed = JSON.parse(data) as LogEntry;
                 if (!isPausedRef.current) {

@@ -95,6 +95,10 @@ func (h *Handler) StreamLogs(c *gin.Context) {
 		case <-c.Request.Context().Done():
 			return
 		case msg := <-ch:
+			// zerolog appends a newline by default, strip it so SSE format is correct
+			if len(msg) > 0 && msg[len(msg)-1] == '\n' {
+				msg = msg[:len(msg)-1]
+			}
 			c.Writer.Write([]byte("data: "))
 			c.Writer.Write(msg)
 			c.Writer.Write([]byte("\n\n"))
