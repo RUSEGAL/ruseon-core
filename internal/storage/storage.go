@@ -63,6 +63,35 @@ func (s *Storage) SaveCamera(cam *config.CameraConfig) error {
 	})
 }
 
+// UpdateCameraTx атомарно обновляет камеру. updateFn должна вернуть true, если нужно сохранить изменения.
+func (s *Storage) UpdateCameraTx(id string, updateFn func(cam *config.CameraConfig) bool) error {
+	key := []byte(PrefixCamera + id)
+	return s.db.Update(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err != nil {
+			return err
+		}
+		
+		var cam config.CameraConfig
+		err = item.Value(func(val []byte) error {
+			return json.Unmarshal(val, &cam)
+		})
+		if err != nil {
+			return err
+		}
+
+		if changed := updateFn(&cam); changed {
+			data, err := json.Marshal(cam)
+			if err != nil {
+				return err
+			}
+			return txn.Set(key, data)
+		}
+		
+		return nil
+	})
+}
+
 // GetCamera возвращает камеру по ID.
 func (s *Storage) GetCamera(id string) (*config.CameraConfig, error) {
 	key := []byte(PrefixCamera + id)

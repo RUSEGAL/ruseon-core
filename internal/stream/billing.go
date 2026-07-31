@@ -19,42 +19,42 @@ func StartBillingTask(cfg *config.Config, manager *Manager, store *storage.Stora
 			nowMonth := time.Now().Format("2006-01")
 
 			cams, _ := store.ListCameras()
-			for _, cam := range cams {
-				changed := false
-				
-				// 1. Проверяем сброс трафика (1-е число месяца обрабатывается сменой месяца)
-				if cam.LastResetMonth != nowMonth {
-					cam.TrafficUsed = 0
-					cam.LastResetMonth = nowMonth
-					changed = true
-				}
-
-				// Дефолтный лимит 200 ГБ, если не задан
-				if cam.TrafficLimit == 0 {
-					cam.TrafficLimit = 200 * 1024 * 1024 * 1024 // 200 GB
-					changed = true
-				}
-
-				// 2. Считаем дельту
-				if st, ok := manager.GetStream(cam.ID); ok {
-					currentBytes := st.GetStats().BytesReceived
-					prev := lastBytes[cam.ID]
+			for _, camMeta := range cams {
+				store.UpdateCameraTx(camMeta.ID, func(cam *config.CameraConfig) bool {
+					changed := false
 					
-					if currentBytes > prev {
-						delta := currentBytes - prev
-						cam.TrafficUsed += delta
-						changed = true
-					} else if currentBytes < prev {
-						// Поток был перезапущен, статистика обнулилась
-						cam.TrafficUsed += currentBytes
+					// 1. Проверяем сброс трафика (1-е число месяца обрабатывается сменой месяца)
+					if cam.LastResetMonth != nowMonth {
+						cam.TrafficUsed = 0
+						cam.LastResetMonth = nowMonth
 						changed = true
 					}
-					lastBytes[cam.ID] = currentBytes
-				}
 
-				if changed {
-					_ = store.SaveCamera(&cam)
-				}
+					// Дефолтный лимит 200 ГБ, если не задан
+					if cam.TrafficLimit == 0 {
+						cam.TrafficLimit = 200 * 1024 * 1024 * 1024 // 200 GB
+						changed = true
+					}
+
+					// 2. Считаем дельту
+					if st, ok := manager.GetStream(cam.ID); ok {
+						currentBytes := st.GetStats().BytesReceived
+						prev := lastBytes[cam.ID]
+						
+						if currentBytes > prev {
+							delta := currentBytes - prev
+							cam.TrafficUsed += delta
+							changed = true
+						} else if currentBytes < prev {
+							// Поток был перезапущен, статистика обнулилась
+							cam.TrafficUsed += currentBytes
+							changed = true
+						}
+						lastBytes[cam.ID] = currentBytes
+					}
+					
+					return changed
+				})
 			}
 		}
 	}()

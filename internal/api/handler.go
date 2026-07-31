@@ -277,52 +277,49 @@ func (h *Handler) EditCamera(c *gin.Context) {
 		return
 	}
 
-	cam, err := h.store.GetCamera(id)
+	err := h.store.UpdateCameraTx(id, func(cam *config.CameraConfig) bool {
+		cam.URL = req.URL
+		cam.RetentionDays = req.RetentionDays
+		cam.Tags = req.Tags
+		cam.Comment = req.Comment
+		cam.SimPhone = req.SimPhone
+		cam.SimICCID = req.SimICCID
+
+		// Отслеживание изменения статуса записи
+		if cam.Record != req.Record {
+			action := "enable"
+			if !req.Record {
+				action = "disable"
+			}
+			recordEvent := config.DisableRecord{
+				Timestamp: time.Now().Format(time.RFC3339),
+				Action:    action,
+			}
+			cam.RecordHistory = append(cam.RecordHistory, recordEvent)
+		}
+
+		// Отслеживание изменения статуса отключения камеры
+		if cam.Disabled != req.Disabled {
+			action := "enable"
+			if req.Disabled {
+				action = "disable"
+			}
+			record := config.DisableRecord{
+				Timestamp: time.Now().Format(time.RFC3339),
+				Action:    action,
+				Reason:    req.DisableReason,
+			}
+			cam.DisableHistory = append(cam.DisableHistory, record)
+		}
+
+		cam.Disabled = req.Disabled
+		cam.DisableReason = req.DisableReason
+		cam.Record = req.Record
+		return true
+	})
+
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Camera not found"})
-		return
-	}
-
-	cam.URL = req.URL
-	cam.RetentionDays = req.RetentionDays
-	cam.Tags = req.Tags
-	cam.Comment = req.Comment
-	cam.SimPhone = req.SimPhone
-	cam.SimICCID = req.SimICCID
-
-	// Отслеживание изменения статуса записи
-	if cam.Record != req.Record {
-		action := "enable"
-		if !req.Record {
-			action = "disable"
-		}
-		recordEvent := config.DisableRecord{
-			Timestamp: time.Now().Format(time.RFC3339),
-			Action:    action,
-		}
-		cam.RecordHistory = append(cam.RecordHistory, recordEvent)
-	}
-
-	// Отслеживание изменения статуса отключения камеры
-	if cam.Disabled != req.Disabled {
-		action := "enable"
-		if req.Disabled {
-			action = "disable"
-		}
-		record := config.DisableRecord{
-			Timestamp: time.Now().Format(time.RFC3339),
-			Action:    action,
-			Reason:    req.DisableReason,
-		}
-		cam.DisableHistory = append(cam.DisableHistory, record)
-	}
-
-	cam.Disabled = req.Disabled
-	cam.DisableReason = req.DisableReason
-	cam.Record = req.Record
-
-	if err := h.store.SaveCamera(cam); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save camera"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update camera"})
 		return
 	}
 
@@ -500,20 +497,23 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 	
 	// Очищаем удаленный тег у всех камер
 	cams, _ := h.store.ListCameras()
-	for _, cam := range cams {
-		var newCamTags []string
-		changed := false
-		for _, tID := range cam.Tags {
-			if tID != id {
-				newCamTags = append(newCamTags, tID)
-			} else {
-				changed = true
+	for _, camMeta := range cams {
+		h.store.UpdateCameraTx(camMeta.ID, func(cam *config.CameraConfig) bool {
+			var newCamTags []string
+			changed := false
+			for _, tID := range cam.Tags {
+				if tID != id {
+					newCamTags = append(newCamTags, tID)
+				} else {
+					changed = true
+				}
 			}
-		}
-		if changed {
-			cam.Tags = newCamTags
-			h.store.SaveCamera(&cam)
-		}
+			if changed {
+				cam.Tags = newCamTags
+				return true
+			}
+			return false
+		})
 	}
 	
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
