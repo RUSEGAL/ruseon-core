@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/rs/zerolog/log"
 
 	"gritprofmediaserver/internal/config"
 	"gritprofmediaserver/internal/logger"
@@ -193,7 +195,7 @@ type AuthRequest struct {
 	Password string `json:"password"`
 }
 
-// Login проверяет учетные данные и возвращает токен (для простоты возвращаем фиксированный токен, если совпадает с конфигом)
+// Login проверяет учетные данные и возвращает JWT токен
 func (h *Handler) Login(c *gin.Context) {
 	var req AuthRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -202,9 +204,19 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	if req.Username == h.cfg.Auth.Username && req.Password == h.cfg.Auth.Password && req.Username != "" {
-		// Для MVP просто возвращаем фиксированный токен-заглушку. 
-		// В идеале здесь должен быть JWT или безопасная сессия.
-		c.JSON(http.StatusOK, gin.H{"token": "demo-token-123"})
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"username": req.Username,
+			"exp":      time.Now().Add(time.Hour * 24 * 7).Unix(), // 7 дней
+		})
+
+		tokenString, err := token.SignedString([]byte(h.cfg.Auth.Secret))
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to generate JWT token")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"token": tokenString})
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 	}

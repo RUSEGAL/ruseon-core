@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -17,6 +19,7 @@ type Config struct {
 	Auth struct {
 		Username string `yaml:"username"`
 		Password string `yaml:"password"`
+		Secret   string `yaml:"secret,omitempty"` // Секретный ключ для JWT
 	} `yaml:"auth"`
 
 	GlobalTags []TagConfig    `yaml:"global_tags"`
@@ -72,6 +75,15 @@ func Load(path string) (*Config, error) {
 	decoder := yaml.NewDecoder(file)
 	if err := decoder.Decode(&cfg); err != nil {
 		return nil, err
+	}
+
+	// Генерируем JWT Secret, если его нет
+	if cfg.Auth.Secret == "" {
+		bytes := make([]byte, 32)
+		if _, err := rand.Read(bytes); err == nil {
+			cfg.Auth.Secret = hex.EncodeToString(bytes)
+			cfg.Save(path)
+		}
 	}
 
 	return &cfg, nil
