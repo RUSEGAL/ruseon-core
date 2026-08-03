@@ -87,12 +87,12 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
               </div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Codec / FPS</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('cameras.codec')}</div>
               <div style={{ fontWeight: 600 }}>{cam.codec || '-'} / {cam.connected ? `${fpsMap[cam.id]?.toFixed(1) || 0}` : '-'}</div>
             </div>
             <div style={{ textAlign: 'right', minWidth: '100px' }}>
               <div style={{ fontWeight: 600 }}>{cam.connected ? `${bitrates[cam.id]?.toFixed(2) || 0} kbps` : '-'}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatBytes(cam.bytesReceived)} Total</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatBytes(cam.bytesReceived)} {t('cameras.trafficTotal')}</div>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button className="btn-icon" onClick={(e) => { e.stopPropagation(); onEdit(cam); }} title={t('cameras.edit')}>
@@ -107,7 +107,7 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
       ))}
       {cameras.length === 0 && (
         <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-          No cameras configured yet. Click "Add Camera" to start.
+          {t('cameras.empty')}
         </div>
       )}
     </div>

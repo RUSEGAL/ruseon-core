@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Tag, Plus, Trash2, Edit2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { TagConfig } from '../../types';
 
 interface TagManagerModalProps {
@@ -10,6 +11,7 @@ interface TagManagerModalProps {
 }
 
 export function TagManagerModal({ tags, token, onClose, onTagsChange }: TagManagerModalProps) {
+  const { t } = useTranslation();
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#3b82f6'); // default blue
   
@@ -92,7 +94,7 @@ export function TagManagerModal({ tags, token, onClose, onTagsChange }: TagManag
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Tag size={20} color="var(--primary)" />
-            Tag Manager
+            {t('tags.title')}
           </h3>
           <button className="btn-icon" onClick={onClose}>
             <X size={20} />
@@ -101,7 +103,7 @@ export function TagManagerModal({ tags, token, onClose, onTagsChange }: TagManag
 
         <form onSubmit={handleAdd} style={{ display: 'flex', gap: '12px', marginBottom: '24px', alignItems: 'flex-end' }}>
           <div style={{ flex: 1 }}>
-            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Tag Name</label>
+            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>{t('tags.name')}</label>
             <input 
               type="text" 
               className="input-field" 
@@ -112,7 +114,7 @@ export function TagManagerModal({ tags, token, onClose, onTagsChange }: TagManag
             />
           </div>
           <div>
-            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Color</label>
+            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>{t('tags.color')}</label>
             <input 
               type="color" 
               value={newTagColor}
@@ -121,13 +123,13 @@ export function TagManagerModal({ tags, token, onClose, onTagsChange }: TagManag
             />
           </div>
           <button type="submit" className="btn btn-primary" style={{ padding: '0 16px', height: '40px' }}>
-            <Plus size={18} /> Add
+            <Plus size={18} /> {t('tags.add')}
           </button>
         </form>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
           {tags.length === 0 ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '16px' }}>No tags created yet.</div>
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '16px' }}>{t('tags.noTags')}</div>
           ) : tags.map(tag => (
             <div key={tag.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 12px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px' }}>
               
@@ -146,8 +148,8 @@ export function TagManagerModal({ tags, token, onClose, onTagsChange }: TagManag
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
                   />
-                  <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={saveEdit}>Save</button>
-                  <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={() => setEditingId(null)}>Cancel</button>
+                  <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={saveEdit}>{t('tags.save')}</button>
+                  <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={() => setEditingId(null)}>{t('tags.cancel')}</button>
                 </>
               ) : (
                 <>

@@ -42,7 +42,7 @@ export function DashboardStats({ serverStats, onOpenAdvancedStats }: DashboardSt
                 style={{ fontSize: '0.7rem', color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '2px 6px', borderRadius: '4px', cursor: 'help' }}
                 title={`Disabled: \nTech: ${serverStats.disabledReasons?.technical || 0}\nUser: ${serverStats.disabledReasons?.requested || 0}\nBill: ${serverStats.disabledReasons?.payment || 0}`}
               >
-                {serverStats.disabledCameras} Disabled
+                {serverStats.disabledCameras} {t('cameras.status.disabled')}
               </span>
             )}
           </div>

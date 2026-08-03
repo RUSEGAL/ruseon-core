@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { MonitorPlay } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface LoginProps {
   onLogin: (token: string) => void;
 }
 
 export function Login({ onLogin }: LoginProps) {
+  const { t } = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -33,7 +35,7 @@ export function Login({ onLogin }: LoginProps) {
     <div className="login-container">
       <form onSubmit={handleLogin} className="login-form glass">
         <MonitorPlay size={48} className="brand-icon" style={{ margin: '0 auto 1rem' }} />
-        <h2 style={{ textAlign: 'center', marginBottom: '2rem' }}>Sign In</h2>
+        <h2 style={{ textAlign: 'center', marginBottom: '2rem' }}>{t('login.title')}</h2>
         <div className="form-group">
           <label>Username</label>
           <input 
@@ -52,9 +54,10 @@ export function Login({ onLogin }: LoginProps) {
             onChange={e => setPassword(e.target.value)} 
             required
             className="input-field"
+            placeholder={t('login.placeholder')}
           />
         </div>
-        <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>Login</button>
+        <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>{t('login.button')}</button>
       </form>
     </div>
   );

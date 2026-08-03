@@ -1,4 +1,5 @@
 import { X, Activity } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { ServerStats } from '../../types';
 import { formatBytes } from '../../utils/formatters';
 
@@ -8,13 +9,14 @@ interface ServerStatsModalProps {
 }
 
 export function ServerStatsModal({ serverStats, onClose }: ServerStatsModalProps) {
+  const { t } = useTranslation();
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content glass" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Activity size={24} style={{ color: 'var(--primary)' }} />
-            Advanced Server Metrics
+            {t('dashboard.advanced')}
           </h3>
           <button className="btn-icon" onClick={onClose}>
             <X size={20} />
@@ -23,7 +25,7 @@ export function ServerStatsModal({ serverStats, onClose }: ServerStatsModalProps
 
         <div className="details-grid">
           <div className="details-stat">
-            <div className="details-stat-label">Goroutines (Threads)</div>
+            <div className="details-stat-label">{t('dashboard.goroutines')}</div>
             <div className="details-stat-val highlight">{serverStats.goroutines}</div>
           </div>
           <div className="details-stat">
@@ -56,7 +58,7 @@ export function ServerStatsModal({ serverStats, onClose }: ServerStatsModalProps
           </div>
         </div>
         <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          <h4 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>Database Backups</h4>
+          <h4 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>{t('nav.backup')}</h4>
           <div style={{ display: 'flex', gap: '12px' }}>
             <a 
               href={`/api/system/backup/export?token=${localStorage.getItem('token')}`}

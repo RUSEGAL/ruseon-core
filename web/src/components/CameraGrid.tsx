@@ -62,7 +62,7 @@ export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails, globalTag
             
             <div style={{ width: '100%', marginTop: '8px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Traffic Left</span>
+                <span style={{ color: 'var(--text-muted)' }}>{t('cameras.trafficLeft')}</span>
                 <span style={{ fontWeight: 600, color: (cam.trafficUsed || 0) > (cam.trafficLimit || 200*1024*1024*1024) * 0.9 ? 'var(--danger)' : 'var(--primary)' }}>
                   {formatBytes((cam.trafficLimit || 200*1024*1024*1024) - (cam.trafficUsed || 0))}
                 </span>

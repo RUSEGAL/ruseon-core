@@ -1,5 +1,6 @@
 import { X, Terminal, Trash2, Play, Square } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface LogsModalProps {
   onClose: () => void;
@@ -14,6 +15,7 @@ interface LogEntry {
 }
 
 export function LogsModal({ onClose }: LogsModalProps) {
+  const { t } = useTranslation();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [levelFilter, setLevelFilter] = useState<string>('all');
   const [isPaused, setIsPaused] = useState(false);
@@ -130,7 +132,7 @@ export function LogsModal({ onClose }: LogsModalProps) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '1rem' }}>
           <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Terminal size={24} color="var(--primary)" />
-            Server Logs
+            {t('logs.title')}
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(0,0,0,0.2)', padding: '4px', borderRadius: '8px' }}>
@@ -160,14 +162,14 @@ export function LogsModal({ onClose }: LogsModalProps) {
               style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}
             >
               {isPaused ? <Play size={16} color="var(--success)"/> : <Square size={16} color="var(--warning)"/>}
-              {isPaused ? 'Resume' : 'Pause'}
+              {isPaused ? t('logs.resume') : t('logs.pause')}
             </button>
 
             <button 
               onClick={() => setLogs([])}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255, 107, 107, 0.1)', border: 'none', color: 'var(--danger)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}
             >
-              <Trash2 size={16} /> Clear
+              <Trash2 size={16} /> {t('logs.clear')}
             </button>
             <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}>
               <X size={24} />

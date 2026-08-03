@@ -265,20 +265,20 @@ export default function App() {
             
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <div className="view-toggle">
-                <button className={`view-btn ${filterStatus === 'all' ? 'active' : ''}`} onClick={() => setFilterStatus('all')}>All</button>
-                <button className={`view-btn ${filterStatus === 'online' ? 'active' : ''}`} onClick={() => setFilterStatus('online')}>Online</button>
-                <button className={`view-btn ${filterStatus === 'offline' ? 'active' : ''}`} onClick={() => setFilterStatus('offline')}>Offline</button>
+                <button className={`view-btn ${filterStatus === 'all' ? 'active' : ''}`} onClick={() => setFilterStatus('all')}>{t('filters.all')}</button>
+                <button className={`view-btn ${filterStatus === 'online' ? 'active' : ''}`} onClick={() => setFilterStatus('online')}>{t('filters.online')}</button>
+                <button className={`view-btn ${filterStatus === 'offline' ? 'active' : ''}`} onClick={() => setFilterStatus('offline')}>{t('filters.offline')}</button>
               </div>
               
               <div className="view-toggle">
-                <button className={`view-btn ${filterRecord === 'all' ? 'active' : ''}`} onClick={() => setFilterRecord('all')}>All</button>
-                <button className={`view-btn ${filterRecord === 'recording' ? 'active' : ''}`} onClick={() => setFilterRecord('recording')}>REC</button>
-                <button className={`view-btn ${filterRecord === 'not_recording' ? 'active' : ''}`} onClick={() => setFilterRecord('not_recording')}>No REC</button>
+                <button className={`view-btn ${filterRecord === 'all' ? 'active' : ''}`} onClick={() => setFilterRecord('all')}>{t('filters.all')}</button>
+                <button className={`view-btn ${filterRecord === 'recording' ? 'active' : ''}`} onClick={() => setFilterRecord('recording')}>{t('filters.recording')}</button>
+                <button className={`view-btn ${filterRecord === 'not_recording' ? 'active' : ''}`} onClick={() => setFilterRecord('not_recording')}>{t('filters.notRecording')}</button>
               </div>
 
               <div className="view-toggle">
-                <button className={`view-btn ${filterTraffic === 'all' ? 'active' : ''}`} onClick={() => setFilterTraffic('all')}>All Data</button>
-                <button className={`view-btn ${filterTraffic === 'high' ? 'active' : ''}`} onClick={() => setFilterTraffic('high')}>&gt;70% Used</button>
+                <button className={`view-btn ${filterTraffic === 'all' ? 'active' : ''}`} onClick={() => setFilterTraffic('all')}>{t('filters.allData')}</button>
+                <button className={`view-btn ${filterTraffic === 'high' ? 'active' : ''}`} onClick={() => setFilterTraffic('high')}>{t('filters.highUsage')}</button>
               </div>
             </div>
           </div>
@@ -298,16 +298,16 @@ export default function App() {
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '4px 12px', borderRadius: '8px', border: '1px solid var(--card-border)', height: '40px' }}>
               <SlidersHorizontal size={16} color="var(--text-muted)" />
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Sort by:</span>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{t('filters.sortBy')}</span>
               <select 
                 value={sortBy} 
                 onChange={(e) => setSortBy(e.target.value as any)}
                 style={{ background: 'transparent', color: 'white', border: 'none', outline: 'none', fontSize: '0.9rem', cursor: 'pointer' }}
               >
-                <option value="id" style={{ background: '#1e1e2d' }}>ID (A-Z)</option>
-                <option value="status" style={{ background: '#1e1e2d' }}>Status (Online)</option>
-                <option value="uptime" style={{ background: '#1e1e2d' }}>Uptime (Longest)</option>
-                <option value="traffic" style={{ background: '#1e1e2d' }}>Traffic (Highest)</option>
+                <option value="id" style={{ background: '#1e1e2d' }}>{t('filters.sortId')}</option>
+                <option value="status" style={{ background: '#1e1e2d' }}>{t('filters.sortStatus')}</option>
+                <option value="uptime" style={{ background: '#1e1e2d' }}>{t('filters.sortUptime')}</option>
+                <option value="traffic" style={{ background: '#1e1e2d' }}>{t('filters.sortTraffic')}</option>
               </select>
             </div>
           </div>

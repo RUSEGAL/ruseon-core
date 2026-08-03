@@ -58,14 +58,14 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
               onClick={() => setActiveTab('general')}
               style={{ padding: '10px 16px', background: 'none', border: 'none', borderBottom: activeTab === 'general' ? '2px solid var(--primary)' : '2px solid transparent', color: activeTab === 'general' ? '#fff' : 'var(--text-muted)', cursor: 'pointer', fontWeight: activeTab === 'general' ? 600 : 400, transition: 'all 0.2s' }}
             >
-              General Settings
+              {t('cameras.generalSettings')}
             </button>
             <button 
               type="button" 
               onClick={() => setActiveTab('metadata')}
               style={{ padding: '10px 16px', background: 'none', border: 'none', borderBottom: activeTab === 'metadata' ? '2px solid var(--primary)' : '2px solid transparent', color: activeTab === 'metadata' ? '#fff' : 'var(--text-muted)', cursor: 'pointer', fontWeight: activeTab === 'metadata' ? 600 : 400, transition: 'all 0.2s' }}
             >
-              Metadata & SIM
+              {t('cameras.metadataSim')}
             </button>
           </div>
 
@@ -246,7 +246,7 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
 
                 <div style={{ display: 'flex', gap: '16px', marginBottom: 0 }}>
                   <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                    <label>SIM Phone Number</label>
+                    <label>{t('cameras.simPhone')}</label>
                     <input 
                       type="text" 
                       className="input-field"
@@ -256,7 +256,7 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
                     />
                   </div>
                   <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                    <label>SIM ICCID</label>
+                    <label>{t('cameras.simIccid')}</label>
                     <input 
                       type="text" 
                       className="input-field"

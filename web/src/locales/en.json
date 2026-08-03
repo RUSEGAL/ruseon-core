@@ -1,0 +1,99 @@
+{
+  "app": {
+    "title": "Gritprof Media Server"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "cameras": "Cameras",
+    "archive": "Archive",
+    "backup": "Backup",
+    "logs": "Logs",
+    "tags": "Tags",
+    "logout": "Logout"
+  },
+  "login": {
+    "title": "Gritprof Media Server",
+    "placeholder": "Password...",
+    "button": "Login",
+    "error": "Invalid password"
+  },
+  "dashboard": {
+    "systemInfo": "System Information",
+    "uptime": "Uptime",
+    "memory": "Memory (Alloc)",
+    "goroutines": "Goroutines",
+    "totalCameras": "Total Cameras",
+    "activeStreams": "HLS Viewers",
+    "totalTraffic": "Traffic",
+    "advanced": "Advanced Stats"
+  },
+  "filters": {
+    "all": "All",
+    "online": "Online",
+    "offline": "Offline",
+    "recording": "REC",
+    "notRecording": "No REC",
+    "allData": "All Data",
+    "highUsage": ">70% Used",
+    "sortBy": "Sort by:",
+    "sortId": "ID (A-Z)",
+    "sortStatus": "Status (Online)",
+    "sortUptime": "Uptime (Longest)",
+    "sortTraffic": "Traffic (Highest)"
+  },
+  "cameras": {
+    "add": "Add Camera",
+    "search": "Search ID, Tag, SIM...",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save Changes",
+    "cancel": "Cancel",
+    "id": "Camera ID",
+    "url": "RTSP URL",
+    "record": "Record Archive",
+    "lazy": "Lazy HLS (Sleep Mode)",
+    "retention": "Retention (days)",
+    "trafficLimit": "Traffic Limit (GB)",
+    "disabled": "Disabled",
+    "comment": "Comment",
+    "transport": "Transport",
+    "status": {
+      "online": "Online",
+      "offline": "Offline",
+      "disabled": "Disabled",
+      "sleep": "Sleeping"
+    },
+    "traffic": "Traffic",
+    "trafficLeft": "Left",
+    "trafficTotal": "Total",
+    "codec": "Codec / FPS",
+    "empty": "No cameras configured yet. Click 'Add Camera' to start.",
+    "generalSettings": "General Settings",
+    "metadataSim": "Metadata & SIM",
+    "simPhone": "SIM Phone",
+    "simIccid": "SIM ICCID"
+  },
+  "tags": {
+    "title": "Tag Manager",
+    "add": "Add Tag",
+    "name": "Tag Name",
+    "color": "Color",
+    "noTags": "No tags available",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "logs": {
+    "title": "System Logs",
+    "clear": "Clear Logs",
+    "pause": "Pause",
+    "resume": "Resume"
+  },
+  "archive": {
+    "title": "Recording Archive",
+    "selectCamera": "Select Camera",
+    "export": "Export Clip",
+    "download": "Download MP4",
+    "start": "Start",
+    "end": "End"
+  }
+}

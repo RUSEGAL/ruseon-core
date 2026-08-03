@@ -1,0 +1,99 @@
+{
+  "app": {
+    "title": "Gritprof Media Server"
+  },
+  "nav": {
+    "dashboard": "Дашборд",
+    "cameras": "Камеры",
+    "archive": "Архив",
+    "backup": "Резервное копирование",
+    "logs": "Логи",
+    "tags": "Теги",
+    "logout": "Выйти"
+  },
+  "login": {
+    "title": "Gritprof Media Server",
+    "placeholder": "Пароль...",
+    "button": "Войти",
+    "error": "Неверный пароль"
+  },
+  "dashboard": {
+    "systemInfo": "Системная информация",
+    "uptime": "Аптайм",
+    "memory": "Память (Alloc)",
+    "goroutines": "Горутины",
+    "totalCameras": "Всего камер",
+    "activeStreams": "Зрители HLS",
+    "totalTraffic": "Трафик",
+    "advanced": "Подробная статистика"
+  },
+  "filters": {
+    "all": "Все",
+    "online": "Онлайн",
+    "offline": "Офлайн",
+    "recording": "Запись",
+    "notRecording": "Без записи",
+    "allData": "Весь трафик",
+    "highUsage": ">70% Трафика",
+    "sortBy": "Сортировка:",
+    "sortId": "ID (А-Я)",
+    "sortStatus": "Статус (Онлайн)",
+    "sortUptime": "Аптайм (Сначала долгие)",
+    "sortTraffic": "Трафик (Сначала макс)"
+  },
+  "cameras": {
+    "add": "Добавить камеру",
+    "search": "Поиск ID, Тег, SIM...",
+    "edit": "Редактировать",
+    "delete": "Удалить",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "id": "ID камеры",
+    "url": "RTSP URL",
+    "record": "Запись архива",
+    "lazy": "Спящий режим (Lazy HLS)",
+    "retention": "Хранение (дней)",
+    "trafficLimit": "Лимит трафика (ГБ)",
+    "disabled": "Отключена",
+    "comment": "Комментарий",
+    "transport": "Транспорт",
+    "status": {
+      "online": "Онлайн",
+      "offline": "Офлайн",
+      "disabled": "Отключена",
+      "sleep": "Спит"
+    },
+    "traffic": "Трафик",
+    "trafficLeft": "Осталось",
+    "trafficTotal": "Всего",
+    "codec": "Кодек / FPS",
+    "empty": "Камеры не настроены. Нажмите 'Добавить камеру' чтобы начать.",
+    "generalSettings": "Общие настройки",
+    "metadataSim": "Метаданные & SIM",
+    "simPhone": "Номер SIM",
+    "simIccid": "SIM ICCID"
+  },
+  "tags": {
+    "title": "Менеджер тегов",
+    "add": "Добавить тег",
+    "name": "Имя тега",
+    "color": "Цвет",
+    "noTags": "Нет доступных тегов",
+    "save": "Сохранить",
+    "cancel": "Отмена"
+  },
+  "logs": {
+    "title": "Системные логи",
+    "clear": "Очистить логи",
+    "pause": "Пауза",
+    "resume": "Продолжить"
+  },
+  "archive": {
+    "title": "Архив записей",
+    "selectCamera": "Выберите камеру",
+    "export": "Экспорт отрезка",
+    "download": "Скачать MP4",
+    "start": "Начало",
+    "end": "Конец"
+  }
+}
