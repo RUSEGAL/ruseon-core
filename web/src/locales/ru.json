@@ -98,7 +98,19 @@
       "streamHistory": "История потока",
       "recordHistory": "История записей",
       "streamDisabledMsg": "Поток отключен",
-      "cameraOfflineMsg": "Камера не в сети"
+      "cameraOfflineMsg": "Камера не в сети",
+      "bitrate": "Битрейт",
+      "fps": "FPS",
+      "codec": "Кодек",
+      "actionEnable": "ВКЛ",
+      "actionDisable": "ВЫКЛ",
+      "actionStartRec": "СТАРТ ЗАПИСИ",
+      "actionStopRec": "СТОП ЗАПИСИ",
+      "reasons": {
+        "technical": "Техническая",
+        "requested": "По запросу",
+        "payment": "Неоплата"
+      }
     }
   },
   "tags": {

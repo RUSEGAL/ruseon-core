@@ -98,7 +98,19 @@
       "streamHistory": "Stream History",
       "recordHistory": "Record History",
       "streamDisabledMsg": "Stream is Disabled",
-      "cameraOfflineMsg": "Camera Offline"
+      "cameraOfflineMsg": "Camera Offline",
+      "bitrate": "Bitrate",
+      "fps": "FPS",
+      "codec": "Codec",
+      "actionEnable": "ENABLE",
+      "actionDisable": "DISABLE",
+      "actionStartRec": "START REC",
+      "actionStopRec": "STOP REC",
+      "reasons": {
+        "technical": "Technical",
+        "requested": "Requested",
+        "payment": "Payment"
+      }
     }
   },
   "tags": {

@@ -205,15 +205,15 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
             {/* Realtime Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
               <div className="glass" style={{ padding: '1rem', borderRadius: '12px' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Bitrate</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>{t('cameras.details.bitrate')}</div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--primary)' }}>{isOnline ? `${bitrates[detailsCam.id]?.toFixed(1) || 0} kbps` : '-'}</div>
               </div>
               <div className="glass" style={{ padding: '1rem', borderRadius: '12px' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>FPS</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>{t('cameras.details.fps')}</div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--primary)' }}>{isOnline ? `${fpsMap[detailsCam.id]?.toFixed(1) || 0}` : '-'}</div>
               </div>
               <div className="glass" style={{ padding: '1rem', borderRadius: '12px' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Codec</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>{t('cameras.details.codec')}</div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{detailsCam.codec || '-'}</div>
               </div>
               <div className="glass" style={{ padding: '1rem', borderRadius: '12px' }}>
@@ -292,8 +292,8 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                       {detailsCam.disableHistory.slice().reverse().map((h, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.85rem', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                           <span style={{ color: 'var(--text-muted)', minWidth: '130px' }}>{new Date(h.timestamp).toLocaleString()}</span>
-                          <span style={{ color: h.action === 'enable' ? 'var(--success)' : 'var(--danger)', fontWeight: 600, width: '60px' }}>{h.action.toUpperCase()}</span>
-                          <span style={{ color: '#fff' }}>{h.reason || '-'}</span>
+                          <span style={{ color: h.action === 'enable' ? 'var(--success)' : 'var(--danger)', fontWeight: 600, width: '60px' }}>{h.action === 'enable' ? t('cameras.details.actionEnable') : t('cameras.details.actionDisable')}</span>
+                          <span style={{ color: '#fff' }}>{h.reason ? t(`cameras.details.reasons.${h.reason}`, { defaultValue: h.reason }) : '-'}</span>
                         </div>
                       ))}
                     </div>
@@ -308,7 +308,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.85rem', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                           <span style={{ color: 'var(--text-muted)', minWidth: '130px' }}>{new Date(h.timestamp).toLocaleString()}</span>
                           <span style={{ color: h.action === 'enable' ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
-                            {h.action === 'enable' ? 'START REC' : 'STOP REC'}
+                            {h.action === 'enable' ? t('cameras.details.actionStartRec') : t('cameras.details.actionStopRec')}
                           </span>
                         </div>
                       ))}
