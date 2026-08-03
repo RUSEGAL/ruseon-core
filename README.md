@@ -1,4 +1,4 @@
-﻿# Gritprof Media Server
+# Gritprof Media Server
 
 Gritprof Media Server — это высокопроизводительный, современный сервер ретрансляции (transmuxing) RTSP в HLS и записи архива, написанный на Go и React. Он обеспечивает потоковое вещание в реальном времени, запись архива в формате fMP4, таймшифт (просмотр прошлого) и продвинутую панель управления с аналитикой.
 
@@ -54,7 +54,68 @@ go run ./cmd/server
 - **Username**: admin
 - **Password**: admin
 
+## Установка в Production (Автозагрузка)
+
+### Windows
+Для надежной работы на Windows рекомендуется запускать сервер как системную службу и открыть порт в брандмауэре.
+
+**1. Настройка брандмауэра (в PowerShell от имени администратора):**
+```powershell
+New-NetFirewallRule -DisplayName "Gritprof Media Server" -Direction Inbound -LocalPort 8080 -Protocol TCP -Action Allow
+```
+
+**2. Автозагрузка (с помощью NSSM):**
+1. Скачайте утилиту [NSSM](http://nssm.cc/) (Non-Sucking Service Manager).
+2. В командной строке от имени администратора запустите установку:
+   ```cmd
+   nssm install GritprofMediaServer
+   ```
+3. В открывшемся GUI-окне укажите:
+   - **Path**: полный путь к `GritprofMediaServer.exe`.
+   - **Directory**: папка, в которой лежит `.exe` (очень важно для сохранения файлов базы `data/` и архива `recordings/`).
+4. Нажмите **Install service**.
+5. Запустите службу: `nssm start GritprofMediaServer`.
+
+### Linux (Systemd)
+На Linux для обеспечения бесперебойной работы используйте `systemd`.
+
+**1. Настройка файрвола (UFW):**
+```bash
+sudo ufw allow 8080/tcp
+```
+
+**2. Автозагрузка (Systemd):**
+Создайте файл конфигурации службы (замените `/opt/gritprof` на реальный путь к вашей папке с сервером):
+```bash
+sudo nano /etc/systemd/system/gritprof.service
+```
+Вставьте конфигурацию:
+```ini
+[Unit]
+Description=Gritprof Media Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/gritprof
+ExecStart=/opt/gritprof/GritprofMediaServer-linux
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+```
+Примените изменения и запустите сервер:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable gritprof
+sudo systemctl start gritprof
+```
+
 ## Конфигурация
+
 
 Глобальные настройки сервера генерируются в файле `config.yaml` при первом запуске:
 ```yaml
