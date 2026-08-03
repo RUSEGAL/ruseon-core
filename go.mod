@@ -3,9 +3,11 @@ module gritprofmediaserver
 go 1.26
 
 require (
+	github.com/arl/statsviz v0.8.1
 	github.com/bluenviron/gortsplib/v4 v4.12.2
 	github.com/bluenviron/mediacommon v1.13.3
 	github.com/dgraph-io/badger/v4 v4.9.5
+	github.com/gin-contrib/pprof v1.5.4
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/pion/rtp v1.8.11
@@ -21,12 +23,10 @@ require (
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
-	github.com/gin-contrib/pprof v1.5.4 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -37,6 +37,7 @@ require (
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
@@ -58,7 +59,6 @@ require (
 	go.opentelemetry.io/otel v1.41.0 // indirect
 	go.opentelemetry.io/otel/metric v1.41.0 // indirect
 	go.opentelemetry.io/otel/trace v1.41.0 // indirect
-	go.uber.org/goleak v1.3.0 // indirect
 	golang.org/x/arch v0.22.0 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/net v0.57.0 // indirect

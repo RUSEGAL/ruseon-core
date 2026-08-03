@@ -10,6 +10,7 @@ import (
 
 	"gritprofmediaserver/web"
 
+	"github.com/arl/statsviz"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -27,6 +28,19 @@ func SetupRouter(h *Handler, debug bool) *gin.Engine {
 
 	if debug {
 		pprof.Register(r)
+
+		srv, err := statsviz.NewServer()
+		if err == nil {
+			r.GET("/debug/statsviz/*filepath", func(c *gin.Context) {
+				if c.Param("filepath") == "/ws" {
+					srv.Ws()(c.Writer, c.Request)
+					return
+				}
+				srv.Index()(c.Writer, c.Request)
+			})
+		} else {
+			log.Error().Err(err).Msg("Failed to initialize statsviz")
+		}
 	}
 
 	// Zerolog middleware for Gin
