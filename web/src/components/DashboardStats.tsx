@@ -1,4 +1,5 @@
 import { Activity, Server, Users, Network, Camera, Clock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { ServerStats } from '../types';
 import { formatBytes, formatUptime } from '../utils/formatters';
 
@@ -8,6 +9,7 @@ interface DashboardStatsProps {
 }
 
 export function DashboardStats({ serverStats, onOpenAdvancedStats }: DashboardStatsProps) {
+  const { t } = useTranslation();
   return (
     <div className="glass" style={{ 
       display: 'flex', 
@@ -22,7 +24,7 @@ export function DashboardStats({ serverStats, onOpenAdvancedStats }: DashboardSt
         <div style={{ padding: '8px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '8px', color: 'var(--primary)' }}>
           <Activity size={20} />
         </div>
-        <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>Dashboard</span>
+        <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{t('nav.dashboard')}</span>
       </div>
 
       <div style={{ height: '32px', width: '1px', background: 'var(--card-border)' }}></div>
@@ -30,7 +32,7 @@ export function DashboardStats({ serverStats, onOpenAdvancedStats }: DashboardSt
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <Camera size={18} style={{ color: 'var(--text-muted)' }} />
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cameras</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('nav.cameras')}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '1rem', fontWeight: 600 }} title="Online / Total">
               <span style={{ color: serverStats.onlineCameras === serverStats.totalCameras - (serverStats.disabledCameras || 0) ? 'var(--success)' : 'var(--danger)' }}>{serverStats.onlineCameras}</span> / {serverStats.totalCameras}
@@ -50,7 +52,7 @@ export function DashboardStats({ serverStats, onOpenAdvancedStats }: DashboardSt
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <Network size={18} style={{ color: 'var(--text-muted)' }} />
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Traffic</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('cameras.traffic')}</span>
           <span style={{ fontSize: '0.95rem', fontWeight: 500, fontFamily: 'monospace' }}>
             <span style={{ color: 'var(--success)' }}>↓{formatBytes(serverStats.totalBytes)}</span> <span style={{ color: 'var(--primary)', marginLeft: '6px' }}>↑{formatBytes(serverStats.totalBytesSent)}</span>
           </span>
@@ -60,7 +62,7 @@ export function DashboardStats({ serverStats, onOpenAdvancedStats }: DashboardSt
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <Users size={18} style={{ color: 'var(--text-muted)' }} />
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Viewers</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('dashboard.activeStreams')}</span>
           <span style={{ fontSize: '1rem', fontWeight: 600, color: '#f59e0b' }}>
             {serverStats.activeClients || 0}
           </span>
@@ -70,7 +72,7 @@ export function DashboardStats({ serverStats, onOpenAdvancedStats }: DashboardSt
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <Clock size={18} style={{ color: 'var(--text-muted)' }} />
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Uptime</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('dashboard.uptime')}</span>
           <span style={{ fontSize: '0.95rem', fontWeight: 500 }}>
             {formatUptime(serverStats.uptime)}
           </span>

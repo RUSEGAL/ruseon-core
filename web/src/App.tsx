@@ -13,8 +13,10 @@ import { ServerStatsModal } from './components/modals/ServerStatsModal';
 import { TagManagerModal } from './components/modals/TagManagerModal';
 import { LogsModal } from './components/modals/LogsModal';
 import type { TagConfig } from './types';
+import { useTranslation } from 'react-i18next';
 
 export default function App() {
+  const { t } = useTranslation();
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [cameras, setCameras] = useState<CameraInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -258,7 +260,7 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
             <h2 className="section-title" style={{ margin: 0 }}>
               <Camera size={24} style={{ color: 'var(--primary)' }} />
-              Live Cameras
+              {t('nav.cameras')}
             </h2>
             
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -288,7 +290,7 @@ export default function App() {
                 type="text" 
                 className="input-field" 
                 style={{ width: '100%', paddingLeft: '36px', height: '40px' }} 
-                placeholder="Search ID, Tag, SIM..." 
+                placeholder={t('cameras.search')} 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
