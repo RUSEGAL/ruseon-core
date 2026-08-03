@@ -45,6 +45,12 @@ jobs:
       - name: Print Coverage Summary
         run: go tool cover -func=coverage.out
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.out
+          token: ${{ secrets.CODECOV_TOKEN }}
+
   frontend-checks:
     name: React Frontend (Lint & Build)
     runs-on: ubuntu-latest
