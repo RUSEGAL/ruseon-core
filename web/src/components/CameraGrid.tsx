@@ -1,4 +1,5 @@
 import { Trash2, Edit2, ShieldAlert } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { CameraInfo, TagConfig } from '../types';
 import { VideoPlayer } from './VideoPlayer';
 import { formatBytes } from '../utils/formatters';
@@ -12,6 +13,7 @@ interface CameraGridProps {
 }
 
 export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails, globalTags }: CameraGridProps) {
+  const { t } = useTranslation();
   return (
     <div className="camera-grid">
       {cameras.map(cam => (
@@ -24,10 +26,10 @@ export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails, globalTag
           <div className="camera-header">
             <h3 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>{cam.id}</h3>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn-icon" onClick={(e) => { e.stopPropagation(); onEdit(cam); }} title="Edit">
+              <button className="btn-icon" onClick={(e) => { e.stopPropagation(); onEdit(cam); }} title={t('cameras.edit')}>
                 <Edit2 size={16} />
               </button>
-              <button className="btn-icon btn-danger" onClick={(e) => { e.stopPropagation(); onDelete(cam.id); }} title="Delete">
+              <button className="btn-icon btn-danger" onClick={(e) => { e.stopPropagation(); onDelete(cam.id); }} title={t('cameras.delete')}>
                 <Trash2 size={16} />
               </button>
             </div>
@@ -40,12 +42,12 @@ export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails, globalTag
                 {cam.disabled ? (
                   <>
                     <div className="status-indicator error"></div>
-                    <span style={{ fontWeight: 600, color: 'var(--danger)' }}>Disabled</span>
+                    <span style={{ fontWeight: 600, color: 'var(--danger)' }}>{t('cameras.status.disabled')}</span>
                   </>
                 ) : (
                   <>
                     <div className={`status-indicator ${cam.connected ? 'online' : 'offline'}`}></div>
-                    <span style={{ fontWeight: 600 }}>{cam.connected ? 'Online' : 'Offline'}</span>
+                    <span style={{ fontWeight: 600 }}>{cam.connected ? t('cameras.status.online') : t('cameras.status.offline')}</span>
                   </>
                 )}
               </div>
@@ -101,7 +103,7 @@ export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails, globalTag
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', color: 'var(--text-muted)' }}>
                   <ShieldAlert size={36} style={{ color: 'var(--danger)', opacity: 0.8 }} />
-                  <span>{cam.disabled ? 'Stream Disabled' : 'Stream Disconnected'}</span>
+                  <span>{cam.disabled ? t('cameras.status.disabled') : t('cameras.status.offline')}</span>
                 </div>
               )}
             </div>

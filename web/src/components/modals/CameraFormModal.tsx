@@ -1,5 +1,6 @@
 import { X, Camera } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TagConfig } from '../../types';
 
 export interface CamFormState {
@@ -27,6 +28,7 @@ interface CameraFormModalProps {
 }
 
 export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClose, globalTags }: CameraFormModalProps) {
+  const { t } = useTranslation();
   const toggleTag = (tagId: string) => {
     const newTags = camForm.tags.includes(tagId) 
       ? camForm.tags.filter(id => id !== tagId)
@@ -41,7 +43,7 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Camera size={20} color="var(--primary)" />
-            {isEditing ? 'Edit Camera' : 'Add New Camera'}
+            {isEditing ? t('cameras.edit') : t('cameras.add')}
           </h3>
           <button className="btn-icon" onClick={onClose}>
             <X size={20} />
@@ -72,7 +74,7 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
               <>
                 <div style={{ display: 'flex', gap: '16px' }}>
                   <div className="form-group" style={{ flex: 1 }}>
-                    <label>Camera ID (Unique)</label>
+                    <label>{t('cameras.id')}</label>
                     <input 
                       type="text" 
                       className="input-field"
@@ -87,7 +89,7 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
                 
                 <div style={{ display: 'flex', gap: '16px' }}>
                   <div className="form-group" style={{ flex: 2 }}>
-                    <label>RTSP URL</label>
+                    <label>{t('cameras.url')}</label>
                     <input 
                       type="text" 
                       className="input-field"
@@ -98,7 +100,7 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
                     />
                   </div>
                   <div className="form-group" style={{ flex: 1 }}>
-                    <label>Transport</label>
+                    <label>{t('cameras.transport')}</label>
                     <select 
                       className="input-field"
                       value={camForm.transport}
@@ -120,7 +122,7 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
                       onChange={e => setCamForm({...camForm, record: e.target.checked})}
                       style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                     />
-                    <label htmlFor="record-check" style={{ marginBottom: 0, cursor: 'pointer', fontWeight: 500 }}>Enable Archive Recording</label>
+                    <label htmlFor="record-check" style={{ marginBottom: 0, cursor: 'pointer', fontWeight: 500 }}>{t('cameras.record')}</label>
                   </div>
                   
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
@@ -131,12 +133,12 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
                       onChange={e => setCamForm({...camForm, lazyHLS: e.target.checked})}
                       style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                     />
-                    <label htmlFor="lazy-hls-check" style={{ marginBottom: 0, cursor: 'pointer', fontWeight: 500 }}>Enable Lazy HLS (Muxing on Demand)</label>
+                    <label htmlFor="lazy-hls-check" style={{ marginBottom: 0, cursor: 'pointer', fontWeight: 500 }}>{t('cameras.lazy')}</label>
                   </div>
 
                   {camForm.record && (
                     <div className="form-group" style={{ paddingLeft: '30px', marginBottom: 0 }}>
-                      <label>Retention (Days). 0 = Global Setting</label>
+                      <label>{t('cameras.retention')}</label>
                       <input 
                         type="number" 
                         min="0"
@@ -159,7 +161,7 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
                       style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--danger)' }}
                     />
                     <label htmlFor="disable-check" style={{ marginBottom: 0, cursor: 'pointer', fontWeight: 500, color: camForm.disabled ? 'var(--danger)' : 'var(--text-main)' }}>
-                      Disable Stream Processing
+                      {t('cameras.disabled')}
                     </label>
                   </div>
 
@@ -232,7 +234,7 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
                 </div>
                 
                 <div className="form-group">
-                  <label>Comments / Notes</label>
+                  <label>{t('cameras.comment')}</label>
                   <textarea 
                     className="input-field"
                     value={camForm.comment} 
@@ -269,8 +271,8 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
           </div>
           
           <div style={{ display: 'flex', gap: '16px', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-            <button type="submit" className="btn btn-primary" style={{ flex: 2, padding: '12px' }}>{isEditing ? 'Save Changes' : 'Create Camera'}</button>
-            <button type="button" className="btn btn-secondary" style={{ flex: 1, padding: '12px' }} onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" style={{ flex: 2, padding: '12px' }}>{t('cameras.save')}</button>
+            <button type="button" className="btn btn-secondary" style={{ flex: 1, padding: '12px' }} onClick={onClose}>{t('cameras.cancel')}</button>
           </div>
         </form>
       </div>

@@ -1,4 +1,5 @@
 import { Trash2, Edit2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { CameraInfo, TagConfig } from '../types';
 import { formatBytes, formatUptime } from '../utils/formatters';
 
@@ -13,6 +14,8 @@ interface CameraListProps {
 }
 
 export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpenDetails, globalTags }: CameraListProps) {
+  const { t } = useTranslation();
+  
   return (
     <div className="camera-list">
       {cameras.map(cam => (
@@ -25,11 +28,11 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: '4px' }}>
                 {cam.disabled && (
                   <span className="status-badge error">
-                    Disabled: {cam.disableReason === 'technical' ? 'Tech. Issue' : cam.disableReason === 'requested' ? 'By User' : cam.disableReason === 'payment' ? 'Unpaid Bill' : cam.disableReason}
+                    {t('cameras.status.disabled')}: {cam.disableReason}
                   </span>
                 )}
                 {!cam.disabled && !cam.connected && (
-                  <span className="status-badge error">Offline</span>
+                  <span className="status-badge error">{t('cameras.status.offline')}</span>
                 )}
                 {cam.record && (
                   <span className="status-badge warning" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -65,14 +68,14 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flex: 2, justifyContent: 'flex-end' }}>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Uptime</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('dashboard.uptime')}</div>
               <div style={{ fontWeight: 600 }}>{cam.connected ? formatUptime(cam.uptime) : '-'}</div>
             </div>
             <div style={{ minWidth: '120px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Traffic</span>
+                <span style={{ color: 'var(--text-muted)' }}>{t('cameras.traffic')}</span>
                 <span style={{ fontWeight: 600, color: (cam.trafficUsed || 0) > (cam.trafficLimit || 200*1024*1024*1024) * 0.9 ? 'var(--danger)' : 'var(--primary)' }}>
-                  {formatBytes((cam.trafficLimit || 200*1024*1024*1024) - (cam.trafficUsed || 0))} left
+                  {formatBytes((cam.trafficLimit || 200*1024*1024*1024) - (cam.trafficUsed || 0))}
                 </span>
               </div>
               <div style={{ width: '100%', height: '6px', background: 'var(--card-bg)', borderRadius: '3px', overflow: 'hidden', border: '1px solid var(--card-border)' }}>
@@ -92,10 +95,10 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatBytes(cam.bytesReceived)} Total</div>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn-icon" onClick={(e) => { e.stopPropagation(); onEdit(cam); }} title="Edit">
+              <button className="btn-icon" onClick={(e) => { e.stopPropagation(); onEdit(cam); }} title={t('cameras.edit')}>
                 <Edit2 size={16} />
               </button>
-              <button className="btn-icon btn-danger" onClick={(e) => { e.stopPropagation(); onDelete(cam.id); }} title="Delete">
+              <button className="btn-icon btn-danger" onClick={(e) => { e.stopPropagation(); onDelete(cam.id); }} title={t('cameras.delete')}>
                 <Trash2 size={16} />
               </button>
             </div>
