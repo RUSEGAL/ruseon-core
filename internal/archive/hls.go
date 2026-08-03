@@ -73,12 +73,12 @@ func getFileIndex(path string) (*FileIndex, error) {
 			break
 		}
 		initSize += int64(size)
-		f.Seek(int64(size)-8, io.SeekCurrent)
+		_, _ = f.Seek(int64(size)-8, io.SeekCurrent)
 	}
 
 	idx.InitOffset = 0
 	idx.InitSize = initSize
-	f.Seek(initSize, io.SeekStart)
+	_, _ = f.Seek(initSize, io.SeekStart)
 
 	for {
 		offset, _ := f.Seek(0, io.SeekCurrent)
@@ -89,7 +89,7 @@ func getFileIndex(path string) (*FileIndex, error) {
 		
 		if typ == "moof" {
 			// Нашли moof, читаем его целиком
-			f.Seek(offset, io.SeekStart)
+			_, _ = f.Seek(offset, io.SeekStart)
 			moofData := make([]byte, size)
 			_, _ = io.ReadFull(f, moofData)
 			
@@ -97,7 +97,7 @@ func getFileIndex(path string) (*FileIndex, error) {
 			mdatOffset, _ := f.Seek(0, io.SeekCurrent)
 			typ2, size2, err2 := readBoxHeader(f)
 			if err2 == nil && typ2 == "mdat" {
-				f.Seek(mdatOffset, io.SeekStart)
+				_, _ = f.Seek(mdatOffset, io.SeekStart)
 				mdatData := make([]byte, size2)
 				_, _ = io.ReadFull(f, mdatData)
 				
@@ -128,7 +128,7 @@ func getFileIndex(path string) (*FileIndex, error) {
 			}
 		} else {
 			// Пропускаем неизвестный бокс
-			f.Seek(offset+int64(size), io.SeekStart)
+			_, _ = f.Seek(offset+int64(size), io.SeekStart)
 		}
 	}
 
@@ -192,7 +192,7 @@ func GenerateHLSSegment(recordDir, cameraID, filename string, seq int) ([]byte, 
 	defer f.Close()
 
 	// 1. Читаем Init чтобы достать параметры кодека (SPS/PPS)
-	f.Seek(idx.InitOffset, io.SeekStart)
+	_, _ = f.Seek(idx.InitOffset, io.SeekStart)
 	var init fmp4.Init
 	if err := init.Unmarshal(f); err != nil {
 		return nil, err
@@ -203,17 +203,17 @@ func GenerateHLSSegment(recordDir, cameraID, filename string, seq int) ([]byte, 
 	}
 	
 	// 2. Читаем запрашиваемый Part
-	f.Seek(idx.Parts[seq].Offset, io.SeekStart)
+	_, _ = f.Seek(idx.Parts[seq].Offset, io.SeekStart)
 	
 	// Читаем moof
 	_, moofSize, _ := readBoxHeader(f)
-	f.Seek(idx.Parts[seq].Offset, io.SeekStart)
+	_, _ = f.Seek(idx.Parts[seq].Offset, io.SeekStart)
 	moofData := make([]byte, moofSize)
 	_, _ = io.ReadFull(f, moofData)
 	
 	// Читаем mdat
 	_, mdatSize, _ := readBoxHeader(f)
-	f.Seek(idx.Parts[seq].Offset+int64(moofSize), io.SeekStart)
+	_, _ = f.Seek(idx.Parts[seq].Offset+int64(moofSize), io.SeekStart)
 	mdatData := make([]byte, mdatSize)
 	_, _ = io.ReadFull(f, mdatData)
 	
