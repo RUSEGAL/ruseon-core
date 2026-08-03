@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Build Frontend
         working-directory: ./web
@@ -61,17 +61,15 @@ jobs:
 
       - name: Package Release (Windows)
         run: |
-          mkdir -p release-windows/web
+          mkdir -p release-windows
           cp -r GritprofMediaServer.exe release-windows/
-          cp -r web/dist release-windows/web/
           cp config.yaml release-windows/ || true
           cd release-windows && zip -r ../GritprofMediaServer-${{ github.ref_name }}-Windows.zip ./*
 
       - name: Package Release (Linux)
         run: |
-          mkdir -p release-linux/web
+          mkdir -p release-linux
           cp -r GritprofMediaServer-linux release-linux/
-          cp -r web/dist release-linux/web/
           cp config.yaml release-linux/ || true
           cd release-linux && zip -r ../GritprofMediaServer-${{ github.ref_name }}-Linux.zip ./*
 

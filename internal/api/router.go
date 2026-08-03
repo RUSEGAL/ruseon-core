@@ -2,9 +2,13 @@ package api
 
 import (
 	"fmt"
+	"io"
+	"io/fs"
 	"net/http"
 	"strings"
 	"time"
+
+	"gritprofmediaserver/web"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -127,9 +131,25 @@ func SetupRouter(h *Handler, debug bool) *gin.Engine {
 	r.GET("/hls/:id/segment.ts", h.GetArchiveHLSSegment)
 
 	// Статика фронтенда
-	r.Static("/assets", "./web/dist/assets")
+	assetsFS, err := fs.Sub(web.FrontendFS, "dist/assets")
+	if err == nil {
+		r.StaticFS("/assets", http.FS(assetsFS))
+	}
+
+	distFS, err := fs.Sub(web.FrontendFS, "dist")
 	r.NoRoute(func(c *gin.Context) {
-		c.File("./web/dist/index.html")
+		if err != nil {
+			c.String(http.StatusNotFound, "Frontend not embedded")
+			return
+		}
+		file, err2 := distFS.Open("index.html")
+		if err2 != nil {
+			c.String(http.StatusNotFound, "index.html not found")
+			return
+		}
+		defer file.Close()
+		stat, _ := file.Stat()
+		http.ServeContent(c.Writer, c.Request, "index.html", stat.ModTime(), file.(io.ReadSeeker))
 	})
 
 	return r
