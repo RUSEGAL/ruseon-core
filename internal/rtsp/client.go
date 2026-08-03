@@ -3,6 +3,7 @@ package rtsp
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/bluenviron/gortsplib/v4"
@@ -22,6 +23,10 @@ type OnParamsCallback func(vps, sps, pps []byte)
 type Client struct {
 	client *gortsplib.Client
 	url    string
+
+	mu        sync.Mutex
+	startDone bool
+	closed    bool
 }
 
 // NewClient создает новый RTSP клиент.
@@ -47,7 +52,14 @@ func NewClient(id, url string) *Client {
 
 // Close закрывает соединение
 func (c *Client) Close() {
-	c.client.Close()
+	c.mu.Lock()
+	c.closed = true
+	canClose := c.startDone
+	c.mu.Unlock()
+
+	if canClose {
+		c.client.Close()
+	}
 }
 
 // Start подключается к камере и блокирует выполнение до отключения.
@@ -61,6 +73,17 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 	if err != nil {
 		return fmt.Errorf("failed to start client: %w", err)
 	}
+
+	c.mu.Lock()
+	c.startDone = true
+	shouldClose := c.closed
+	c.mu.Unlock()
+
+	if shouldClose {
+		c.client.Close()
+		return fmt.Errorf("client was closed during start")
+	}
+
 	defer c.client.Close()
 
 	session, _, err := c.client.Describe(u)
