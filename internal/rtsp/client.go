@@ -45,6 +45,11 @@ func NewClient(id, url string) *Client {
 	return c
 }
 
+// Close закрывает соединение
+func (c *Client) Close() {
+	c.client.Close()
+}
+
 // Start подключается к камере и блокирует выполнение до отключения.
 func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams OnParamsCallback) error {
 	u, err := base.ParseURL(c.url)

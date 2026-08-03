@@ -41,6 +41,9 @@ type Stream struct {
 	framesReceived    atomic.Uint64
 	keyFramesReceived atomic.Uint64
 	reconnects        atomic.Uint64
+
+	rtspClient *rtsp.Client
+	rtspMu     sync.Mutex
 }
 
 // NewStream создает и запускает поток.
@@ -79,11 +82,14 @@ func (s *Stream) run() {
 		if s.ctx.Err() != nil {
 			break
 		}
-		client := rtsp.NewClient(s.ID, s.URL)
 
 		log.Info().Str("id", s.ID).Str("url", s.URL).Msg("Connecting to RTSP")
+
+		s.rtspMu.Lock()
+		s.rtspClient = rtsp.NewClient(s.ID, s.URL)
+		s.rtspMu.Unlock()
 		
-		err := client.Start(s.ctx, func(nalus [][]byte, pts time.Duration, isKeyFrame bool) {
+		err := s.rtspClient.Start(s.ctx, func(nalus [][]byte, pts time.Duration, isKeyFrame bool) {
 			// Считаем объем байт (примерно, только полезная нагрузка NALU)
 			size := 0
 			for _, n := range nalus {
@@ -135,6 +141,13 @@ func (s *Stream) run() {
 // Stop останавливает работу потока.
 func (s *Stream) Stop() {
 	s.cancelCtx()
+	
+	s.rtspMu.Lock()
+	if s.rtspClient != nil {
+		s.rtspClient.Close()
+	}
+	s.rtspMu.Unlock()
+
 	s.ringBuffer.Close()
 	
 	s.muxerMu.Lock()
@@ -168,14 +181,9 @@ func (s *Stream) WakeUpHLSMuxer() *hls.Muxer {
 }
 
 func (s *Stream) lazyHLSWatchdog() {
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
 	for {
 		select {
-		case <-s.ctx.Done():
-			return
-		case <-ticker.C:
+		case <-time.After(1 * time.Minute):
 			s.muxerMu.Lock()
 			if s.hlsMuxer != nil && time.Since(s.lastHLSRequest) > 60*time.Second {
 				log.Info().Str("id", s.ID).Msg("Stopping HLS Muxer due to inactivity (Lazy Mode)")
@@ -183,6 +191,8 @@ func (s *Stream) lazyHLSWatchdog() {
 				s.hlsMuxer = nil
 			}
 			s.muxerMu.Unlock()
+		case <-s.ctx.Done():
+			return
 		}
 	}
 }

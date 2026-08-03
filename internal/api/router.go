@@ -10,6 +10,7 @@ import (
 
 	"gritprofmediaserver/web"
 
+	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
@@ -23,6 +24,10 @@ func SetupRouter(h *Handler, debug bool) *gin.Engine {
 
 	r := gin.New()
 	r.Use(gin.Recovery())
+
+	if debug {
+		pprof.Register(r)
+	}
 
 	// Zerolog middleware for Gin
 	r.Use(func(c *gin.Context) {
