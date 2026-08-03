@@ -31,14 +31,19 @@ type Client struct {
 
 // NewClient создает новый RTSP клиент.
 func NewClient(id, url string) *Client {
+	transport := gortsplib.TransportTCP
+
 	c := &Client{
 		url: url,
 		client: &gortsplib.Client{
+			// Принудительно используем TCP для RTSP, чтобы избежать
+			// потери UDP пакетов и появления "зеленых квадратов" (артефактов).
+			Transport: &transport,
 			// Разрешаем любой порт для приема RTP/RTCP
 			AnyPortEnable: true,
 		},
 	}
-	
+
 	// Настраиваем перехват ошибок потерянных пакетов и декодирования
 	c.client.OnPacketLost = func(err error) {
 		log.Warn().Str("id", id).Str("url", url).Msg(err.Error())
@@ -46,7 +51,7 @@ func NewClient(id, url string) *Client {
 	c.client.OnDecodeError = func(err error) {
 		log.Warn().Str("id", id).Str("url", url).Msg(err.Error())
 	}
-	
+
 	return c
 }
 
@@ -106,7 +111,7 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 				if err != nil {
 					return fmt.Errorf("failed to create H264 decoder: %w", err)
 				}
-				
+
 				sps, pps := f.SafeParams()
 				if sps != nil && pps != nil {
 					onParams(nil, sps, pps)
@@ -135,7 +140,7 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 				if err != nil {
 					return fmt.Errorf("failed to create H265 decoder: %w", err)
 				}
-				
+
 				vps, sps, pps := f.SafeParams()
 				if vps != nil && sps != nil && pps != nil {
 					onParams(vps, sps, pps)
