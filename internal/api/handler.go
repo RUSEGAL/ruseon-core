@@ -250,7 +250,7 @@ func (h *Handler) AddCamera(c *gin.Context) {
 
 	// Запускаем поток, если он не отключен
 	if !cam.Disabled {
-		if err := h.manager.AddStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS); err != nil {
+		if err := h.manager.AddStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -333,7 +333,7 @@ func (h *Handler) EditCamera(c *gin.Context) {
 	// Перезапускаем поток если он включен
 	h.manager.RemoveStream(id)
 	if !req.Disabled {
-		_ = h.manager.AddStream(req.ID, req.URL, req.Record, req.LazyHLS)
+		_ = h.manager.AddStream(req.ID, req.URL, req.Record, req.LazyHLS, req.Transport)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})

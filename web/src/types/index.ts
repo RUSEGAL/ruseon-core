@@ -18,6 +18,7 @@ export interface CameraInfo {
   reconnects: number;
   codec: string;
   lazyHLS: boolean;
+  transport?: string;
   disabled: boolean;
   disableReason: string;
   disableHistory: {

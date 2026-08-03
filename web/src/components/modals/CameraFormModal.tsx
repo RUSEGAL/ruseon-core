@@ -7,6 +7,7 @@ export interface CamFormState {
   url: string;
   record: boolean;
   lazyHLS: boolean;
+  transport: string;
   retentionDays: number;
   tags: string[];
   comment: string;
@@ -84,16 +85,30 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
                   </div>
                 </div>
                 
-                <div className="form-group">
-                  <label>RTSP URL</label>
-                  <input 
-                    type="text" 
-                    className="input-field"
-                    value={camForm.url} 
-                    onChange={e => setCamForm({...camForm, url: e.target.value})} 
-                    placeholder="rtsp://user:pass@ip:port/stream"
-                    required 
-                  />
+                <div style={{ display: 'flex', gap: '16px' }}>
+                  <div className="form-group" style={{ flex: 2 }}>
+                    <label>RTSP URL</label>
+                    <input 
+                      type="text" 
+                      className="input-field"
+                      value={camForm.url} 
+                      onChange={e => setCamForm({...camForm, url: e.target.value})} 
+                      placeholder="rtsp://user:pass@ip:port/stream"
+                      required 
+                    />
+                  </div>
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label>Transport</label>
+                    <select 
+                      className="input-field"
+                      value={camForm.transport}
+                      onChange={e => setCamForm({...camForm, transport: e.target.value})}
+                    >
+                      <option value="tcp">TCP (Recommended)</option>
+                      <option value="udp">UDP</option>
+                      <option value="auto">Auto</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '16px', flexDirection: 'column', background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '8px' }}>

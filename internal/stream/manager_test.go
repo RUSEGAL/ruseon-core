@@ -15,7 +15,7 @@ func TestManager_Concurrency(t *testing.T) {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			_ = m.AddStream(fmt.Sprintf("cam%d", id), "rtsp://invalid", false, true)
+			_ = m.AddStream(fmt.Sprintf("cam%d", id), "rtsp://invalid", false, true, "tcp")
 		}(i)
 	}
 	wg.Wait()
@@ -45,8 +45,8 @@ func TestManager_Concurrency(t *testing.T) {
 
 func TestManager_AddDuplicate(t *testing.T) {
 	m := NewManager()
-	_ = m.AddStream("cam1", "rtsp://invalid", false, true)
-	err := m.AddStream("cam1", "rtsp://invalid2", false, true)
+	_ = m.AddStream("cam1", "rtsp://invalid", false, true, "tcp")
+	err := m.AddStream("cam1", "rtsp://invalid2", false, true, "tcp")
 	if err == nil {
 		t.Errorf("Expected error when adding duplicate stream")
 	}

@@ -30,18 +30,25 @@ type Client struct {
 }
 
 // NewClient создает новый RTSP клиент.
-func NewClient(id, url string) *Client {
-	transport := gortsplib.TransportTCP
-
+func NewClient(id, url string, transportStr string) *Client {
 	c := &Client{
 		url: url,
 		client: &gortsplib.Client{
-			// Принудительно используем TCP для RTSP, чтобы избежать
-			// потери UDP пакетов и появления "зеленых квадратов" (артефактов).
-			Transport: &transport,
 			// Разрешаем любой порт для приема RTP/RTCP
 			AnyPortEnable: true,
 		},
+	}
+
+	if transportStr == "tcp" {
+		t := gortsplib.TransportTCP
+		c.client.Transport = &t
+	} else if transportStr == "udp" {
+		t := gortsplib.TransportUDP
+		c.client.Transport = &t
+	} else {
+		// "auto" или пустая строка: по умолчанию TCP
+		t := gortsplib.TransportTCP
+		c.client.Transport = &t
 	}
 
 	// Настраиваем перехват ошибок потерянных пакетов и декодирования

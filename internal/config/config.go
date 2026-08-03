@@ -53,6 +53,7 @@ type CameraConfig struct {
 	SimPhone      string   `yaml:"sim_phone,omitempty" json:"simPhone"`
 	SimICCID      string   `yaml:"sim_iccid,omitempty" json:"simICCID"`
 	LazyHLS       bool     `yaml:"lazy_hls,omitempty" json:"lazyHLS"`
+	Transport     string   `yaml:"transport,omitempty" json:"transport"` // "tcp", "udp", или "auto"
 
 	// Биллинг и трафик
 	TrafficLimit   uint64 `yaml:"traffic_limit" json:"trafficLimit"`     // Лимит в байтах

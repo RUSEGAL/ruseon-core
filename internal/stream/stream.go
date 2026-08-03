@@ -19,6 +19,7 @@ import (
 type Stream struct {
 	ID  string
 	URL string
+	transport string
 
 	ctx       context.Context
 	cancelCtx context.CancelFunc
@@ -47,12 +48,13 @@ type Stream struct {
 }
 
 // NewStream создает и запускает поток.
-func NewStream(id, url string, record bool, lazyHLS bool) *Stream {
+func NewStream(id, url string, record bool, lazyHLS bool, transport string) *Stream {
 	ctx, cancel := context.WithCancel(context.Background())
 	rb := buffer.NewRingBuffer(100)
 	s := &Stream{
 		ID:         id,
 		URL:        url,
+		transport:  transport,
 		ctx:        ctx,
 		cancelCtx:  cancel,
 		// Буфер на 100 кадров (примерно 4 секунды при 25 FPS)
@@ -86,7 +88,7 @@ func (s *Stream) run() {
 		log.Info().Str("id", s.ID).Str("url", s.URL).Msg("Connecting to RTSP")
 
 		s.rtspMu.Lock()
-		s.rtspClient = rtsp.NewClient(s.ID, s.URL)
+		s.rtspClient = rtsp.NewClient(s.ID, s.URL, s.transport)
 		s.rtspMu.Unlock()
 		
 		err := s.rtspClient.Start(s.ctx, func(nalus [][]byte, pts time.Duration, isKeyFrame bool) {

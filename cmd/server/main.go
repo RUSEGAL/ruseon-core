@@ -87,7 +87,7 @@ func main() {
 
 	for _, cam := range cams {
 		if !cam.Disabled {
-			_ = manager.AddStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS)
+			_ = manager.AddStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport)
 			log.Info().Str("id", cam.ID).Str("url", cam.URL).Bool("record", cam.Record).Msg("Added camera from DB")
 		} else {
 			log.Info().Str("id", cam.ID).Msg("Camera is disabled, skipping stream creation")
