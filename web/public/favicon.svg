@@ -6,8 +6,19 @@
     </linearGradient>
   </defs>
   <!-- Outer ring / Engine -->
-  <path d="M50 5 a45 45 0 1 0 0 90 a45 45 0 1 0 0 -90" fill="none" stroke="url(#reaGrad)" stroke-width="8" stroke-dasharray="70 20" stroke-linecap="round" />
-  <!-- Inner Play / Stream -->
-  <polygon points="40,30 70,50 40,70" fill="url(#reaGrad)" />
-  <path d="M30 35 L30 65" stroke="#818cf8" stroke-width="8" stroke-linecap="round" />
+  <path 
+    d="M50 10 a40 40 0 1 0 0 80 a40 40 0 1 0 0 -80" 
+    fill="none" 
+    stroke="url(#reaGrad)" 
+    stroke-width="6" 
+    stroke-dasharray="60 15" 
+    stroke-linecap="round" 
+  />
+  <!-- Inner Play -->
+  <polygon points="35,35 60,50 35,65" fill="url(#reaGrad)" />
+  
+  <!-- Stream Waves -->
+  <path d="M68 35 Q80 50 68 65" fill="none" stroke="#6366f1" stroke-width="5" stroke-linecap="round" />
+  <path d="M78 28 Q95 50 78 72" fill="none" stroke="#4338ca" stroke-width="5" stroke-linecap="round" />
+  <path d="M22 40 L22 60" fill="none" stroke="#6366f1" stroke-width="5" stroke-linecap="round" opacity="0.6" />
 </svg>

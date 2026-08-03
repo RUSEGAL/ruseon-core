@@ -21,15 +21,19 @@ export const Logo: React.FC<{ size?: number; className?: string; style?: React.C
     </defs>
     {/* Outer ring / Engine */}
     <path 
-      d="M50 5 a45 45 0 1 0 0 90 a45 45 0 1 0 0 -90" 
+      d="M50 10 a40 40 0 1 0 0 80 a40 40 0 1 0 0 -80" 
       fill="none" 
       stroke="url(#reaGrad)" 
-      strokeWidth="8" 
-      strokeDasharray="70 20" 
+      strokeWidth="6" 
+      strokeDasharray="60 15" 
       strokeLinecap="round" 
     />
-    {/* Inner Play / Stream */}
-    <polygon points="40,30 70,50 40,70" fill="url(#reaGrad)" />
-    <path d="M30 35 L30 65" stroke="var(--primary)" strokeWidth="8" strokeLinecap="round" />
+    {/* Inner Play */}
+    <polygon points="35,35 60,50 35,65" fill="url(#reaGrad)" />
+    
+    {/* Stream Waves */}
+    <path d="M68 35 Q80 50 68 65" fill="none" stroke="var(--primary)" strokeWidth="5" strokeLinecap="round" />
+    <path d="M78 28 Q95 50 78 72" fill="none" stroke="#4338ca" strokeWidth="5" strokeLinecap="round" />
+    <path d="M22 40 L22 60" fill="none" stroke="var(--primary)" strokeWidth="5" strokeLinecap="round" opacity="0.6" />
   </svg>
 );
