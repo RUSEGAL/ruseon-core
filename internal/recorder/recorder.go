@@ -131,7 +131,7 @@ func (r *Recorder) run() {
 
 			log.Info().Str("file", currentFilename).Msg("Started recording fMP4")
 
-			_, sps, pps = r.ringBuffer.GetParams()
+			vps, sps, pps := r.ringBuffer.GetParams()
 
 			var codec fmp4.Codec
 			if vps != nil {
@@ -186,7 +186,7 @@ func (r *Recorder) run() {
 				}},
 			}
 
-			if err := _ = part.Marshal(file); err != nil {
+			if err := part.Marshal(file); err != nil {
 				log.Error().Err(err).Msg("Failed to write fMP4 part")
 				closeAndRename()
 				pendingSample = nil
