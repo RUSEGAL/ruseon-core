@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"mime"
 
 	"gritprofmediaserver/web"
 
@@ -16,6 +17,14 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
 )
+
+func init() {
+	// Fix Windows missing MIME types for statsviz and frontend
+	_ = mime.AddExtensionType(".woff", "font/woff")
+	_ = mime.AddExtensionType(".woff2", "font/woff2")
+	_ = mime.AddExtensionType(".js", "application/javascript")
+	_ = mime.AddExtensionType(".css", "text/css")
+}
 
 // SetupRouter инициализирует маршруты Gin.
 func SetupRouter(h *Handler, debug bool) *gin.Engine {
