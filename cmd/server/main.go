@@ -3,7 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
 	"runtime/debug"
+	"syscall"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -98,11 +102,39 @@ func main() {
 	handler := api.NewHandler(manager, cfg, store)
 	router := api.SetupRouter(handler, cfg.Server.Debug)
 
-	// 6. Запуск сервера
+	// 6. Запуск сервера с Graceful Shutdown
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
-	log.Info().Str("addr", addr).Msg("Starting API server")
-	
-	if err := router.Run(addr); err != nil {
-		log.Fatal().Err(err).Msg("Server failed")
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: router,
 	}
+
+	go func() {
+		log.Info().Str("addr", addr).Msg("Starting API server")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal().Err(err).Msg("Server failed")
+		}
+	}()
+
+	// Ожидание сигнала для завершения (Graceful Shutdown)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Info().Msg("Shutting down server...")
+
+	// Даем 5 секунд на корректное завершение текущих соединений
+	ctxShutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctxShutdown); err != nil {
+		log.Fatal().Err(err).Msg("Server forced to shutdown")
+	}
+
+	// Останавливаем потоки и менеджеры (опционально, если есть метод)
+	for _, st := range manager.GetStreams() {
+		manager.RemoveStream(st.ID)
+	}
+
+	// БД закроется через defer store.Close() в main, но мы дождемся его.
+	log.Info().Msg("Server exiting")
 }
