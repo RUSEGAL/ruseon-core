@@ -28,12 +28,13 @@ export const Logo: React.FC<{ size?: number; className?: string; style?: React.C
       strokeDasharray="60 15" 
       strokeLinecap="round" 
     />
-    {/* Inner Play */}
-    <polygon points="35,35 60,50 35,65" fill="url(#reaGrad)" />
     
-    {/* Stream Waves */}
-    <path d="M68 35 Q80 50 68 65" fill="none" stroke="var(--primary)" strokeWidth="5" strokeLinecap="round" />
-    <path d="M78 28 Q95 50 78 72" fill="none" stroke="#4338ca" strokeWidth="5" strokeLinecap="round" />
-    <path d="M22 40 L22 60" fill="none" stroke="var(--primary)" strokeWidth="5" strokeLinecap="round" opacity="0.6" />
+    {/* Streams bursting inward from the left */}
+    <path d="M10 50 L35 50" fill="none" stroke="url(#reaGrad)" strokeWidth="6" strokeLinecap="round" />
+    <path d="M18 35 Q 28 35 38 42" fill="none" stroke="#818cf8" strokeWidth="5" strokeLinecap="round" />
+    <path d="M18 65 Q 28 65 38 58" fill="none" stroke="#818cf8" strokeWidth="5" strokeLinecap="round" />
+
+    {/* Inner Play */}
+    <polygon points="45,30 75,50 45,70" fill="url(#reaGrad)" />
   </svg>
 );
