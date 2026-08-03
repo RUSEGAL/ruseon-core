@@ -47,10 +47,6 @@ export function Header({ viewMode, setViewMode, onOpenAdd, onOpenTags, onOpenLog
         <button onClick={onOpenAdd} className="btn btn-primary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <Plus size={16} /> {t('cameras.add')}
         </button>
-        <div className="status-badge" style={{ border: '1px solid var(--card-border)' }}>
-          <div className="status-indicator online"></div>
-          {t('dashboard.systemActive')}
-        </div>
         <button onClick={onLogout} className="btn btn-secondary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }} title={t('nav.logout')}>
           <LogOut size={16} /> {t('nav.logout')}
         </button>
