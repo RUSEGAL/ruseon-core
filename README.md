@@ -1,6 +1,6 @@
-# Gritprof Media Server
+# REA Stream Engine
 
-Gritprof Media Server — это высокопроизводительный, современный сервер ретрансляции (transmuxing) RTSP в HLS и записи архива, написанный на Go и React. Он обеспечивает потоковое вещание в реальном времени, запись архива в формате fMP4, таймшифт (просмотр прошлого) и продвинутую панель управления с аналитикой.
+REA Stream Engine — это высокопроизводительный, современный сервер ретрансляции (transmuxing) RTSP в HLS и записи архива, написанный на Go и React. Он обеспечивает потоковое вещание в реальном времени, запись архива в формате fMP4, таймшифт (просмотр прошлого) и продвинутую панель управления с аналитикой.
 
 ## Возможности
 
@@ -61,7 +61,7 @@ go run ./cmd/server
 
 **1. Настройка брандмауэра (в PowerShell от имени администратора):**
 ```powershell
-New-NetFirewallRule -DisplayName "Gritprof Media Server" -Direction Inbound -LocalPort 8080 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "REA Stream Engine" -Direction Inbound -LocalPort 8080 -Protocol TCP -Action Allow
 ```
 
 **2. Автозагрузка (с помощью NSSM):**
@@ -92,7 +92,7 @@ sudo nano /etc/systemd/system/gritprof.service
 Вставьте конфигурацию:
 ```ini
 [Unit]
-Description=Gritprof Media Server
+Description=REA Stream Engine
 After=network.target
 
 [Service]
