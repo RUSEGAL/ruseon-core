@@ -33,7 +33,7 @@ func NewRecorder(streamID string, rb *buffer.RingBuffer, recordDir string) *Reco
 		recordDir:  recordDir,
 	}
 
-	os.MkdirAll(recordDir, 0755)
+	_ = os.MkdirAll(recordDir, 0755)
 
 	go r.run()
 	return r
@@ -58,19 +58,19 @@ func (r *Recorder) run() {
 			file.Close()
 			recordEndTime := time.Now()
 			finalFilename := filepath.Join(filepath.Dir(currentFilename), fmt.Sprintf("%s_to_%s.mp4", recordStartTime.Format("2006-01-02_15-04-05"), recordEndTime.Format("15-04-05")))
-			os.Rename(currentFilename, finalFilename)
+			_ = os.Rename(currentFilename, finalFilename)
 			file = nil
 		}
 	}
 
 	// Ждем получения параметров кодека
-	vps, sps, pps := r.ringBuffer.GetParams()
+	_, sps, pps := r.ringBuffer.GetParams()
 	for sps == nil || pps == nil {
 		if r.ctx.Err() != nil {
 			return
 		}
 		time.Sleep(100 * time.Millisecond)
-		vps, sps, pps = r.ringBuffer.GetParams()
+		_, sps, pps = r.ringBuffer.GetParams()
 	}
 
 	for {
@@ -99,7 +99,7 @@ func (r *Recorder) run() {
 						Samples:  partSamples,
 					}},
 				}
-				part.Marshal(file)
+				_ = part.Marshal(file)
 			}
 			
 			log.Info().Str("stream", r.streamID).Msg("Rotating record file")
@@ -117,7 +117,7 @@ func (r *Recorder) run() {
 
 			// Создаем подпапку по имени потока
 			streamDir := filepath.Join(r.recordDir, r.streamID)
-			os.MkdirAll(streamDir, 0755)
+			_ = os.MkdirAll(streamDir, 0755)
 
 			recordStartTime = time.Now()
 			currentFilename = filepath.Join(streamDir, fmt.Sprintf("%s_ongoing.mp4", recordStartTime.Format("2006-01-02_15-04-05")))
@@ -131,7 +131,7 @@ func (r *Recorder) run() {
 
 			log.Info().Str("file", currentFilename).Msg("Started recording fMP4")
 
-			vps, sps, pps = r.ringBuffer.GetParams()
+			_, sps, pps = r.ringBuffer.GetParams()
 
 			var codec fmp4.Codec
 			if vps != nil {
@@ -186,7 +186,7 @@ func (r *Recorder) run() {
 				}},
 			}
 
-			if err := part.Marshal(file); err != nil {
+			if err := _ = part.Marshal(file); err != nil {
 				log.Error().Err(err).Msg("Failed to write fMP4 part")
 				closeAndRename()
 				pendingSample = nil
@@ -216,7 +216,7 @@ func (r *Recorder) run() {
 					Samples:  partSamples,
 				}},
 			}
-			part.Marshal(file)
+			_ = part.Marshal(file)
 		}
 		closeAndRename()
 	}

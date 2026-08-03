@@ -69,7 +69,7 @@ func getFileIndex(path string) (*FileIndex, error) {
 		}
 		if typ == "moof" {
 			// Нашли первый moof, возвращаемся к его началу
-			f.Seek(-8, io.SeekCurrent)
+			_, _ = f.Seek(-8, io.SeekCurrent)
 			break
 		}
 		initSize += int64(size)
@@ -91,7 +91,7 @@ func getFileIndex(path string) (*FileIndex, error) {
 			// Нашли moof, читаем его целиком
 			f.Seek(offset, io.SeekStart)
 			moofData := make([]byte, size)
-			io.ReadFull(f, moofData)
+			_, _ = io.ReadFull(f, moofData)
 			
 			// Дальше должен быть mdat
 			mdatOffset, _ := f.Seek(0, io.SeekCurrent)
@@ -99,7 +99,7 @@ func getFileIndex(path string) (*FileIndex, error) {
 			if err2 == nil && typ2 == "mdat" {
 				f.Seek(mdatOffset, io.SeekStart)
 				mdatData := make([]byte, size2)
-				io.ReadFull(f, mdatData)
+				_, _ = io.ReadFull(f, mdatData)
 				
 				// Парсим Part
 				var combined []byte
@@ -209,13 +209,13 @@ func GenerateHLSSegment(recordDir, cameraID, filename string, seq int) ([]byte, 
 	_, moofSize, _ := readBoxHeader(f)
 	f.Seek(idx.Parts[seq].Offset, io.SeekStart)
 	moofData := make([]byte, moofSize)
-	io.ReadFull(f, moofData)
+	_, _ = io.ReadFull(f, moofData)
 	
 	// Читаем mdat
 	_, mdatSize, _ := readBoxHeader(f)
 	f.Seek(idx.Parts[seq].Offset+int64(moofSize), io.SeekStart)
 	mdatData := make([]byte, mdatSize)
-	io.ReadFull(f, mdatData)
+	_, _ = io.ReadFull(f, mdatData)
 	
 	var combined []byte
 	combined = append(combined, moofData...)

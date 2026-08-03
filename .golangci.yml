@@ -1,0 +1,10 @@
+linters-settings:
+  staticcheck:
+    checks: ["all", "-SA1019"] # Ignore deprecated warnings (e.g. WriteH26x)
+
+issues:
+  exclude-rules:
+    # Игнорируем неиспользуемый errcheck для тестов
+    - path: _test\.go
+      linters:
+        - errcheck

@@ -32,7 +32,7 @@ func ExportMP4(recordDir, cameraID, filename string, startSeq, endSeq int, w io.
 	defer f.Close()
 
 	// 1. Копируем Init блок (ftyp + moov)
-	f.Seek(idx.InitOffset, io.SeekStart)
+	_, _ = f.Seek(idx.InitOffset, io.SeekStart)
 	_, err = io.CopyN(w, f, idx.InitSize)
 	if err != nil {
 		return fmt.Errorf("failed to write init block: %w", err)
@@ -55,7 +55,7 @@ func ExportMP4(recordDir, cameraID, filename string, startSeq, endSeq int, w io.
 			partSize = info.Size() - startOffset
 		}
 
-		f.Seek(startOffset, io.SeekStart)
+		_, _ = f.Seek(startOffset, io.SeekStart)
 		_, err = io.CopyN(w, f, partSize)
 		if err != nil {
 			return fmt.Errorf("failed to write part %d: %w", i, err)

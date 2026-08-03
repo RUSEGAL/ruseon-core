@@ -78,7 +78,7 @@ export function LogsModal({ onClose }: LogsModalProps) {
                     return newLogs.length > 1000 ? newLogs.slice(newLogs.length - 1000) : newLogs;
                   });
                 }
-              } catch (e) {
+              } catch {
                 // Ignore parse errors
               }
             }
@@ -199,7 +199,7 @@ export function LogsModal({ onClose }: LogsModalProps) {
               const timeStr = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
               
               // Extract additional fields to display as JSON
-              const { level, time, message, error, ...rest } = log;
+              const { level: _level, time: _time, message: _msg, error: _err, ...rest } = log;
               const hasRest = Object.keys(rest).length > 0;
 
               return (

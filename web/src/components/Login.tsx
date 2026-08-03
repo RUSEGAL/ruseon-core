@@ -24,7 +24,7 @@ export function Login({ onLogin }: LoginProps) {
       } else {
         alert('Invalid credentials');
       }
-    } catch (e) {
+    } catch {
       alert('Login failed');
     }
   };

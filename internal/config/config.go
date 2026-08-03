@@ -85,7 +85,7 @@ func Load(path string) (*Config, error) {
 		bytes := make([]byte, 32)
 		if _, err := rand.Read(bytes); err == nil {
 			cfg.Auth.Secret = hex.EncodeToString(bytes)
-			cfg.Save(path)
+			_ = cfg.Save(path)
 		}
 	}
 

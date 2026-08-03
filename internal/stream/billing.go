@@ -20,7 +20,7 @@ func StartBillingTask(cfg *config.Config, manager *Manager, store *storage.Stora
 
 			cams, _ := store.ListCameras()
 			for _, camMeta := range cams {
-				store.UpdateCameraTx(camMeta.ID, func(cam *config.CameraConfig) bool {
+				_ = store.UpdateCameraTx(camMeta.ID, func(cam *config.CameraConfig) bool {
 					changed := false
 					
 					// 1. Проверяем сброс трафика (1-е число месяца обрабатывается сменой месяца)

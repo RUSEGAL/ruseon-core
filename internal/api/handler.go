@@ -108,9 +108,9 @@ func (h *Handler) StreamLogs(c *gin.Context) {
 			if len(msg) > 0 && msg[len(msg)-1] == '\n' {
 				msg = msg[:len(msg)-1]
 			}
-			c.Writer.Write([]byte("data: "))
-			c.Writer.Write(msg)
-			c.Writer.Write([]byte("\n\n"))
+			_, _ = c.Writer.Write([]byte("data: "))
+			_, _ = c.Writer.Write(msg)
+			_, _ = c.Writer.Write([]byte("\n\n"))
 			c.Writer.Flush()
 		}
 	}
@@ -333,7 +333,7 @@ func (h *Handler) EditCamera(c *gin.Context) {
 	// Перезапускаем поток если он включен
 	h.manager.RemoveStream(id)
 	if !req.Disabled {
-		h.manager.AddStream(req.ID, req.URL, req.Record, req.LazyHLS)
+		_ = h.manager.AddStream(req.ID, req.URL, req.Record, req.LazyHLS)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -505,7 +505,7 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 	// Очищаем удаленный тег у всех камер
 	cams, _ := h.store.ListCameras()
 	for _, camMeta := range cams {
-		h.store.UpdateCameraTx(camMeta.ID, func(cam *config.CameraConfig) bool {
+		_ = h.store.UpdateCameraTx(camMeta.ID, func(cam *config.CameraConfig) bool {
 			var newCamTags []string
 			changed := false
 			for _, tID := range cam.Tags {

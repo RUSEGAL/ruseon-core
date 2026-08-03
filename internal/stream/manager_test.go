@@ -45,7 +45,7 @@ func TestManager_Concurrency(t *testing.T) {
 
 func TestManager_AddDuplicate(t *testing.T) {
 	m := NewManager()
-	m.AddStream("cam1", "rtsp://invalid", false, true)
+	_ = m.AddStream("cam1", "rtsp://invalid", false, true)
 	err := m.AddStream("cam1", "rtsp://invalid2", false, true)
 	if err == nil {
 		t.Errorf("Expected error when adding duplicate stream")

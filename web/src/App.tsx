@@ -93,6 +93,7 @@ export default function App() {
         setDetailsCam(updated);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameras]);
 
   const calculateStats = (cams: CameraInfo[]) => {

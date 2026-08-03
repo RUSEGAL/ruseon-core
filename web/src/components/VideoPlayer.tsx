@@ -172,6 +172,7 @@ export function VideoPlayer({ streamId, sourceUrl, autoPlay = true, onTelemetryU
       }
       if (onTelemetryUpdate) onTelemetryUpdate(null);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamId, autoPlay]);
 
   useEffect(() => {
@@ -197,6 +198,7 @@ export function VideoPlayer({ streamId, sourceUrl, autoPlay = true, onTelemetryU
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('error', handleNativeError);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
   const toggleFullscreen = (e: React.MouseEvent) => {
