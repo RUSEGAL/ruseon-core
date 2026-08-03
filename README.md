@@ -68,13 +68,13 @@ New-NetFirewallRule -DisplayName "REA Stream Engine" -Direction Inbound -LocalPo
 1. Скачайте утилиту [NSSM](http://nssm.cc/) (Non-Sucking Service Manager).
 2. В командной строке от имени администратора запустите установку:
    ```cmd
-   nssm install GritprofMediaServer
+   nssm install REAStreamEngine
    ```
 3. В открывшемся GUI-окне укажите:
-   - **Path**: полный путь к `GritprofMediaServer.exe`.
+   - **Path**: полный путь к `REAStreamEngine.exe`.
    - **Directory**: папка, в которой лежит `.exe` (очень важно для сохранения файлов базы `data/` и архива `recordings/`).
 4. Нажмите **Install service**.
-5. Запустите службу: `nssm start GritprofMediaServer`.
+5. Запустите службу: `nssm start REAStreamEngine`.
 
 ### Linux (Systemd)
 На Linux для обеспечения бесперебойной работы используйте `systemd`.
@@ -99,7 +99,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/opt/gritprof
-ExecStart=/opt/gritprof/GritprofMediaServer-linux
+ExecStart=/opt/gritprof/REAStreamEngine-linux
 Restart=on-failure
 RestartSec=5
 LimitNOFILE=65536
