@@ -105,8 +105,9 @@ func main() {
 	// 6. Запуск сервера с Graceful Shutdown
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: router,
+		Addr:              addr,
+		Handler:           router,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	go func() {
