@@ -1,10 +1,10 @@
-## Describe your changes
-Please include a summary of the change and which issue is fixed.
+## Описание изменений
+Пожалуйста, кратко опишите, что делает этот Pull Request и какую проблему/Issue он решает.
 
-## Issue ticket number and link
+## Номер Issue (если есть)
 #
 
-## Checklist before requesting a review
-- [ ] I have performed a self-review of my code.
-- [ ] If it is a core feature, I have added thorough tests.
-- [ ] Do we need to change documentation?
+## Чек-лист перед отправкой
+- [ ] Я провел(а) самоанализ (self-review) своего кода.
+- [ ] Если это ключевая функция, я добавил(а) тесты.
+- [ ] Требуется ли обновление документации? Если да, я обновил(а) её.

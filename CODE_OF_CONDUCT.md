@@ -1,10 +1,10 @@
-# Contributor Covenant Code of Conduct
+# Кодекс поведения (Code of Conduct)
 
-## Our Pledge
-We as members, contributors, and leaders pledge to make participation in our community a harassment-free experience for everyone, regardless of age, body size, visible or invisible disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
+## Наше обязательство
+Мы, как участники и руководители, обязуемся сделать участие в нашем сообществе свободным от притеснений для всех, независимо от возраста, телосложения, видимой или невидимой инвалидности, этнической принадлежности, пола, гендерной идентичности, уровня опыта, образования, социально-экономического статуса, национальности, расы или религии.
 
-## Our Standards
-Examples of behavior that contributes to a positive environment for our community include:
-* Demonstrating empathy and kindness toward other people
-* Being respectful of differing opinions, viewpoints, and experiences
-* Giving and gracefully accepting constructive feedback
+## Наши стандарты
+Примеры поведения, которые способствуют созданию позитивной среды:
+* Проявление сочувствия и доброты к другим людям
+* Уважительное отношение к различным мнениям и опыту
+* Конструктивное восприятие критики и отзывов

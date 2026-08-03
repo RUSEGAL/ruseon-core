@@ -1,13 +1,13 @@
-# Contributing to REA Stream Engine
+# Участие в разработке REA Stream Engine
 
-First off, thank you for considering contributing to REA Stream Engine! 
+Прежде всего, спасибо, что рассматриваете возможность внести свой вклад в REA Stream Engine! 🎉
 
-## Development Process
-1. Fork the repo and create your branch from `dev`.
-2. Ensure you run `go fmt` and `go test` before submitting.
-3. For frontend changes, run `npm run build` and ensure there are no TypeScript errors.
-4. Issue that pull request!
+## Процесс разработки
+1. Сделайте форк репозитория и создайте ветку от `dev`.
+2. Перед отправкой изменений убедитесь, что код отформатирован (`go fmt`) и тесты проходят (`go test`).
+3. Для изменений во фронтенде выполните `npm run build` и убедитесь, что нет ошибок TypeScript.
+4. Открывайте Pull Request в ветку `dev`!
 
-## Code Style
-- **Go**: Follow standard Go formatting (`gofmt`).
-- **React**: Use functional components and hooks. Keep CSS in `index.css` following the Glassmorphism theme.
+## Стиль кода
+- **Go**: Следуйте стандартному форматированию Go (`gofmt`).
+- **React**: Используйте функциональные компоненты и хуки. Стилизуйте компоненты с учетом темы Glassmorphism.

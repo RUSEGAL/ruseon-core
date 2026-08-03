@@ -1,25 +1,25 @@
 ---
-name: Bug report
-about: Create a report to help us improve
+name: Баг-репорт
+about: Сообщите об ошибке, чтобы помочь нам стать лучше
 title: "[BUG] "
 labels: bug
 assignees: ''
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+**Описание ошибки**
+Четкое и краткое описание того, в чем заключается ошибка.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**Шаги для воспроизведения**
+Как воспроизвести ошибку:
+1. Перейдите в '...'
+2. Нажмите на '....'
+3. Прокрутите вниз до '....'
+4. Увидите ошибку
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+**Ожидаемое поведение**
+Четкое и краткое описание того, что, по вашему мнению, должно было произойти.
 
-**Environment (please complete the following information):**
- - OS: [e.g. Ubuntu 22.04, Windows 11]
- - Browser: [e.g. Chrome, Safari]
- - Version: [e.g. v1.0.0 or commit hash]
+**Окружение (пожалуйста, заполните):**
+ - ОС: [например, Ubuntu 22.04, Windows 11]
+ - Браузер: [например, Chrome, Safari]
+ - Версия сервера: [например, v1.0.0 или хэш коммита]

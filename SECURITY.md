@@ -1,7 +1,7 @@
-# Security Policy
+# Политика безопасности
 
-## Supported Versions
-Only the latest release (and the `dev` branch) is actively supported for security updates.
+## Поддерживаемые версии
+Только последний релиз (а также ветка `dev`) активно поддерживаются для выпуска обновлений безопасности.
 
-## Reporting a Vulnerability
-If you discover a security vulnerability within REA Stream Engine, please do NOT open a public issue. Instead, send an email to the repository maintainers or use GitHub Security Advisories to report it privately.
+## Сообщение об уязвимости
+Если вы обнаружили уязвимость в безопасности REA Stream Engine, пожалуйста, **НЕ открывайте публичный Issue**. Вместо этого свяжитесь с мейнтейнерами репозитория напрямую по электронной почте или используйте функцию GitHub Security Advisories, чтобы сообщить об этом приватно.
