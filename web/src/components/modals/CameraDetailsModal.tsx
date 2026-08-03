@@ -56,22 +56,20 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
           <div style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
             {/* Tabs */}
-            {detailsCam.record && (
-              <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--card-border)' }}>
-                <button 
-                  onClick={() => setActiveTab('live')}
-                  style={{ background: 'none', border: 'none', padding: '0.5rem 1rem', color: activeTab === 'live' ? 'var(--primary)' : 'var(--text-muted)', borderBottom: activeTab === 'live' ? '2px solid var(--primary)' : '2px solid transparent', cursor: 'pointer', fontWeight: 600 }}
-                >
-                  Live Stream
-                </button>
-                <button 
-                  onClick={() => setActiveTab('archive')}
-                  style={{ background: 'none', border: 'none', padding: '0.5rem 1rem', color: activeTab === 'archive' ? 'var(--primary)' : 'var(--text-muted)', borderBottom: activeTab === 'archive' ? '2px solid var(--primary)' : '2px solid transparent', cursor: 'pointer', fontWeight: 600 }}
-                >
-                  Archive
-                </button>
-              </div>
-            )}
+            <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--card-border)' }}>
+              <button 
+                onClick={() => setActiveTab('live')}
+                style={{ background: 'none', border: 'none', padding: '0.5rem 1rem', color: activeTab === 'live' ? 'var(--primary)' : 'var(--text-muted)', borderBottom: activeTab === 'live' ? '2px solid var(--primary)' : '2px solid transparent', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Live Stream
+              </button>
+              <button 
+                onClick={() => setActiveTab('archive')}
+                style={{ background: 'none', border: 'none', padding: '0.5rem 1rem', color: activeTab === 'archive' ? 'var(--primary)' : 'var(--text-muted)', borderBottom: activeTab === 'archive' ? '2px solid var(--primary)' : '2px solid transparent', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Archive
+              </button>
+            </div>
 
             {activeTab === 'live' ? (
               <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--card-border)', background: '#000', aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
