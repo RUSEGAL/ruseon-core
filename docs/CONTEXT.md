@@ -1,9 +1,9 @@
-# Контекст Проекта: Gritprof Media Server (на август 2026)
+# Контекст Проекта: REA Stream Engine (на август 2026)
 
 Этот файл создан для передачи полного контекста текущего состояния проекта в новый чат с ИИ-ассистентом.
 
 ## О проекте
-**Gritprof Media Server** — это высокопроизводительный сервер ретрансляции RTSP-потоков в HLS и fMP4-архив.
+**REA Stream Engine** — это высокопроизводительный сервер ретрансляции RTSP-потоков в HLS и fMP4-архив.
 - **Backend:** Go 1.26+, фреймворк Gin (REST API + HLS).
 - **Frontend:** React 19, TypeScript, Vite, Vanilla CSS, Lucide Icons. Архитектура UI использует стиль Glassmorphism.
 - **База данных:** BadgerDB (LSM-tree, key-value), хранит настройки камер, теги, статистику.
