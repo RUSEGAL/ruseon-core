@@ -1,37 +1,88 @@
-# REA Stream Engine
+<p align="center">
+  <img src="web/public/favicon.svg" width="150" alt="REA Stream Engine Logo" />
+</p>
 
-REA Stream Engine — это высокопроизводительный, современный сервер ретрансляции (transmuxing) RTSP в HLS и записи архива, написанный на Go и React. Он обеспечивает потоковое вещание в реальном времени, запись архива в формате fMP4, таймшифт (просмотр прошлого) и продвинутую панель управления с аналитикой.
+<h1 align="center">REA Stream Engine</h1>
 
-## Возможности
+<p align="center">
+  <strong>Высокопроизводительный сервер ретрансляции RTSP в HLS и записи архива.</strong><br>
+  <em>(Zero-Copy Transmuxing, fMP4 Archive, React 19 Dashboard)</em>
+</p>
 
-- **Молниеносная ретрансляция (Zero-Copy)**: Использует Go с `gortsplib` и `mediacommon` для получения RTSP потоков и их "на лету" упаковки в HLS прямо в оперативной памяти (без промежуточного перекодирования). Реализован Memory Pooling для минимизации нагрузки на сборщик мусора.
-- **Умная запись (fMP4 Архивация)**: Непрерывная запись потоков напрямую в fragmented MP4 с поддержкой ротации (очистка по дням). Уникальная система бесшовной нарезки файлов без потери кадров при ротации.
-- **Timeshift плеер (Плеер Архива)**: Позволяет просматривать архивные записи через веб-интерфейс, выбирая нужный временной отрезок на графическом таймлайне, с возможностью скачивания отдельных кусков в виде готового `.mp4`.
-- **Современная архитектура БД (BadgerDB)**: Встроенная сверхбыстрая NoSQL база данных на основе LSM-tree хранит конфигурации камер, теги и статистику, обеспечивая миллисекундный отклик. База тонко настроена для работы с минимальным потреблением оперативной памяти.
-- **Динамическое управление**: Добавление, редактирование, управление записью и удаление камер "на горячую". Система тегов, поиск и фильтрация. Приостановка камер с сохранением истории причин (биллинг/техобслуживание).
-- **Система Бэкапов**: Регулярный авто-бэкап базы данных (BadgerDB Snapshots) и возможность выгрузки/загрузки конфигураций в JSON через интерфейс администратора.
-- **Современный Дашборд**: Фронтенд на React 19 (Vite, TypeScript, Zustand) в потрясающем стиле Glassmorphism с поддержкой JWT-авторизации, SSE (Server-Sent Events) для логов в реальном времени и графиками.
+<p align="center">
+  <img src="https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat-square&logo=go" alt="Go Version">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React">
+  <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License">
+  <img src="https://img.shields.io/badge/Architecture-Zero--Copy-success?style=flat-square" alt="Zero-Copy">
+</p>
 
-## Архитектура
+<hr>
 
-- **Backend**: Go 1.23+, фреймворк Gin (REST API + HLS).
-- **Frontend**: React 19, TypeScript, Vite, Lucide Icons, Vanilla CSS (Flex/Grid).
-- **Видеопротокол**: RTSP вход -> H.264/H.265 (HEVC) -> RingBuffer -> HLS Muxer (live) / fMP4 Recorder (archive).
-- **Хранение данных**: 
-  - `data/` — База данных BadgerDB.
-  - `recordings/` — MP4-архивы камер.
-  - `backups/` — Автоматические бинарные бэкапы БД.
+**REA Stream Engine** — это современное Enterprise-решение для видеонаблюдения и потокового вещания, написанное на Go и React. Он обеспечивает захват RTSP потоков и их "на лету" переупаковку в HLS прямо в оперативной памяти, запись видеоархива без потери кадров и продвинутую систему таймшифта.
 
-## Требования
+## 📑 Оглавление
+- [✨ Ключевые возможности](#-ключевые-возможности)
+- [🏗 Архитектура](#-архитектура)
+- [🚀 Быстрый старт](#-быстрый-старт)
+- [🛠 Установка (Production)](#-установка-production)
+- [⚙️ Конфигурация](#️-конфигурация)
+- [📚 Документация](#-документация)
 
-- [Go](https://go.dev/) 1.23 или новее
-- [Node.js](https://nodejs.org/) 18+ (для сборки фронтенда)
-- Любая RTSP камера, поддерживающая H.264 или H.265.
+---
 
-## Быстрый старт
+## ✨ Ключевые возможности
+
+* ⚡ **Молниеносная ретрансляция (Zero-Copy)**: Никакого FFmpeg и промежуточного перекодирования. Использование чистого Go (`gortsplib` и `mediacommon`) для получения RTSP и упаковки в HLS "на лету" прямо в RAM.
+* 🛡 **Thundering Herd Protection**: Защита от лавинных нагрузок при одновременном подключении тысяч клиентов.
+* 📦 **Умная запись (fMP4)**: Непрерывная запись потоков в fragmented MP4. Уникальная система бесшовной нарезки файлов при ротации без потери единого кадра.
+* ⏪ **Timeshift (Плеер Архива)**: Мгновенный просмотр архива через веб-интерфейс, графический таймлайн и скачивание готовых `.mp4` отрезков.
+* 🗄 **BadgerDB (NoSQL)**: Встроенная сверхбыстрая LSM-tree база данных для конфигураций и статистики (миллисекундный отклик, минимальное потребление RAM).
+* 🔄 **Горячее управление и Бэкапы**: Добавление/удаление камер без перезагрузки сервера. Автоматические бинарные бэкапы БД и экспорт/импорт в JSON.
+* 🎨 **Glassmorphism UI**: Фронтенд на React 19 (Vite, TypeScript) с JWT-авторизацией, SSE логами реального времени и локализацией (i18n).
+
+---
+
+## 🏗 Архитектура
+
+```mermaid
+graph LR
+  subgraph Data Sources
+    Cam1[RTSP Camera]
+    Cam2[RTSP Camera]
+  end
+
+  subgraph REA Stream Engine (Go)
+    Demux[Zero-Copy Demuxer]
+    Pool[Memory Pool]
+    HLS[HLS Muxer]
+    Rec[fMP4 Recorder]
+    DB[(BadgerDB)]
+  end
+
+  subgraph Clients
+    Browser[Web Dashboard]
+    Player[HLS / MP4 Player]
+  end
+
+  Cam1 & Cam2 -->|H.264/H.265| Demux
+  Demux --> Pool
+  Pool --> HLS
+  Pool --> Rec
+  DB -.->|Configs & Stats| Demux
+  HLS -->|Live Stream| Player
+  Rec -->|Archive| Player
+  Browser <-->|REST API & SSE| Demux
+```
+
+---
+
+## 🚀 Быстрый старт
+
+### Требования
+- [Go](https://go.dev/) 1.23+
+- [Node.js](https://nodejs.org/) 18+
 
 ### 1. Сборка фронтенда
-
 ```bash
 cd web
 npm install
@@ -40,56 +91,44 @@ cd ..
 ```
 
 ### 2. Запуск бэкенда
-
 ```bash
 go mod tidy
 go run ./cmd/server
 ```
 
-### 3. Доступ к дашборду
+### 3. Доступ к панели управления
+Откройте браузер по адресу: [http://localhost:8080](http://localhost:8080)
 
-Откройте браузер и перейдите по адресу: [http://localhost:8080](http://localhost:8080)
+*Учетные данные по умолчанию:*
+- **Логин**: admin
+- **Пароль**: admin
 
-*Учетные данные для входа по умолчанию (хранятся в `config.yaml`):*
-- **Username**: admin
-- **Password**: admin
+---
 
-## Установка в Production (Автозагрузка)
+## 🛠 Установка (Production)
+
+Для надежной работы сервер следует запускать как системную службу.
 
 ### Windows
-Для надежной работы на Windows рекомендуется запускать сервер как системную службу и открыть порт в брандмауэре.
-
-**1. Настройка брандмауэра (в PowerShell от имени администратора):**
+**1. Настройка брандмауэра:**
 ```powershell
 New-NetFirewallRule -DisplayName "REA Stream Engine" -Direction Inbound -LocalPort 8080 -Protocol TCP -Action Allow
 ```
 
-**2. Автозагрузка (с помощью NSSM):**
-1. Скачайте утилиту [NSSM](http://nssm.cc/) (Non-Sucking Service Manager).
-2. В командной строке от имени администратора запустите установку:
-   ```cmd
-   nssm install REAStreamEngine
-   ```
-3. В открывшемся GUI-окне укажите:
-   - **Path**: полный путь к `REAStreamEngine.exe`.
-   - **Directory**: папка, в которой лежит `.exe` (очень важно для сохранения файлов базы `data/` и архива `recordings/`).
-4. Нажмите **Install service**.
-5. Запустите службу: `nssm start REAStreamEngine`.
+**2. Автозагрузка (NSSM):**
+1. Скачайте [NSSM](http://nssm.cc/).
+2. В CMD (от администратора): `nssm install REAStreamEngine`
+3. Укажите `Path` (путь к `.exe`) и `Directory` (путь к рабочей папке).
+4. Запустите: `nssm start REAStreamEngine`
 
 ### Linux (Systemd)
-На Linux для обеспечения бесперебойной работы используйте `systemd`.
-
 **1. Настройка файрвола (UFW):**
 ```bash
 sudo ufw allow 8080/tcp
 ```
 
 **2. Автозагрузка (Systemd):**
-Создайте файл конфигурации службы (замените `/opt/gritprof` на реальный путь к вашей папке с сервером):
-```bash
-sudo nano /etc/systemd/system/gritprof.service
-```
-Вставьте конфигурацию:
+Создайте `/etc/systemd/system/reastream.service`:
 ```ini
 [Unit]
 Description=REA Stream Engine
@@ -98,8 +137,8 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/gritprof
-ExecStart=/opt/gritprof/REAStreamEngine-linux
+WorkingDirectory=/opt/reastream
+ExecStart=/opt/reastream/REAStreamEngine-linux
 Restart=on-failure
 RestartSec=5
 LimitNOFILE=65536
@@ -107,36 +146,37 @@ LimitNOFILE=65536
 [Install]
 WantedBy=multi-user.target
 ```
-Примените изменения и запустите сервер:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable gritprof
-sudo systemctl start gritprof
+sudo systemctl enable reastream
+sudo systemctl start reastream
 ```
 
-## Конфигурация
+---
 
+## ⚙️ Конфигурация
 
-Глобальные настройки сервера генерируются в файле `config.yaml` при первом запуске:
+Глобальные настройки сервера генерируются в `config.yaml` при первом запуске:
 ```yaml
 server:
   port: 8080
   debug: true
-  record_retention_days: 14   # Срок хранения видеоархива (дней)
-  gc_percent: 50              # Тюнинг сборщика мусора для уменьшения потребления RAM
-  gc_memory_limit_mb: 2048    # Жесткий лимит памяти (OOM protection)
+  record_retention_days: 14   # Срок хранения архива
+  gc_percent: 50              # Тюнинг сборщика мусора
+  gc_memory_limit_mb: 2048    # Защита от OOM
 auth:
   username: admin
   password: mysecretpassword
-  secret: "generated_jwt_secret_here"
+  secret: "generated_jwt_secret"
 ```
+> **Примечание:** Настройки камер и тегов динамически управляются через веб-интерфейс и хранятся в БД `BadgerDB`.
 
-Настройки камер и тегов больше не хранятся в файле — они динамически управляются через интерфейс пользователя и сохраняются во внутреннюю базу `BadgerDB`.
+---
 
-## Документация проекта
+## 📚 Документация
 
 Подробные материалы по архитектуре и техническим решениям:
-- `docs/ARCHITECTURE.md` - Архитектура и дизайн системы
-- `docs/DECISIONS.md` - Журнал принятых архитектурных решений (ADR)
-- `docs/INFRASTRUCTURE.MD` - Анализ требований к оборудованию
-- `docs/ROADMAP.MD` - Дорожная карта развития проекта
+- 🏗 [Архитектура (ARCHITECTURE.md)](docs/ARCHITECTURE.md)
+- 📝 [Журнал решений (DECISIONS.md)](docs/DECISIONS.md)
+- 🖥 [Инфраструктура (INFRASTRUCTURE.MD)](docs/INFRASTRUCTURE.MD)
+- 🗺 [Дорожная карта (ROADMAP.MD)](docs/ROADMAP.MD)
