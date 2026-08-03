@@ -27,6 +27,12 @@ jobs:
       - name: Download Dependencies
         run: go mod download
 
+      - name: Build Frontend for go:embed
+        working-directory: ./web
+        run: |
+          npm install
+          npm run build
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
