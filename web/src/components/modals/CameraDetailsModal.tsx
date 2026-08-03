@@ -1,5 +1,6 @@
 import { X, ShieldAlert, Activity, HardDrive, Wifi, Tag, Phone, Key, Clock, FileText, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { CameraInfo, TagConfig, HlsTelemetry } from '../../types';
 import { formatBytes, formatUptime } from '../../utils/formatters';
 import { VideoPlayer } from '../VideoPlayer';
@@ -15,6 +16,7 @@ interface CameraDetailsModalProps {
 }
 
 export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, globalTags }: CameraDetailsModalProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [telemetry, setTelemetry] = useState<HlsTelemetry | null>(null);
   const [showTelemetry, setShowTelemetry] = useState(false);
@@ -61,13 +63,13 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                 onClick={() => setActiveTab('live')}
                 style={{ background: 'none', border: 'none', padding: '0.5rem 1rem', color: activeTab === 'live' ? 'var(--primary)' : 'var(--text-muted)', borderBottom: activeTab === 'live' ? '2px solid var(--primary)' : '2px solid transparent', cursor: 'pointer', fontWeight: 600 }}
               >
-                Live Stream
+                {t('cameras.details.live')}
               </button>
               <button 
                 onClick={() => setActiveTab('archive')}
                 style={{ background: 'none', border: 'none', padding: '0.5rem 1rem', color: activeTab === 'archive' ? 'var(--primary)' : 'var(--text-muted)', borderBottom: activeTab === 'archive' ? '2px solid var(--primary)' : '2px solid transparent', cursor: 'pointer', fontWeight: 600 }}
               >
-                Archive
+                {t('cameras.details.archive')}
               </button>
             </div>
 
@@ -78,7 +80,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--text-muted)' }}>
                     <ShieldAlert size={48} style={{ color: 'var(--danger)', marginBottom: '1rem', opacity: 0.8 }} />
-                    <span style={{ fontSize: '1.1rem' }}>{detailsCam.disabled ? 'Stream is Disabled' : 'Camera Offline'}</span>
+                    <span style={{ fontSize: '1.1rem' }}>{detailsCam.disabled ? t('cameras.details.streamDisabledMsg') : t('cameras.details.cameraOfflineMsg')}</span>
                   </div>
                 )}
               </div>
@@ -88,7 +90,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
 
             <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem' }}>
-                <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}><Activity size={16} /> Traffic Usage</span>
+                <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}><Activity size={16} /> {t('cameras.details.trafficUsage')}</span>
                 <span style={{ fontWeight: 600 }}>{trafficPercent.toFixed(1)}%</span>
               </div>
               <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
@@ -120,18 +122,18 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
             )}
 
             <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px' }}>
-              <h4 style={{ margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><HardDrive size={16} color="var(--primary)"/> Processing</h4>
+              <h4 style={{ margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><HardDrive size={16} color="var(--primary)"/> {t('cameras.details.processing')}</h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Data In</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('cameras.details.dataIn')}</div>
                   <div style={{ fontSize: '0.85rem', color: '#fff' }}>{formatBytes(detailsCam.bytesReceived)}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Data Out (HLS)</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('cameras.details.dataOut')}</div>
                   <div style={{ fontSize: '0.85rem', color: '#fff' }}>{formatBytes(detailsCam.bytesSent || 0)}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Frames</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('cameras.details.frames')}</div>
                   <div style={{ fontSize: '0.85rem', color: '#fff' }}>{detailsCam.frames}</div>
                 </div>
               </div>
@@ -144,7 +146,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                 onClick={() => setShowTelemetry(!showTelemetry)}
               >
                 <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
-                  <Zap size={16} color="var(--primary)"/> Technical Telemetry
+                  <Zap size={16} color="var(--primary)"/> {t('cameras.details.telemetry')}
                 </h4>
                 {showTelemetry ? <ChevronDown size={20} color="var(--text-muted)" /> : <ChevronRight size={20} color="var(--text-muted)" />}
               </div>
@@ -153,40 +155,40 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                 <div style={{ padding: '0 1.2rem 1.2rem 1.2rem', borderTop: '1px solid var(--card-border)', paddingTop: '1rem' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
-                      <h5 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' }}>RTSP Backend</h5>
+                      <h5 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' }}>{t('cameras.details.backend')}</h5>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>Reconnects</span>
+                          <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.reconnects')}</span>
                           <span style={{ color: detailsCam.reconnects > 0 ? 'var(--danger)' : '#fff' }}>{detailsCam.reconnects || 0}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>I-Frames</span>
+                          <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.iFrames')}</span>
                           <span style={{ color: '#fff' }}>{detailsCam.keyFrames || 0}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>Frames Total</span>
+                          <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.frames')}</span>
                           <span style={{ color: '#fff' }}>{detailsCam.frames || 0}</span>
                         </div>
                       </div>
                     </div>
                     
                     <div>
-                      <h5 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' }}>HLS Frontend</h5>
+                      <h5 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' }}>{t('cameras.details.frontend')}</h5>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>Buffer</span>
+                          <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.buffer')}</span>
                           <span style={{ color: '#fff' }}>{telemetry ? `${telemetry.bufferLength.toFixed(2)} s` : '-'}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>Latency</span>
+                          <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.latency')}</span>
                           <span style={{ color: '#fff' }}>{telemetry ? `${telemetry.latency.toFixed(2)} s` : '-'}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>Link Capacity</span>
+                          <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.capacity')}</span>
                           <span style={{ color: '#fff' }}>{telemetry ? `${(telemetry.bandwidth / 1000000).toFixed(1)} Mbps` : '-'}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>Dropped Frames</span>
+                          <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.dropped')}</span>
                           <span style={{ color: telemetry && telemetry.droppedFrames > 0 ? 'var(--danger)' : '#fff' }}>{telemetry ? telemetry.droppedFrames : '-'}</span>
                         </div>
                       </div>
@@ -215,27 +217,27 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                 <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{detailsCam.codec || '-'}</div>
               </div>
               <div className="glass" style={{ padding: '1rem', borderRadius: '12px' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Uptime</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>{t('dashboard.uptime')}</div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{isOnline ? formatUptime(detailsCam.uptime) : '-'}</div>
               </div>
               <div className="glass" style={{ padding: '1rem', borderRadius: '12px' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Transport</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>{t('cameras.transport')}</div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 600, textTransform: 'uppercase' }}>{detailsCam.transport || 'TCP'}</div>
               </div>
             </div>
 
             {/* Network & Device Info */}
             <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem' }}><Wifi size={16} color="var(--primary)"/> Network Info</h4>
+              <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem' }}><Wifi size={16} color="var(--primary)"/> {t('cameras.details.network')}</h4>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '2px' }}>Source RTSP URL</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '2px' }}>{t('cameras.details.source')}</div>
                   <div style={{ fontSize: '0.9rem', wordBreak: 'break-all', fontFamily: 'monospace', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px' }}>{detailsCam.url}</div>
                 </div>
                 
                 <div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '2px' }}>Output HLS URL</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '2px' }}>{t('cameras.details.output')}</div>
                   <div 
                     style={{ fontSize: '0.9rem', wordBreak: 'break-all', fontFamily: 'monospace', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: '0.2s' }}
                     onClick={() => {
@@ -275,7 +277,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
             {/* Comment */}
             {detailsCam.comment && (
               <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px' }}>
-                <h4 style={{ margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><FileText size={16} color="var(--primary)"/> Comment</h4>
+                <h4 style={{ margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><FileText size={16} color="var(--primary)"/> {t('cameras.comment')}</h4>
                 <div style={{ fontSize: '0.9rem', color: '#fff', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>{detailsCam.comment}</div>
               </div>
             )}
@@ -285,7 +287,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
               <div style={{ display: 'flex', gap: '1rem', flex: 1, flexWrap: 'wrap' }}>
                 {detailsCam.disableHistory && detailsCam.disableHistory.length > 0 && (
                   <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px', flex: '1 1 200px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                    <h4 style={{ margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><Clock size={16} color="var(--primary)"/> Stream History</h4>
+                    <h4 style={{ margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><Clock size={16} color="var(--primary)"/> {t('cameras.details.streamHistory')}</h4>
                     <div style={{ flex: 1, overflowY: 'auto', paddingRight: '8px', minHeight: 0 }}>
                       {detailsCam.disableHistory.slice().reverse().map((h, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.85rem', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -300,7 +302,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
 
                 {detailsCam.recordHistory && detailsCam.recordHistory.length > 0 && (
                   <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px', flex: '1 1 200px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                    <h4 style={{ margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><HardDrive size={16} color="var(--primary)"/> Record History</h4>
+                    <h4 style={{ margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><HardDrive size={16} color="var(--primary)"/> {t('cameras.details.recordHistory')}</h4>
                     <div style={{ flex: 1, overflowY: 'auto', paddingRight: '8px', minHeight: 0 }}>
                       {detailsCam.recordHistory.slice().reverse().map((h, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.85rem', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>

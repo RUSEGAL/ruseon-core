@@ -27,19 +27,19 @@ export function Header({ viewMode, setViewMode, onOpenAdd, onOpenTags, onOpenLog
             className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
             onClick={() => setViewMode('grid')}
           >
-            <LayoutGrid size={16} /> Grid
+            <LayoutGrid size={16} /> {t('nav.grid')}
           </div>
           <div 
             className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
             onClick={() => setViewMode('list')}
           >
-            <List size={16} /> List
+            <List size={16} /> {t('nav.list')}
           </div>
         </div>
         <LanguageSwitcher />
         
         <button onClick={onOpenTags} className="btn btn-secondary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <Tag size={16} /> Tags
+          <Tag size={16} /> {t('nav.tags')}
         </button>
         <button onClick={onOpenLogs} className="btn btn-secondary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <Terminal size={16} /> {t('nav.logs')}
@@ -49,7 +49,7 @@ export function Header({ viewMode, setViewMode, onOpenAdd, onOpenTags, onOpenLog
         </button>
         <div className="status-badge" style={{ border: '1px solid var(--card-border)' }}>
           <div className="status-indicator online"></div>
-          System Active
+          {t('dashboard.systemActive')}
         </div>
         <button onClick={onLogout} className="btn btn-secondary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }} title={t('nav.logout')}>
           <LogOut size={16} /> {t('nav.logout')}

@@ -9,7 +9,9 @@
     "backup": "Backup",
     "logs": "Logs",
     "tags": "Tags",
-    "logout": "Logout"
+    "logout": "Logout",
+    "grid": "Grid",
+    "list": "List"
   },
   "login": {
     "title": "Gritprof Media Server",
@@ -25,7 +27,8 @@
     "totalCameras": "Total Cameras",
     "activeStreams": "HLS Viewers",
     "totalTraffic": "Traffic",
-    "advanced": "Advanced Stats"
+    "advanced": "Advanced Stats",
+    "systemActive": "System Active"
   },
   "filters": {
     "all": "All",
@@ -71,7 +74,32 @@
     "generalSettings": "General Settings",
     "metadataSim": "Metadata & SIM",
     "simPhone": "SIM Phone",
-    "simIccid": "SIM ICCID"
+    "simIccid": "SIM ICCID",
+    "details": {
+      "live": "Live Stream",
+      "archive": "Archive",
+      "trafficUsage": "Traffic Usage",
+      "processing": "Processing",
+      "dataIn": "Data In",
+      "dataOut": "Data Out (HLS)",
+      "frames": "Frames",
+      "telemetry": "Technical Telemetry",
+      "backend": "RTSP Backend",
+      "frontend": "HLS Frontend",
+      "reconnects": "Reconnects",
+      "iFrames": "I-Frames",
+      "buffer": "Buffer",
+      "latency": "Latency",
+      "capacity": "Link Capacity",
+      "dropped": "Dropped Frames",
+      "network": "Network Info",
+      "source": "Source RTSP URL",
+      "output": "Output HLS URL",
+      "streamHistory": "Stream History",
+      "recordHistory": "Record History",
+      "streamDisabledMsg": "Stream is Disabled",
+      "cameraOfflineMsg": "Camera Offline"
+    }
   },
   "tags": {
     "title": "Tag Manager",
@@ -84,7 +112,7 @@
   },
   "logs": {
     "title": "System Logs",
-    "clear": "Clear Logs",
+    "clear": "Clear",
     "pause": "Pause",
     "resume": "Resume"
   },

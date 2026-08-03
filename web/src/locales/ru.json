@@ -9,7 +9,9 @@
     "backup": "Резервное копирование",
     "logs": "Логи",
     "tags": "Теги",
-    "logout": "Выйти"
+    "logout": "Выйти",
+    "grid": "Сетка",
+    "list": "Список"
   },
   "login": {
     "title": "Gritprof Media Server",
@@ -25,7 +27,8 @@
     "totalCameras": "Всего камер",
     "activeStreams": "Зрители HLS",
     "totalTraffic": "Трафик",
-    "advanced": "Подробная статистика"
+    "advanced": "Подробная статистика",
+    "systemActive": "Система Активна"
   },
   "filters": {
     "all": "Все",
@@ -71,7 +74,32 @@
     "generalSettings": "Общие настройки",
     "metadataSim": "Метаданные & SIM",
     "simPhone": "Номер SIM",
-    "simIccid": "SIM ICCID"
+    "simIccid": "SIM ICCID",
+    "details": {
+      "live": "Прямой эфир",
+      "archive": "Архив",
+      "trafficUsage": "Использование трафика",
+      "processing": "Обработка",
+      "dataIn": "Входящий",
+      "dataOut": "Исходящий (HLS)",
+      "frames": "Кадры",
+      "telemetry": "Телеметрия",
+      "backend": "RTSP Бекенд",
+      "frontend": "HLS Фронтенд",
+      "reconnects": "Переподключения",
+      "iFrames": "Ключевые кадры",
+      "buffer": "Буфер",
+      "latency": "Задержка",
+      "capacity": "Канал",
+      "dropped": "Пропущенные",
+      "network": "Сеть",
+      "source": "Источник RTSP",
+      "output": "Выход HLS",
+      "streamHistory": "История потока",
+      "recordHistory": "История записей",
+      "streamDisabledMsg": "Поток отключен",
+      "cameraOfflineMsg": "Камера не в сети"
+    }
   },
   "tags": {
     "title": "Менеджер тегов",
@@ -84,7 +112,7 @@
   },
   "logs": {
     "title": "Системные логи",
-    "clear": "Очистить логи",
+    "clear": "Очистить",
     "pause": "Пауза",
     "resume": "Продолжить"
   },
