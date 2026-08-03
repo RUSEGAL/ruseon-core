@@ -219,6 +219,19 @@ func (m *Muxer) watchdog() {
 
 // GetPlaylist генерирует M3U8 манифест.
 func (m *Muxer) GetPlaylist() string {
+	// В режиме Lazy HLS при первом запуске сегментов еще нет. 
+	// Ждем до 3 секунд, пока сгенерируется хотя бы один сегмент, 
+	// чтобы плееры (VLC) не зависали из-за пустого плейлиста.
+	for i := 0; i < 60; i++ {
+		m.mu.RLock()
+		count := len(m.segments)
+		m.mu.RUnlock()
+		if count > 0 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 

@@ -6,6 +6,7 @@ export interface CamFormState {
   id: string;
   url: string;
   record: boolean;
+  lazyHLS: boolean;
   retentionDays: number;
   tags: string[];
   comment: string;
@@ -107,6 +108,17 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
                     <label htmlFor="record-check" style={{ marginBottom: 0, cursor: 'pointer', fontWeight: 500 }}>Enable Archive Recording</label>
                   </div>
                   
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+                    <input 
+                      type="checkbox" 
+                      id="lazy-hls-check"
+                      checked={camForm.lazyHLS}
+                      onChange={e => setCamForm({...camForm, lazyHLS: e.target.checked})}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="lazy-hls-check" style={{ marginBottom: 0, cursor: 'pointer', fontWeight: 500 }}>Enable Lazy HLS (Muxing on Demand)</label>
+                  </div>
+
                   {camForm.record && (
                     <div className="form-group" style={{ paddingLeft: '30px', marginBottom: 0 }}>
                       <label>Retention (Days). 0 = Global Setting</label>

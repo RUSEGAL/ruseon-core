@@ -21,7 +21,7 @@ func NewManager() *Manager {
 }
 
 // AddStream добавляет новый поток (камеру) в менеджер.
-func (m *Manager) AddStream(id, url string, record bool) error {
+func (m *Manager) AddStream(id, url string, record bool, lazyHLS bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -29,7 +29,7 @@ func (m *Manager) AddStream(id, url string, record bool) error {
 		return fmt.Errorf("stream %s already exists", id)
 	}
 
-	st := NewStream(id, url, record)
+	st := NewStream(id, url, record, lazyHLS)
 	m.streams[id] = st
 	return nil
 }

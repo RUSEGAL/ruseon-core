@@ -138,6 +138,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 		Frames        uint64   `json:"frames"`
 		KeyFrames     uint64   `json:"keyFrames"`
 		Codec         string   `json:"codec"`
+		LazyHLS       bool     `json:"lazyHLS"`
 		Disabled      bool                   `json:"disabled"`
 		DisableReason string                 `json:"disableReason"`
 		DisableHistory []config.DisableRecord `json:"disableHistory"`
@@ -194,6 +195,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 			Frames:        frames,
 			KeyFrames:     keyFrames,
 			Codec:         codec,
+			LazyHLS:       cam.LazyHLS,
 		})
 	}
 
@@ -248,7 +250,7 @@ func (h *Handler) AddCamera(c *gin.Context) {
 
 	// Запускаем поток, если он не отключен
 	if !cam.Disabled {
-		if err := h.manager.AddStream(cam.ID, cam.URL, cam.Record); err != nil {
+		if err := h.manager.AddStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -288,6 +290,7 @@ func (h *Handler) EditCamera(c *gin.Context) {
 		cam.Comment = req.Comment
 		cam.SimPhone = req.SimPhone
 		cam.SimICCID = req.SimICCID
+		cam.LazyHLS = req.LazyHLS
 
 		// Отслеживание изменения статуса записи
 		if cam.Record != req.Record {
@@ -330,7 +333,7 @@ func (h *Handler) EditCamera(c *gin.Context) {
 	// Перезапускаем поток если он включен
 	h.manager.RemoveStream(id)
 	if !req.Disabled {
-		h.manager.AddStream(req.ID, req.URL, req.Record)
+		h.manager.AddStream(req.ID, req.URL, req.Record, req.LazyHLS)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -346,7 +349,7 @@ func (h *Handler) GetHLSPlaylist(c *gin.Context) {
 		return
 	}
 
-	muxer := st.GetHLSMuxer()
+	muxer := st.WakeUpHLSMuxer()
 	playlist := muxer.GetPlaylist()
 
 	c.Header("Content-Type", "application/vnd.apple.mpegurl")
@@ -367,7 +370,7 @@ func (h *Handler) GetHLSSegment(c *gin.Context) {
 		return
 	}
 
-	muxer := st.GetHLSMuxer()
+	muxer := st.WakeUpHLSMuxer()
 	data := muxer.GetSegment(segment)
 	if data == nil {
 		c.String(http.StatusNotFound, "Segment not found")

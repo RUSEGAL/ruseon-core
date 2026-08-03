@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -24,7 +25,12 @@ type Stream struct {
 
 	// Буфер кадров для этой камеры
 	ringBuffer *buffer.RingBuffer
-	hlsMuxer   *hls.Muxer
+	
+	muxerMu        sync.Mutex
+	hlsMuxer       *hls.Muxer
+	lastHLSRequest time.Time
+	lazyHLS        bool
+
 	mp4Recorder *recorder.Recorder
 
 	// Статистика
@@ -38,7 +44,7 @@ type Stream struct {
 }
 
 // NewStream создает и запускает поток.
-func NewStream(id, url string, record bool) *Stream {
+func NewStream(id, url string, record bool, lazyHLS bool) *Stream {
 	ctx, cancel := context.WithCancel(context.Background())
 	rb := buffer.NewRingBuffer(100)
 	s := &Stream{
@@ -48,7 +54,13 @@ func NewStream(id, url string, record bool) *Stream {
 		cancelCtx:  cancel,
 		// Буфер на 100 кадров (примерно 4 секунды при 25 FPS)
 		ringBuffer: rb,
-		hlsMuxer:   hls.NewMuxer(id, rb),
+		lazyHLS:    lazyHLS,
+	}
+
+	if !lazyHLS {
+		s.hlsMuxer = hls.NewMuxer(id, rb)
+	} else {
+		go s.lazyHLSWatchdog()
 	}
 
 	if record {
@@ -124,7 +136,13 @@ func (s *Stream) run() {
 func (s *Stream) Stop() {
 	s.cancelCtx()
 	s.ringBuffer.Close()
-	s.hlsMuxer.Stop()
+	
+	s.muxerMu.Lock()
+	if s.hlsMuxer != nil {
+		s.hlsMuxer.Stop()
+	}
+	s.muxerMu.Unlock()
+	
 	if s.mp4Recorder != nil {
 		s.mp4Recorder.Stop()
 	}
@@ -135,9 +153,38 @@ func (s *Stream) GetRingBuffer() *buffer.RingBuffer {
 	return s.ringBuffer
 }
 
-// GetHLSMuxer возвращает мультиплексор HLS.
-func (s *Stream) GetHLSMuxer() *hls.Muxer {
+// WakeUpHLSMuxer возвращает мультиплексор HLS, просыпая его при необходимости.
+func (s *Stream) WakeUpHLSMuxer() *hls.Muxer {
+	s.muxerMu.Lock()
+	defer s.muxerMu.Unlock()
+	
+	s.lastHLSRequest = time.Now()
+	
+	if s.hlsMuxer == nil {
+		log.Info().Str("id", s.ID).Msg("Waking up HLS Muxer (Lazy Mode)")
+		s.hlsMuxer = hls.NewMuxer(s.ID, s.ringBuffer)
+	}
 	return s.hlsMuxer
+}
+
+func (s *Stream) lazyHLSWatchdog() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
+			s.muxerMu.Lock()
+			if s.hlsMuxer != nil && time.Since(s.lastHLSRequest) > 60*time.Second {
+				log.Info().Str("id", s.ID).Msg("Stopping HLS Muxer due to inactivity (Lazy Mode)")
+				s.hlsMuxer.Stop()
+				s.hlsMuxer = nil
+			}
+			s.muxerMu.Unlock()
+		}
+	}
 }
 
 // AddBytesSent увеличивает счетчик исходящего трафика
