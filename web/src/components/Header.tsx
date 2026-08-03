@@ -1,4 +1,5 @@
-import { MonitorPlay, LayoutGrid, List, Plus, LogOut, Tag, Terminal } from 'lucide-react';
+import { LayoutGrid, List, Plus, LogOut, Tag, Terminal } from 'lucide-react';
+import { Logo } from './Logo';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
@@ -17,7 +18,7 @@ export function Header({ viewMode, setViewMode, onOpenAdd, onOpenTags, onOpenLog
   return (
     <header className="dashboard-header glass">
       <div className="brand">
-        <MonitorPlay className="brand-icon" size={28} />
+        <Logo size={28} className="brand-icon" />
         {t('app.title')}
       </div>
       

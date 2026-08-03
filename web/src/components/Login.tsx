@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { MonitorPlay } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Logo } from './Logo';
 
 interface LoginProps {
   onLogin: (token: string) => void;
@@ -34,8 +34,11 @@ export function Login({ onLogin }: LoginProps) {
   return (
     <div className="login-container">
       <form onSubmit={handleLogin} className="login-form glass">
-        <MonitorPlay size={48} className="brand-icon" style={{ margin: '0 auto 1rem' }} />
-        <h2 style={{ textAlign: 'center', marginBottom: '2rem' }}>{t('login.title')}</h2>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <Logo size={48} className="mx-auto" style={{ marginBottom: '1rem' }} />
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>{t('login.title')}</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>{t('login.subtitle')}</p>
+        </div>
         <div className="form-group">
           <label>Username</label>
           <input 
