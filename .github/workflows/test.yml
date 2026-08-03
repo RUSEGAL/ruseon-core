@@ -1,4 +1,4 @@
-name: Go Tests
+name: CI Pipeline
 
 on:
   push:
@@ -11,10 +11,9 @@ on:
       - dev
 
 jobs:
-  test:
-    name: Run Tests
+  backend-checks:
+    name: Go Backend (Lint, Security, Test)
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -22,12 +21,49 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26' # Можно указать 'stable'
+          go-version: '1.26'
           cache: true
 
       - name: Download Dependencies
         run: go mod download
 
-      - name: Run Tests with Race Detector
-        # Запускаем все тесты в проекте и включаем поиск Data Race (состояний гонки)
-        run: go test -v -race ./...
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
+
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
+        with:
+          args: ./...
+
+      - name: Run Tests with Race Detector and Coverage
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Print Coverage Summary
+        run: go tool cover -func=coverage.out
+
+  frontend-checks:
+    name: React Frontend (Lint & Build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run OxLint
+        run: npm run lint
+
+      - name: TypeScript Compile Check
+        run: npm run build
