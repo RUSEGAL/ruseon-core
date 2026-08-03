@@ -609,13 +609,13 @@ func (h *Handler) ImportBackupJSON(c *gin.Context) {
 		return
 	}
 	
-	// После загрузки бэкапа, нужно перезапустить потоки.
-	// Самый простой способ - перезагрузить манагер.
-	// Для MVP: просто ответим успехом, сервер подхватит конфигурации.
-	// Желательно перечитать конфигурации в stream manager, но пока что 
-	// просим пользователя перезагрузить сервер (или переподключить камеры через UI).
+	// Перезапускаем все потоки с новыми настройками
+	if err := h.manager.SyncWithStorage(h.store); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to sync streams: " + err.Error()})
+		return
+	}
 	
-	c.JSON(http.StatusOK, gin.H{"message": "Backup imported successfully. Please restart the server or reconnect cameras."})
+	c.JSON(http.StatusOK, gin.H{"message": "Backup imported and streams restarted successfully."})
 }
 
 // GetArchiveHLSSegment отдает TS сегмент архива "на лету"

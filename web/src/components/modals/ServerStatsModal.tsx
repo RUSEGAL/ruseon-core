@@ -91,7 +91,7 @@ export function ServerStatsModal({ serverStats, onClose }: ServerStatsModalProps
                     });
                     
                     if (res.ok) {
-                      alert('Backup imported successfully! Please reload the page and consider restarting the server if cameras do not connect immediately.');
+                      alert('Backup imported successfully! Streams have been restarted automatically.');
                       window.location.reload();
                     } else {
                       const err = await res.json();

@@ -3,6 +3,10 @@ package stream
 import (
 	"fmt"
 	"sync"
+	
+	"github.com/rs/zerolog/log"
+	
+	"gritprofmediaserver/internal/storage"
 )
 
 
@@ -64,4 +68,36 @@ func (m *Manager) GetStreams() []*Stream {
 		result = append(result, s)
 	}
 	return result
+}
+
+// SyncWithStorage синхронизирует состояние манагера с базой данных
+func (m *Manager) SyncWithStorage(store *storage.Storage) error {
+	log.Info().Msg("Syncing stream manager with storage...")
+	
+	cams, err := store.ListCameras()
+	if err != nil {
+		return err
+	}
+	
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	
+	// 1. Остановка всех текущих потоков
+	for id, st := range m.streams {
+		st.Stop()
+		delete(m.streams, id)
+	}
+	
+	// 2. Инициализация новых потоков
+	for _, cam := range cams {
+		if !cam.Disabled {
+			st := NewStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport)
+			m.streams[cam.ID] = st
+			log.Info().Str("id", cam.ID).Msg("Stream started from backup sync")
+		} else {
+			log.Info().Str("id", cam.ID).Msg("Stream is disabled, skipping")
+		}
+	}
+	
+	return nil
 }
