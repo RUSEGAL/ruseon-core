@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  reastream:
+    build: .
+    container_name: reastream
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - reastream_data:/app/data
+      - reastream_recordings:/app/recordings
+      - reastream_backups:/app/backups
+    environment:
+      - TZ=UTC
+
+volumes:
+  reastream_data:
+  reastream_recordings:
+  reastream_backups:
