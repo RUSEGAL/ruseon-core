@@ -19,6 +19,9 @@ type OnFrameCallback func(nalus [][]byte, pts time.Duration, isKeyFrame bool)
 // OnParamsCallback вызывается при получении параметров кодека.
 type OnParamsCallback func(vps, sps, pps []byte)
 
+// Ограничиваем одновременные попытки установки RTSP соединения (Защита от Thundering Herd)
+var dialSemaphore = make(chan struct{}, 10)
+
 // Client обертка над gortsplib.Client
 type Client struct {
 	client *gortsplib.Client
@@ -81,6 +84,17 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 		return fmt.Errorf("failed to parse url: %w", err)
 	}
 
+	// Захватываем семафор перед коннектом
+	dialSemaphore <- struct{}{}
+	semaphoreReleased := false
+	releaseSemaphore := func() {
+		if !semaphoreReleased {
+			<-dialSemaphore
+			semaphoreReleased = true
+		}
+	}
+	defer releaseSemaphore()
+
 	err = c.client.Start(u.Scheme, u.Host)
 	if err != nil {
 		return fmt.Errorf("failed to start client: %w", err)
@@ -108,6 +122,11 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 	if err != nil {
 		return fmt.Errorf("failed to setup all: %w", err)
 	}
+	
+	// Отпускаем семафор, так как тяжелая фаза установки (TCP handshake, DESCRIBE, SETUP) завершена.
+	// Мы не хотим держать его во время Play и чтения пакетов.
+	releaseSemaphore()
+
 
 	// Ищем видео трек (H264 или H265) и подписываемся на него
 	for _, media := range session.Medias {

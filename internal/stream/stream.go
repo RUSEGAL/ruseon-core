@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/sync/singleflight"
 	"github.com/rs/zerolog/log"
 
 	"gritprofmediaserver/internal/buffer"
@@ -45,6 +46,8 @@ type Stream struct {
 
 	rtspClient *rtsp.Client
 	rtspMu     sync.Mutex
+	
+	sfGroup    singleflight.Group
 }
 
 // NewStream создает и запускает поток.
@@ -170,16 +173,25 @@ func (s *Stream) GetRingBuffer() *buffer.RingBuffer {
 
 // WakeUpHLSMuxer возвращает мультиплексор HLS, просыпая его при необходимости.
 func (s *Stream) WakeUpHLSMuxer() *hls.Muxer {
+	v, _, _ := s.sfGroup.Do("wakeup", func() (interface{}, error) {
+		s.muxerMu.Lock()
+		defer s.muxerMu.Unlock()
+		
+		s.lastHLSRequest = time.Now()
+		
+		if s.hlsMuxer == nil {
+			log.Info().Str("id", s.ID).Msg("Waking up HLS Muxer (Lazy Mode)")
+			s.hlsMuxer = hls.NewMuxer(s.ID, s.ringBuffer)
+		}
+		return s.hlsMuxer, nil
+	})
+	
+	// Если мы не внутри Do, обновим время запроса для watchdog
 	s.muxerMu.Lock()
-	defer s.muxerMu.Unlock()
-	
 	s.lastHLSRequest = time.Now()
-	
-	if s.hlsMuxer == nil {
-		log.Info().Str("id", s.ID).Msg("Waking up HLS Muxer (Lazy Mode)")
-		s.hlsMuxer = hls.NewMuxer(s.ID, s.ringBuffer)
-	}
-	return s.hlsMuxer
+	s.muxerMu.Unlock()
+
+	return v.(*hls.Muxer)
 }
 
 func (s *Stream) lazyHLSWatchdog() {
