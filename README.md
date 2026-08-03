@@ -46,12 +46,12 @@
 
 ```mermaid
 graph LR
-  subgraph Data Sources
+  subgraph Sources [Data Sources]
     Cam1[RTSP Camera]
     Cam2[RTSP Camera]
   end
 
-  subgraph REA Stream Engine (Go)
+  subgraph Engine [REA Stream Engine]
     Demux[Zero-Copy Demuxer]
     Pool[Memory Pool]
     HLS[HLS Muxer]
@@ -59,7 +59,7 @@ graph LR
     DB[(BadgerDB)]
   end
 
-  subgraph Clients
+  subgraph Clients [Clients]
     Browser[Web Dashboard]
     Player[HLS / MP4 Player]
   end
