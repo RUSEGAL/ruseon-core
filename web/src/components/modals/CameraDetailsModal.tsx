@@ -218,6 +218,10 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Uptime</div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{isOnline ? formatUptime(detailsCam.uptime) : '-'}</div>
               </div>
+              <div className="glass" style={{ padding: '1rem', borderRadius: '12px' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Transport</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 600, textTransform: 'uppercase' }}>{detailsCam.transport || 'TCP'}</div>
+              </div>
             </div>
 
             {/* Network & Device Info */}
