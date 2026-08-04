@@ -3,8 +3,8 @@ package stream
 import (
 	"time"
 
-	"gritprofmediaserver/internal/config"
-	"gritprofmediaserver/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
 )
 
 // StartBillingTask запускает фоновую задачу для трекинга трафика

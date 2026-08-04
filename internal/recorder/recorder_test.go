@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"gritprofmediaserver/internal/buffer"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/buffer"
 )
 
 func TestRecorder_Lifecycle(t *testing.T) {

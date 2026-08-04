@@ -10,7 +10,7 @@ import (
 	"github.com/bluenviron/mediacommon/pkg/formats/fmp4"
 	"github.com/rs/zerolog/log"
 
-	"gritprofmediaserver/internal/buffer"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/buffer"
 )
 
 // Recorder читает кадры из RingBuffer и пишет их в fMP4 архив.

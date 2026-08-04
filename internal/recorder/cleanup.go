@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"gritprofmediaserver/internal/config"
-	"gritprofmediaserver/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
 )
 
 // StartCleanupTask запускает фоновую задачу для удаления старых записей.

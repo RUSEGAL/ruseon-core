@@ -12,13 +12,13 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"gritprofmediaserver/internal/api"
-	"gritprofmediaserver/internal/backup"
-	"gritprofmediaserver/internal/config"
-	"gritprofmediaserver/internal/logger"
-	"gritprofmediaserver/internal/recorder"
-	"gritprofmediaserver/internal/storage"
-	"gritprofmediaserver/internal/stream"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/api"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/backup"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/logger"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/recorder"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/stream"
 )
 
 func main() {

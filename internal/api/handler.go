@@ -11,11 +11,11 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
 
-	"gritprofmediaserver/internal/archive"
-	"gritprofmediaserver/internal/config"
-	"gritprofmediaserver/internal/logger"
-	"gritprofmediaserver/internal/storage"
-	"gritprofmediaserver/internal/stream"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/archive"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/logger"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/stream"
 	"strconv"
 	"strings"
 )

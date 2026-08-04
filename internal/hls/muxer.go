@@ -9,7 +9,7 @@ import (
 
 	"github.com/bluenviron/mediacommon/pkg/formats/mpegts"
 
-	"gritprofmediaserver/internal/buffer"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/buffer"
 )
 
 // Segment представляет один HLS ts-сегмент.

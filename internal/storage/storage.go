@@ -9,7 +9,7 @@ import (
 	"github.com/dgraph-io/badger/v4"
 	"github.com/rs/zerolog/log"
 
-	"gritprofmediaserver/internal/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
 )
 
 const (

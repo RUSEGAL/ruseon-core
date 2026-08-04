@@ -3,7 +3,7 @@ package storage
 import (
 	"os"
 	"testing"
-	"gritprofmediaserver/internal/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
 )
 
 func TestStorage_CameraCRUD(t *testing.T) {

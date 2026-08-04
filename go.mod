@@ -1,4 +1,4 @@
-module gritprofmediaserver
+module github.com/RUSEGAL/REA-Stream-Engine
 
 go 1.26
 

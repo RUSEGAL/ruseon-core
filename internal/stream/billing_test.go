@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"gritprofmediaserver/internal/config"
-	"gritprofmediaserver/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
 )
 
 func TestProcessBilling(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"gritprofmediaserver/internal/buffer"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/buffer"
 )
 
 func TestMuxer_LazyGetPlaylist_Wait(t *testing.T) {

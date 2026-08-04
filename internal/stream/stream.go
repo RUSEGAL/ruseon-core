@@ -9,11 +9,11 @@ import (
 	"golang.org/x/sync/singleflight"
 	"github.com/rs/zerolog/log"
 
-	"gritprofmediaserver/internal/buffer"
-	"gritprofmediaserver/internal/hls"
-	"gritprofmediaserver/internal/models"
-	"gritprofmediaserver/internal/recorder"
-	"gritprofmediaserver/internal/rtsp"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/buffer"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/hls"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/models"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/recorder"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/rtsp"
 )
 
 // Stream представляет логику работы с конкретной камерой.

@@ -10,9 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"gritprofmediaserver/internal/config"
-	"gritprofmediaserver/internal/storage"
-	"gritprofmediaserver/internal/stream"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/stream"
 )
 
 func setupTestRouter(t *testing.T) (*gin.Engine, *Handler, *storage.Storage) {

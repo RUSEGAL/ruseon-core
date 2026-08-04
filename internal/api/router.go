@@ -9,7 +9,7 @@ import (
 	"time"
 	"mime"
 
-	"gritprofmediaserver/web"
+	"github.com/RUSEGAL/REA-Stream-Engine/web"
 
 	"github.com/arl/statsviz"
 	"github.com/gin-contrib/pprof"

@@ -6,7 +6,7 @@ import (
 	
 	"github.com/rs/zerolog/log"
 	
-	"gritprofmediaserver/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
 )
 
 
