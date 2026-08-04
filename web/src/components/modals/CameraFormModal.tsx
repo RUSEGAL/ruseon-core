@@ -1,7 +1,7 @@
 import { X, Camera } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TagConfig } from '../../types';
+import type { TagConfig, FolderConfig } from '../../types';
 
 export interface CamFormState {
   id: string;
@@ -11,6 +11,7 @@ export interface CamFormState {
   transport: string;
   retentionDays: number;
   tags: string[];
+  folderId: string;
   comment: string;
   simPhone: string;
   simICCID: string;
@@ -20,6 +21,7 @@ export interface CamFormState {
 
 interface CameraFormModalProps {
   globalTags: TagConfig[];
+  folders: FolderConfig[];
   isEditing: boolean;
   camForm: CamFormState;
   setCamForm: (form: CamFormState) => void;
@@ -27,7 +29,7 @@ interface CameraFormModalProps {
   onClose: () => void;
 }
 
-export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClose, globalTags }: CameraFormModalProps) {
+export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClose, globalTags, folders }: CameraFormModalProps) {
   const { t } = useTranslation();
   const toggleTag = (tagId: string) => {
     const newTags = camForm.tags.includes(tagId) 
@@ -202,6 +204,20 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
 
             {activeTab === 'metadata' && (
               <>
+                <div className="form-group">
+                  <label>{t('folders.title', 'Folder')}</label>
+                  <select 
+                    className="input-field"
+                    value={camForm.folderId}
+                    onChange={e => setCamForm({...camForm, folderId: e.target.value})}
+                  >
+                    <option value="">{t('folders.noFolder', 'No Folder')}</option>
+                    {folders.map(f => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="form-group">
                   <label>Tags</label>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>

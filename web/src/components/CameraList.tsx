@@ -2,6 +2,8 @@ import { Trash2, Edit2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { CameraInfo, TagConfig } from '../types';
 import { formatBytes, formatUptime } from '../utils/formatters';
+import { useState } from 'react';
+import { ChevronDown, ChevronRight, Folder as FolderIcon } from 'lucide-react';
 
 interface CameraListProps {
   cameras: CameraInfo[];
@@ -11,14 +13,61 @@ interface CameraListProps {
   onDelete: (id: string) => void;
   onOpenDetails: (cam: CameraInfo) => void;
   globalTags: TagConfig[];
+  folders: import('../types').FolderConfig[];
 }
 
-export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpenDetails, globalTags }: CameraListProps) {
+export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpenDetails, globalTags, folders }: CameraListProps) {
   const { t } = useTranslation();
+  const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
+
+  const toggleFolder = (folderId: string) => {
+    setCollapsedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
+  };
+
+  // Group cameras
+  const groupedCameras = cameras.reduce((acc, cam) => {
+    const fId = cam.folderId || 'unassigned';
+    if (!acc[fId]) acc[fId] = [];
+    acc[fId].push(cam);
+    return acc;
+  }, {} as Record<string, CameraInfo[]>);
+
+  // Sort folder groups (unassigned goes last)
+  const folderGroups = Object.keys(groupedCameras).sort((a, b) => {
+    if (a === 'unassigned') return 1;
+    if (b === 'unassigned') return -1;
+    const folderA = folders.find(f => f.id === a)?.name || a;
+    const folderB = folders.find(f => f.id === b)?.name || b;
+    return folderA.localeCompare(folderB);
+  });
   
   return (
-    <div className="camera-list">
-      {cameras.map(cam => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {folderGroups.map(folderId => {
+        const groupCams = groupedCameras[folderId];
+        const isCollapsed = collapsedFolders[folderId];
+        const folderName = folderId === 'unassigned' 
+          ? t('folders.unassigned', 'Unassigned') 
+          : folders.find(f => f.id === folderId)?.name || 'Unknown Folder';
+
+        return (
+          <div key={folderId} className="folder-group">
+            <div 
+              onClick={() => toggleFolder(folderId)}
+              style={{ 
+                display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', 
+                padding: '8px 12px', background: 'rgba(255,255,255,0.05)', 
+                borderRadius: '8px', marginBottom: '12px' 
+              }}
+            >
+              {isCollapsed ? <ChevronRight size={18} /> : <ChevronDown size={18} />}
+              <FolderIcon size={18} color="var(--primary)" />
+              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{folderName} <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>({groupCams.length})</span></h3>
+            </div>
+
+            {!isCollapsed && (
+              <div className="camera-list">
+                {groupCams.map(cam => (
         <div key={cam.id} className="camera-list-item glass" onClick={() => onOpenDetails(cam)}>
           <div className="camera-list-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center', alignItems: 'flex-start' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -102,9 +151,20 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
                 <Trash2 size={16} />
               </button>
             </div>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+        {groupCams.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                  {t('cameras.empty')}
+                </div>
+              )}
+            </div>
+            )}
+          </div>
+        );
+      })}
+      
       {cameras.length === 0 && (
         <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
           {t('cameras.empty')}

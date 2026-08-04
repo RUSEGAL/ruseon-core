@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bluenviron/mediacommon/pkg/formats/mpegts"
+	"github.com/rs/zerolog/log"
 
 	"github.com/RUSEGAL/REA-Stream-Engine/internal/buffer"
 )
@@ -54,6 +55,11 @@ func NewMuxer(streamID string, rb *buffer.RingBuffer) *Muxer {
 }
 
 func (m *Muxer) run() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error().Interface("panic", r).Str("streamID", m.streamID).Msg("Recovered from panic in Muxer.run")
+		}
+	}()
 	reader := m.ringBuffer.NewReader()
 
 	var currentBuf *bytes.Buffer
@@ -181,6 +187,11 @@ func (m *Muxer) Stop() {
 // он берет последний готовый сегмент и добавляет его дубликат в плейлист с флагом Discontinuity.
 // Это заставляет сторонние плееры (VLC, OBS) "заморозить" последний кадр и не вылетать по таймауту.
 func (m *Muxer) watchdog() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error().Interface("panic", r).Str("streamID", m.streamID).Msg("Recovered from panic in Muxer.watchdog")
+		}
+	}()
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 

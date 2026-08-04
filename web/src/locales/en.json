@@ -135,5 +135,16 @@
     "download": "Download MP4",
     "start": "Start",
     "end": "End"
+  },
+  "folders": {
+    "title": "Folders",
+    "add": "Add Folder",
+    "name": "Folder Name",
+    "noFolder": "No Folder",
+    "unassigned": "Unassigned",
+    "save": "Save",
+    "cancel": "Cancel",
+    "noFolders": "No folders created yet.",
+    "deleteConfirm": "Are you sure you want to delete this folder? It will be removed from all cameras."
   }
 }

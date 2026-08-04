@@ -203,6 +203,12 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 	// Ожидаем завершения сессии или отмены контекста
 	errChan := make(chan error, 1)
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error().Interface("panic", r).Msg("Recovered from panic in RTSP Client Wait")
+				errChan <- fmt.Errorf("panic in wait: %v", r)
+			}
+		}()
 		errChan <- c.client.Wait()
 	}()
 

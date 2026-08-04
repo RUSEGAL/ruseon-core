@@ -15,6 +15,7 @@ import (
 const (
 	PrefixCamera = "camera:"
 	PrefixTag    = "tag:"
+	PrefixFolder = "folder:"
 )
 
 // Storage обертка над BadgerDB
@@ -42,6 +43,11 @@ func NewStorage(dir string) (*Storage, error) {
 
 	// Запускаем периодический Garbage Collection для BadgerDB (раз в час)
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error().Interface("panic", r).Msg("Recovered from panic in BadgerDB GC")
+			}
+		}()
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
 		for range ticker.C {
@@ -230,6 +236,78 @@ func (s *Storage) ListTags() ([]config.TagConfig, error) {
 	return tags, err
 }
 
+// SaveFolder сохраняет папку.
+func (s *Storage) SaveFolder(folder *config.FolderConfig) error {
+	data, err := json.Marshal(folder)
+	if err != nil {
+		return err
+	}
+	key := []byte(PrefixFolder + folder.ID)
+
+	return s.db.Update(func(txn *badger.Txn) error {
+		return txn.Set(key, data)
+	})
+}
+
+// DeleteFolder удаляет папку.
+func (s *Storage) DeleteFolder(id string) error {
+	key := []byte(PrefixFolder + id)
+	return s.db.Update(func(txn *badger.Txn) error {
+		return txn.Delete(key)
+	})
+}
+
+// GetFolder возвращает папку по ID.
+func (s *Storage) GetFolder(id string) (*config.FolderConfig, error) {
+	key := []byte(PrefixFolder + id)
+	var folder config.FolderConfig
+
+	err := s.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err != nil {
+			return err
+		}
+		return item.Value(func(val []byte) error {
+			return json.Unmarshal(val, &folder)
+		})
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return &folder, nil
+}
+
+// ListFolders возвращает список всех папок.
+func (s *Storage) ListFolders() ([]config.FolderConfig, error) {
+	folders := make([]config.FolderConfig, 0)
+
+	err := s.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+		prefix := []byte(PrefixFolder)
+
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			err := item.Value(func(v []byte) error {
+				var folder config.FolderConfig
+				if err := json.Unmarshal(v, &folder); err != nil {
+					return err
+				}
+				folders = append(folders, folder)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	return folders, err
+}
+
+
 // MigrateFromConfig переносит данные из config.yaml в БД, если БД пуста.
 // Внимание: после вызова этого метода, данные нужно удалить из конфига (это будет на этапе 18.2).
 func (s *Storage) MigrateFromConfig(cfg *config.Config) error {
@@ -271,6 +349,7 @@ func (s *Storage) MigrateFromConfig(cfg *config.Config) error {
 type BackupData struct {
 	Cameras []config.CameraConfig `json:"cameras"`
 	Tags    []config.TagConfig    `json:"tags"`
+	Folders []config.FolderConfig `json:"folders,omitempty"`
 }
 
 // ExportJSON собирает все конфигурации камер и тегов в JSON-дамп.
@@ -283,9 +362,14 @@ func (s *Storage) ExportJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	folders, err := s.ListFolders()
+	if err != nil {
+		return nil, err
+	}
 	data := BackupData{
 		Cameras: cams,
 		Tags:    tags,
+		Folders: folders,
 	}
 	// Используем отступы для человекочитаемости
 	return json.MarshalIndent(data, "", "  ")
@@ -316,6 +400,16 @@ func (s *Storage) ImportJSON(data []byte) error {
 				return err
 			}
 			if err := txn.Set([]byte(PrefixTag+t.ID), val); err != nil {
+				return err
+			}
+		}
+		for _, folder := range backup.Folders {
+			f := folder
+			val, err := json.Marshal(&f)
+			if err != nil {
+				return err
+			}
+			if err := txn.Set([]byte(PrefixFolder+f.ID), val); err != nil {
 				return err
 			}
 		}

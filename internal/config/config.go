@@ -35,6 +35,12 @@ type TagConfig struct {
 	Color string `yaml:"color" json:"color"`
 }
 
+// FolderConfig описывает папку/группу для камер
+type FolderConfig struct {
+	ID    string `yaml:"id" json:"id"`
+	Name  string `yaml:"name" json:"name"`
+}
+
 // DisableRecord описывает событие изменения статуса отключения.
 type DisableRecord struct {
 	Timestamp string `yaml:"timestamp" json:"timestamp"`
@@ -49,6 +55,7 @@ type CameraConfig struct {
 	Record        bool     `yaml:"record" json:"record"`
 	RetentionDays int      `yaml:"retention_days" json:"retentionDays"` // 0 означает использование глобального значения
 	Tags          []string `yaml:"tags,omitempty" json:"tags"`
+	FolderID      string   `yaml:"folder_id,omitempty" json:"folderId"`
 	Comment       string   `yaml:"comment,omitempty" json:"comment"`
 	SimPhone      string   `yaml:"sim_phone,omitempty" json:"simPhone"`
 	SimICCID      string   `yaml:"sim_iccid,omitempty" json:"simICCID"`

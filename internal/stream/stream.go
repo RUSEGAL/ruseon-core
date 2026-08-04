@@ -82,6 +82,11 @@ func NewStream(id, url string, record bool, lazyHLS bool, transport string) *Str
 
 // run выполняет бесконечный цикл подключения с ретраями.
 func (s *Stream) run() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error().Interface("panic", r).Str("id", s.ID).Msg("Recovered from panic in Stream.run")
+		}
+	}()
 	log.Info().Str("id", s.ID).Msg("Starting stream processing")
 	for {
 		if s.ctx.Err() != nil {
@@ -195,6 +200,11 @@ func (s *Stream) WakeUpHLSMuxer() *hls.Muxer {
 }
 
 func (s *Stream) lazyHLSWatchdog() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error().Interface("panic", r).Str("id", s.ID).Msg("Recovered from panic in Stream.lazyHLSWatchdog")
+		}
+	}()
 	for {
 		select {
 		case <-time.After(1 * time.Minute):

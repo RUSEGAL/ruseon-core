@@ -2,6 +2,7 @@ package stream
 
 import (
 	"time"
+	"github.com/rs/zerolog/log"
 
 	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
 	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
@@ -15,6 +16,11 @@ func StartBillingTask(cfg *config.Config, manager *Manager, store *storage.Stora
 	lastBytes := make(map[string]uint64)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error().Interface("panic", r).Msg("Recovered from panic in BillingWorker")
+			}
+		}()
 		for range ticker.C {
 			processBilling(manager, store, lastBytes)
 		}

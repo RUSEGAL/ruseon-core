@@ -150,6 +150,11 @@ func SetupRouter(h *Handler, debug bool) *gin.Engine {
 	api.PUT("/tags/:id", h.EditTag)
 	api.DELETE("/tags/:id", h.DeleteTag)
 
+	api.GET("/folders", h.GetFolders)
+	api.POST("/folders", h.AddFolder)
+	api.PUT("/folders/:id", h.EditFolder)
+	api.DELETE("/folders/:id", h.DeleteFolder)
+
 	// HLS стриминг (Live)
 	r.GET("/stream/hls/:id/index.m3u8", h.GetHLSPlaylist)
 	r.GET("/stream/hls/:id/:segment", h.GetHLSSegment)

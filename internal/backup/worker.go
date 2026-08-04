@@ -36,6 +36,11 @@ func NewWorker(store *storage.Storage, backupDir string, interval time.Duration,
 
 // Run запускает периодическое создание бэкапов.
 func (w *Worker) Run(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error().Interface("panic", r).Msg("Recovered from panic in Backup Worker")
+		}
+	}()
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
 

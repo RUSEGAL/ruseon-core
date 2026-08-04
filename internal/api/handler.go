@@ -127,6 +127,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 		Record        bool     `json:"record"`
 		RetentionDays int      `json:"retentionDays"`
 		Tags          []string `json:"tags"`
+		FolderID      string   `json:"folderId"`
 		Comment       string   `json:"comment"`
 		SimPhone      string   `json:"simPhone"`
 		SimICCID      string   `json:"simICCID"`
@@ -180,6 +181,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 			Record:        cam.Record,
 			RetentionDays: cam.RetentionDays,
 			Tags:          cam.Tags,
+			FolderID:      cam.FolderID,
 			Comment:       cam.Comment,
 			SimPhone:      cam.SimPhone,
 			SimICCID:      cam.SimICCID,
@@ -287,6 +289,7 @@ func (h *Handler) EditCamera(c *gin.Context) {
 		cam.URL = req.URL
 		cam.RetentionDays = req.RetentionDays
 		cam.Tags = req.Tags
+		cam.FolderID = req.FolderID
 		cam.Comment = req.Comment
 		cam.SimPhone = req.SimPhone
 		cam.SimICCID = req.SimICCID
@@ -521,6 +524,76 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 			}
 			return false
 		})
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// GetFolders возвращает глобальный список папок
+func (h *Handler) GetFolders(c *gin.Context) {
+	folders, err := h.store.ListFolders()
+	if err != nil {
+		folders = []config.FolderConfig{}
+	}
+	c.JSON(http.StatusOK, folders)
+}
+
+// AddFolder добавляет новую папку
+func (h *Handler) AddFolder(c *gin.Context) {
+	var folder config.FolderConfig
+	if err := c.ShouldBindJSON(&folder); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+	if err := h.store.SaveFolder(&folder); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save folder to db"})
+		return
+	}
+	c.JSON(http.StatusOK, folder)
+}
+
+// EditFolder изменяет папку
+func (h *Handler) EditFolder(c *gin.Context) {
+	id := c.Param("id")
+	var req config.FolderConfig
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+	
+	f, err := h.store.GetFolder(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found"})
+		return
+	}
+
+	f.Name = req.Name
+
+	if err := h.store.SaveFolder(f); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save folder"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// DeleteFolder удаляет папку по ID
+func (h *Handler) DeleteFolder(c *gin.Context) {
+	id := c.Param("id")
+
+	if err := h.store.DeleteFolder(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete folder"})
+		return
+	}
+	
+	// Очищаем удаленную папку у всех камер
+	cams, _ := h.store.ListCameras()
+	for _, camMeta := range cams {
+		if camMeta.FolderID == id {
+			_ = h.store.UpdateCameraTx(camMeta.ID, func(cam *config.CameraConfig) bool {
+				cam.FolderID = ""
+				return true
+			})
+		}
 	}
 	
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})

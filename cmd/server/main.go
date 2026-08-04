@@ -111,6 +111,11 @@ func main() {
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error().Interface("panic", r).Msg("Recovered from panic in HTTP Server")
+			}
+		}()
 		log.Info().Str("addr", addr).Msg("Starting API server")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal().Err(err).Msg("Server failed")

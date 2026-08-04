@@ -5,6 +5,7 @@ export interface CameraInfo {
   record?: boolean;
   retentionDays?: number;
   tags?: string[];
+  folderId?: string;
   comment?: string;
   simPhone?: string;
   simICCID?: string;
@@ -44,6 +45,11 @@ export interface TagConfig {
   id: string;
   name: string;
   color: string;
+}
+
+export interface FolderConfig {
+  id: string;
+  name: string;
 }
 
 export interface ServerStats {

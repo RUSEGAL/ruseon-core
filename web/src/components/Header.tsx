@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Plus, LogOut, Tag, Terminal } from 'lucide-react';
+import { LayoutGrid, List, Plus, LogOut, Tag, Terminal, Folder } from 'lucide-react';
 import { Logo } from './Logo';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -8,11 +8,12 @@ interface HeaderProps {
   setViewMode: (mode: 'grid' | 'list') => void;
   onOpenAdd: () => void;
   onOpenTags: () => void;
+  onOpenFolders: () => void;
   onOpenLogs: () => void;
   onLogout: () => void;
 }
 
-export function Header({ viewMode, setViewMode, onOpenAdd, onOpenTags, onOpenLogs, onLogout }: HeaderProps) {
+export function Header({ viewMode, setViewMode, onOpenAdd, onOpenTags, onOpenFolders, onOpenLogs, onLogout }: HeaderProps) {
   const { t } = useTranslation();
 
   return (
@@ -39,6 +40,9 @@ export function Header({ viewMode, setViewMode, onOpenAdd, onOpenTags, onOpenLog
         </div>
         <LanguageSwitcher />
         
+        <button onClick={onOpenFolders} className="btn btn-secondary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <Folder size={16} /> {t('folders.title', 'Folders')}
+        </button>
         <button onClick={onOpenTags} className="btn btn-secondary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <Tag size={16} /> {t('nav.tags')}
         </button>

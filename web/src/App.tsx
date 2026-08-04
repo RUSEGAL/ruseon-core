@@ -12,8 +12,9 @@ import { CameraDetailsModal } from './components/modals/CameraDetailsModal';
 import { ServerStatsModal } from './components/modals/ServerStatsModal';
 import { TagManagerModal } from './components/modals/TagManagerModal';
 import { LogsModal } from './components/modals/LogsModal';
-import type { TagConfig } from './types';
+import type { TagConfig, FolderConfig } from './types';
 import { useTranslation } from 'react-i18next';
+import { FolderManagerModal } from './components/modals/FolderManagerModal';
 
 export default function App() {
   const { t } = useTranslation();
@@ -26,8 +27,10 @@ export default function App() {
   const [showTagModal, setShowTagModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [camForm, setCamForm] = useState<CamFormState>({ id: '', url: '', record: false, lazyHLS: false, transport: 'tcp', retentionDays: 0, tags: [], comment: '', simPhone: '', simICCID: '', disabled: false, disableReason: 'technical' });
+  const [camForm, setCamForm] = useState<CamFormState>({ id: '', url: '', record: false, lazyHLS: false, transport: 'tcp', retentionDays: 0, tags: [], folderId: '', comment: '', simPhone: '', simICCID: '', disabled: false, disableReason: 'technical' });
   const [globalTags, setGlobalTags] = useState<TagConfig[]>([]);
+  const [folders, setFolders] = useState<FolderConfig[]>([]);
+  const [showFolderModal, setShowFolderModal] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'id' | 'uptime' | 'traffic' | 'status'>('id');
@@ -53,10 +56,11 @@ export default function App() {
     
     const fetchData = async () => {
       try {
-        const [camsRes, statsRes, tagsRes] = await Promise.all([
+        const [camsRes, statsRes, tagsRes, foldersRes] = await Promise.all([
           fetch('/api/cameras', { headers: { 'Authorization': `Bearer ${token}` } }),
           fetch('/api/stats', { headers: { 'Authorization': `Bearer ${token}` } }),
-          fetch('/api/tags', { headers: { 'Authorization': `Bearer ${token}` } })
+          fetch('/api/tags', { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch('/api/folders', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
         
         if (camsRes.status === 401 || statsRes.status === 401) {
@@ -74,6 +78,9 @@ export default function App() {
         }
         if (tagsRes.ok) {
           setGlobalTags(await tagsRes.json());
+        }
+        if (foldersRes.ok) {
+          setFolders(await foldersRes.json());
         }
       } catch (e) {
         console.error(e);
@@ -171,7 +178,7 @@ export default function App() {
 
   const openAddModal = () => {
     setIsEditing(false);
-    setCamForm({ id: '', url: '', record: false, lazyHLS: false, transport: 'tcp', retentionDays: 0, tags: [], comment: '', simPhone: '', simICCID: '', disabled: false, disableReason: 'technical' });
+    setCamForm({ id: '', url: '', record: false, lazyHLS: false, transport: 'tcp', retentionDays: 0, tags: [], folderId: '', comment: '', simPhone: '', simICCID: '', disabled: false, disableReason: 'technical' });
     setShowModal(true);
   };
 
@@ -185,6 +192,7 @@ export default function App() {
       transport: cam.transport || 'tcp',
       retentionDays: cam.retentionDays || 0,
       tags: cam.tags || [],
+      folderId: cam.folderId || '',
       comment: cam.comment || '',
       simPhone: cam.simPhone || '',
       simICCID: cam.simICCID || '',
@@ -244,6 +252,7 @@ export default function App() {
         setViewMode={setViewMode} 
         onOpenAdd={openAddModal} 
         onOpenTags={() => setShowTagModal(true)}
+        onOpenFolders={() => setShowFolderModal(true)}
         onOpenLogs={() => setShowLogsModal(true)}
         onLogout={handleLogout} 
       />
@@ -326,6 +335,7 @@ export default function App() {
             onDelete={deleteCamera} 
             onOpenDetails={setDetailsCam} 
             globalTags={globalTags}
+            folders={folders}
           />
         ) : (
           <CameraList 
@@ -336,6 +346,7 @@ export default function App() {
             onDelete={deleteCamera} 
             onOpenDetails={setDetailsCam} 
             globalTags={globalTags}
+            folders={folders}
           />
         )}
 
@@ -347,6 +358,7 @@ export default function App() {
             onSave={saveCamera}
             onClose={() => setShowModal(false)}
             globalTags={globalTags}
+            folders={folders}
           />
         )}
 
@@ -359,6 +371,19 @@ export default function App() {
               fetch('/api/tags', { headers: { 'Authorization': `Bearer ${token}` } })
                 .then(r => r.json())
                 .then(setGlobalTags);
+            }}
+          />
+        )}
+
+        {showFolderModal && (
+          <FolderManagerModal 
+            folders={folders}
+            token={token}
+            onClose={() => setShowFolderModal(false)}
+            onFoldersChange={() => {
+              fetch('/api/folders', { headers: { 'Authorization': `Bearer ${token}` } })
+                .then(r => r.json())
+                .then(setFolders);
             }}
           />
         )}

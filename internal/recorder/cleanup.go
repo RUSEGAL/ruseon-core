@@ -13,6 +13,11 @@ import (
 // StartCleanupTask запускает фоновую задачу для удаления старых записей.
 func StartCleanupTask(recordDir string, cfg *config.Config, store *storage.Storage) {
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error().Interface("panic", r).Msg("Recovered from panic in StartCleanupTask")
+			}
+		}()
 		for {
 			cleanupOldFiles(recordDir, cfg, store)
 			time.Sleep(1 * time.Hour)

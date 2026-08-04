@@ -2,9 +2,26 @@ linters-settings:
   staticcheck:
     checks: ["all", "-SA1019"] # Ignore deprecated warnings (e.g. WriteH26x)
 
+linters:
+  disable-all: false
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - bodyclose
+    - gosec
+    - prealloc
+    - gocritic
+    - revive
+
 issues:
   exclude-rules:
-    # Игнорируем неиспользуемый errcheck для тестов
+    # Игнорируем неиспользуемый errcheck и gosec для тестов
     - path: _test\.go
       linters:
         - errcheck
+        - gosec
+        - bodyclose
