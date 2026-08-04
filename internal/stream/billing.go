@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"time"
 	"github.com/rs/zerolog/log"
 
@@ -9,8 +10,7 @@ import (
 )
 
 // StartBillingTask запускает фоновую задачу для трекинга трафика
-func StartBillingTask(cfg *config.Config, manager *Manager, store *storage.Storage) {
-	ticker := time.NewTicker(1 * time.Minute)
+func StartBillingTask(ctx context.Context, cfg *config.Config, manager *Manager, store *storage.Storage) {
 	
 	// Храним последние значения байт для вычисления дельты
 	lastBytes := make(map[string]uint64)
@@ -21,8 +21,15 @@ func StartBillingTask(cfg *config.Config, manager *Manager, store *storage.Stora
 				log.Error().Interface("panic", r).Msg("Recovered from panic in BillingWorker")
 			}
 		}()
-		for range ticker.C {
-			processBilling(manager, store, lastBytes)
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				processBilling(manager, store, lastBytes)
+			}
 		}
 	}()
 }

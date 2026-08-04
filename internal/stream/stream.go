@@ -37,7 +37,7 @@ type Stream struct {
 
 	// Статистика
 	connected         atomic.Bool
-	connectedAt       time.Time
+	connectedAt       atomic.Int64
 	bytesReceived     atomic.Uint64
 	bytesSent         atomic.Uint64
 	framesReceived    atomic.Uint64
@@ -109,7 +109,7 @@ func (s *Stream) run() {
 			
 			if !s.connected.Load() {
 				s.connected.Store(true)
-				s.connectedAt = time.Now()
+				s.connectedAt.Store(time.Now().Unix())
 				log.Info().Str("id", s.ID).Msg("RTSP connected and receiving frames")
 			}
 			
@@ -140,10 +140,12 @@ func (s *Stream) run() {
 
 		log.Warn().Err(err).Str("id", s.ID).Msg("RTSP connection lost, reconnecting in 5s...")
 
+		timer := time.NewTimer(5 * time.Second)
 		select {
-		case <-time.After(5 * time.Second):
+		case <-timer.C:
 		case <-s.ctx.Done():
-			break
+			timer.Stop()
+			return
 		}
 	}
 }
@@ -232,7 +234,10 @@ func (s *Stream) AddBytesSent(n uint64) {
 func (s *Stream) GetStats() models.CameraStats {
 	var uptime int64
 	if s.connected.Load() {
-		uptime = int64(time.Since(s.connectedAt).Seconds())
+		at := s.connectedAt.Load()
+		if at > 0 {
+			uptime = int64(time.Since(time.Unix(at, 0)).Seconds())
+		}
 	}
 	
 	codec := "-"

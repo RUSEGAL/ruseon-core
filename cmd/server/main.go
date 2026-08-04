@@ -80,7 +80,7 @@ func main() {
 	recorder.StartCleanupTask(ctx, "recordings", cfg, store)
 	
 	// Запускаем трекинг трафика
-	stream.StartBillingTask(cfg, manager, store)
+	stream.StartBillingTask(ctx, cfg, manager, store)
 
 	// Запускаем фоновый бэкап базы данных (раз в 24 часа, храним 7 дней)
 	backupWorker := backup.NewWorker(store, "data/backups", 24*time.Hour, 7)
