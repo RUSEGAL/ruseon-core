@@ -205,9 +205,11 @@ func (s *Stream) lazyHLSWatchdog() {
 			log.Error().Interface("panic", r).Str("id", s.ID).Msg("Recovered from panic in Stream.lazyHLSWatchdog")
 		}
 	}()
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
 	for {
 		select {
-		case <-time.After(1 * time.Minute):
+		case <-ticker.C:
 			s.muxerMu.Lock()
 			if s.hlsMuxer != nil && time.Since(s.lastHLSRequest) > 60*time.Second {
 				log.Info().Str("id", s.ID).Msg("Stopping HLS Muxer due to inactivity (Lazy Mode)")

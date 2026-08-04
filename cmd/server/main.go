@@ -54,6 +54,9 @@ func main() {
 	}
 	defer store.Close()
 
+	ctx, cancelAll := context.WithCancel(context.Background())
+	defer cancelAll()
+
 	// Миграция данных из config.yaml в БД (при первом запуске)
 	if err := store.MigrateFromConfig(cfg); err != nil {
 		log.Fatal().Err(err).Msg("Failed to migrate data from config")
@@ -74,14 +77,14 @@ func main() {
 	manager := stream.NewManager()
 	
 	// Запускаем фоновую очистку записей
-	recorder.StartCleanupTask("recordings", cfg, store)
+	recorder.StartCleanupTask(ctx, "recordings", cfg, store)
 	
 	// Запускаем трекинг трафика
 	stream.StartBillingTask(cfg, manager, store)
 
 	// Запускаем фоновый бэкап базы данных (раз в 24 часа, храним 7 дней)
 	backupWorker := backup.NewWorker(store, "data/backups", 24*time.Hour, 7)
-	go backupWorker.Run(context.Background())
+	go backupWorker.Run(ctx)
 
 	// Добавляем камеры из БД
 	cams, err := store.ListCameras()

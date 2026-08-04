@@ -40,16 +40,9 @@ func NewRecorder(streamID string, rb *buffer.RingBuffer, recordDir string) *Reco
 }
 
 func (r *Recorder) run() {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Error().Interface("panic", err).Str("streamID", r.streamID).Msg("Recovered from panic in Recorder.run")
-		}
-	}()
-	reader := r.ringBuffer.NewReader()
-
 	var file *os.File
 	var seq uint32
-	var partSamples []*fmp4.PartSample
+	var partSamples = make([]*fmp4.PartSample, 0, 150) // Preallocate for ~5 sec GOP
 
 	var partStartBaseTime uint64
 	var lastPts int64
@@ -67,6 +60,15 @@ func (r *Recorder) run() {
 			file = nil
 		}
 	}
+
+	defer func() {
+		if err := recover(); err != nil {
+			log.Error().Interface("panic", err).Str("streamID", r.streamID).Msg("Recovered from panic in Recorder.run")
+			closeAndRename()
+		}
+	}()
+
+	reader := r.ringBuffer.NewReader()
 
 	// Ждем получения параметров кодека
 	_, sps, pps := r.ringBuffer.GetParams()
@@ -110,7 +112,7 @@ func (r *Recorder) run() {
 			log.Info().Str("stream", r.streamID).Msg("Rotating record file")
 			closeAndRename()
 			pendingSample = nil
-			partSamples = nil
+			partSamples = partSamples[:0]
 			initialPts = -1
 		}
 
@@ -163,7 +165,7 @@ func (r *Recorder) run() {
 			lastPts = 0
 			seq = 1
 			pendingSample = nil
-			partSamples = nil
+			partSamples = partSamples[:0]
 		}
 
 		currentPts := rawPts - initialPts
@@ -195,12 +197,12 @@ func (r *Recorder) run() {
 				log.Error().Err(err).Msg("Failed to write fMP4 part")
 				closeAndRename()
 				pendingSample = nil
-				partSamples = nil
+				partSamples = partSamples[:0]
 				initialPts = -1
 				continue
 			}
 
-			partSamples = nil
+			partSamples = partSamples[:0]
 			seq++
 			partStartBaseTime = uint64(currentPts)
 		}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/bluenviron/mediacommon/pkg/formats/mpegts"
@@ -18,7 +19,14 @@ type Segment struct {
 	Name            string
 	Duration        time.Duration
 	Data            []byte
+	buf             *bytes.Buffer // ссылка для возврата в пул
 	IsDiscontinuity bool
+}
+
+var bufferPool = sync.Pool{
+	New: func() interface{} {
+		return bytes.NewBuffer(make([]byte, 0, 1024*1024))
+	},
 }
 
 // Muxer читает кадры из RingBuffer и упаковывает их в HLS (MPEG-TS сегменты).
@@ -33,7 +41,7 @@ type Muxer struct {
 	segments []*Segment
 	seqCount uint64
 
-	lastFrameTime      time.Time
+	lastFrameTime      atomic.Int64
 	needsDiscontinuity bool
 }
 
@@ -47,8 +55,8 @@ func NewMuxer(streamID string, rb *buffer.RingBuffer) *Muxer {
 		cancel:         cancel,
 		targetDuration: 2 * time.Second, // Целевая длина сегмента: 2 секунды (хорошо для low-latency)
 		segments:       make([]*Segment, 0, 10),
-		lastFrameTime:  time.Now(),
 	}
+	m.lastFrameTime.Store(time.Now().UnixNano())
 	go m.run()
 	go m.watchdog()
 	return m
@@ -84,9 +92,7 @@ func (m *Muxer) run() {
 			break
 		}
 
-		m.mu.Lock()
-		m.lastFrameTime = time.Now()
-		m.mu.Unlock()
+		m.lastFrameTime.Store(time.Now().UnixNano())
 
 		// Если текущий сегмент достиг целевой длины и пришел новый I-кадр, закрываем сегмент
 		if currentBuf != nil && frame.IsKeyFrame && frame.Timestamp-segmentStart >= m.targetDuration {
@@ -96,13 +102,19 @@ func (m *Muxer) run() {
 				Name:            fmt.Sprintf("stream_%d.ts", m.seqCount),
 				Duration:        frame.Timestamp - segmentStart,
 				Data:            currentBuf.Bytes(),
+				buf:             currentBuf,
 				IsDiscontinuity: m.needsDiscontinuity,
 			}
 			m.needsDiscontinuity = false
 			m.segments = append(m.segments, seg)
 			// Оставляем в памяти только последние 5 сегментов (окно Live в 10 секунд)
 			if len(m.segments) > 5 {
+				oldSeg := m.segments[0]
 				m.segments = m.segments[1:]
+				if oldSeg.buf != nil {
+					oldSeg.buf.Reset()
+					bufferPool.Put(oldSeg.buf)
+				}
 			}
 			m.mu.Unlock()
 
@@ -115,9 +127,8 @@ func (m *Muxer) run() {
 			if !frame.IsKeyFrame {
 				continue
 			}
-			// Предварительно выделяем буфер на 1 МБ (Этап 23.3: Memory Pooling & Zero-Copy)
-			// Это предотвращает множественные реаллокации при склейке TS-сегмента.
-			currentBuf = bytes.NewBuffer(make([]byte, 0, 1024*1024))
+			// Берем буфер из пула, избегая частых аллокаций гигантских слайсов
+			currentBuf = bufferPool.Get().(*bytes.Buffer)
 			var t mpegts.Codec
 			if vps != nil {
 				t = &mpegts.CodecH265{}
@@ -201,8 +212,9 @@ func (m *Muxer) watchdog() {
 			return
 		case <-ticker.C:
 			m.mu.Lock()
+			lastTime := m.lastFrameTime.Load()
 			// Если кадра не было 5 секунд
-			if !m.lastFrameTime.IsZero() && time.Since(m.lastFrameTime) > 5*time.Second {
+			if lastTime > 0 && time.Since(time.Unix(0, lastTime)) > 5*time.Second {
 				if len(m.segments) > 0 {
 					lastSeg := m.segments[len(m.segments)-1]
 					m.seqCount++
@@ -217,7 +229,7 @@ func (m *Muxer) watchdog() {
 						m.segments = m.segments[1:]
 					}
 					// Сбрасываем таймер, чтобы следующий дубликат добавился еще через 5 секунд
-					m.lastFrameTime = time.Now()
+					m.lastFrameTime.Store(time.Now().UnixNano())
 					// Следующий РЕАЛЬНЫЙ сегмент (когда связь восстановится) тоже должен начаться с разрыва,
 					// так как его PTS будет отличаться от PTS дубликата.
 					m.needsDiscontinuity = true
@@ -281,7 +293,12 @@ func (m *Muxer) GetSegment(name string) []byte {
 	defer m.mu.RUnlock()
 	for _, seg := range m.segments {
 		if seg.Name == name {
-			return seg.Data
+			// Создаем копию байтов для ответа, так как buf может уйти обратно в пул.
+			// Плеер читает медленно, и буфер может переиспользоваться во время отдачи файла.
+			// Либо мы можем отдавать его как есть, но это риск Data Race. Для безопасности копируем.
+			resp := make([]byte, len(seg.Data))
+			copy(resp, seg.Data)
+			return resp
 		}
 	}
 	return nil

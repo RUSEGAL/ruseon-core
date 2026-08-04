@@ -1,6 +1,7 @@
 package recorder
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"time"
@@ -11,16 +12,22 @@ import (
 )
 
 // StartCleanupTask запускает фоновую задачу для удаления старых записей.
-func StartCleanupTask(recordDir string, cfg *config.Config, store *storage.Storage) {
+func StartCleanupTask(ctx context.Context, recordDir string, cfg *config.Config, store *storage.Storage) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Error().Interface("panic", r).Msg("Recovered from panic in StartCleanupTask")
 			}
 		}()
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
 		for {
-			cleanupOldFiles(recordDir, cfg, store)
-			time.Sleep(1 * time.Hour)
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				cleanupOldFiles(recordDir, cfg, store)
+			}
 		}
 	}()
 }

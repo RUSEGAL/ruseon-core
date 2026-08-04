@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,7 +21,8 @@ const (
 
 // Storage обертка над BadgerDB
 type Storage struct {
-	db *badger.DB
+	db     *badger.DB
+	cancel context.CancelFunc
 }
 
 // NewStorage открывает или создает БД в указанной директории.
@@ -41,6 +43,8 @@ func NewStorage(dir string) (*Storage, error) {
 		return nil, err
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// Запускаем периодический Garbage Collection для BadgerDB (раз в час)
 	go func() {
 		defer func() {
@@ -50,18 +54,24 @@ func NewStorage(dir string) (*Storage, error) {
 		}()
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
-		for range ticker.C {
-			for err := db.RunValueLogGC(0.5); err == nil; err = db.RunValueLogGC(0.5) {
-				log.Debug().Msg("BadgerDB Garbage Collection executed")
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				for err := db.RunValueLogGC(0.5); err == nil; err = db.RunValueLogGC(0.5) {
+					log.Debug().Msg("BadgerDB Garbage Collection executed")
+				}
 			}
 		}
 	}()
 
-	return &Storage{db: db}, nil
+	return &Storage{db: db, cancel: cancel}, nil
 }
 
 // Close закрывает БД.
 func (s *Storage) Close() error {
+	s.cancel() // Остановка горутины GC
 	return s.db.Close()
 }
 
