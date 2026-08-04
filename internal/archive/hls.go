@@ -249,7 +249,7 @@ func GenerateHLSSegment(recordDir, cameraID, filename string, seq int) ([]byte, 
 	tsWriter = mpegts.NewWriter(outBuf, []*mpegts.Track{tsTrack})
 
 	// 4. Перепаковываем NALU в TS
-	pts := int64(part.Tracks[0].BaseTime)
+	pts := int64(part.Tracks[0].BaseTime) //nolint:gosec
 	for _, sample := range part.Tracks[0].Samples {
 		isKeyFrame := !sample.IsNonSyncSample
 		

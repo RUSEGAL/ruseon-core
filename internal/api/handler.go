@@ -639,7 +639,7 @@ func (h *Handler) GetArchiveHLSPlaylist(c *gin.Context) {
 }
 
 // CleanupArchiveTrigger вручную вызывает сборщик мусора архива
-func (h *Handler) CleanupArchiveTrigger(c *gin.Context) {
+func (h *Handler) CleanupArchiveTrigger(_ *gin.Context) {
 	// (Опционально)
 }
 

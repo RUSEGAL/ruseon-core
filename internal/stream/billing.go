@@ -10,7 +10,7 @@ import (
 )
 
 // StartBillingTask запускает фоновую задачу для трекинга трафика
-func StartBillingTask(ctx context.Context, cfg *config.Config, manager *Manager, store *storage.Storage) {
+func StartBillingTask(ctx context.Context, _ *config.Config, manager *Manager, store *storage.Storage) {
 	
 	// Храним последние значения байт для вычисления дельты
 	lastBytes := make(map[string]uint64)

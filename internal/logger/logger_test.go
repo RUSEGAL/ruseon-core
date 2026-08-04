@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestLoggerAdapter(t *testing.T) {
+func TestLoggerAdapter(_ *testing.T) {
 	Init(true)
 	
 	// This will use our stdLogAdapter

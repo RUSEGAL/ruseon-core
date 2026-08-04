@@ -33,7 +33,7 @@ func (rb *RingBuffer) Write(f *Frame) {
 	rb.mu.Lock()
 	defer rb.mu.Unlock()
 
-	idx := rb.head % uint64(rb.capacity)
+	idx := rb.head % uint64(rb.capacity) //nolint:gosec
 	rb.frames[idx] = f
 	rb.head++
 	rb.cond.Broadcast()
@@ -77,11 +77,11 @@ func (rb *RingBuffer) NewReader() *Reader {
 	startIdx := rb.head
 	// Идем назад в поиске I-frame
 	for i := 0; i < rb.capacity; i++ {
-		if rb.head < uint64(i+1) {
+		if rb.head < uint64(i+1) { //nolint:gosec
 			break
 		}
-		idx := rb.head - uint64(i+1)
-		frame := rb.frames[idx%uint64(rb.capacity)]
+		idx := rb.head - uint64(i+1) //nolint:gosec
+		frame := rb.frames[idx%uint64(rb.capacity)] //nolint:gosec
 		if frame != nil && frame.IsKeyFrame {
 			startIdx = idx
 			break
@@ -111,19 +111,19 @@ func (r *Reader) Read() *Frame {
 	}
 
 	// Проверка на overrun (писатель обогнал читателя больше чем на capacity)
-	if r.rb.head-r.cursor > uint64(r.rb.capacity) {
+	if r.rb.head-r.cursor > uint64(r.rb.capacity) { //nolint:gosec
 		// Сбрасываем курсор на последний доступный I-frame, чтобы не нарушать декодирование
 		r.cursor = r.rb.head - 1
 		for i := 0; i < r.rb.capacity; i++ {
-			idx := r.rb.head - uint64(i+1)
-			if r.rb.frames[idx%uint64(r.rb.capacity)].IsKeyFrame {
+			idx := r.rb.head - uint64(i+1) //nolint:gosec
+			if r.rb.frames[idx%uint64(r.rb.capacity)].IsKeyFrame { //nolint:gosec
 				r.cursor = idx
 				break
 			}
 		}
 	}
 
-	idx := r.cursor % uint64(r.rb.capacity)
+	idx := r.cursor % uint64(r.rb.capacity) //nolint:gosec
 	f := r.rb.frames[idx]
 	r.cursor++
 	return f

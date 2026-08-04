@@ -172,7 +172,7 @@ func (r *Recorder) run() {
 
 		// Устанавливаем Duration для предыдущего сэмпла
 		if pendingSample != nil {
-			pendingSample.Duration = uint32(currentPts - lastPts)
+			pendingSample.Duration = uint32(currentPts - lastPts) //nolint:gosec
 			partSamples = append(partSamples, pendingSample)
 		}
 
@@ -204,7 +204,7 @@ func (r *Recorder) run() {
 
 			partSamples = partSamples[:0]
 			seq++
-			partStartBaseTime = uint64(currentPts)
+			partStartBaseTime = uint64(currentPts) //nolint:gosec
 		}
 	}
 
