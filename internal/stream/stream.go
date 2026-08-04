@@ -105,7 +105,7 @@ func (s *Stream) run() {
 			for _, n := range nalus {
 				size += len(n)
 			}
-			s.bytesReceived.Add(uint64(size))
+			s.bytesReceived.Add(uint64(size)) //nolint:gosec
 			
 			if !s.connected.Load() {
 				s.connected.Store(true)

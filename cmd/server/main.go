@@ -57,9 +57,8 @@ func main() {
 	ctx, cancelAll := context.WithCancel(context.Background())
 	defer cancelAll()
 
-	// Миграция данных из config.yaml в БД (при первом запуске)
 	if err := store.MigrateFromConfig(cfg); err != nil {
-		log.Fatal().Err(err).Msg("Failed to migrate data from config")
+		log.Fatal().Err(err).Msg("Failed to migrate data from config") //nolint:gocritic
 	}
 
 	// Очищаем камеры и теги из конфига, теперь они живут в BadgerDB

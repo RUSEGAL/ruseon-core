@@ -256,17 +256,15 @@ func GenerateHLSSegment(recordDir, cameraID, filename string, seq int) ([]byte, 
 		var nalus [][]byte
 		var err error
 		
-		switch initTrack.Codec.(type) {
+		switch c := initTrack.Codec.(type) {
 		case *fmp4.CodecH264:
 			nalus, err = sample.GetH26x()
 			if isKeyFrame {
-				c := initTrack.Codec.(*fmp4.CodecH264)
 				nalus = append([][]byte{c.SPS, c.PPS}, nalus...)
 			}
 		case *fmp4.CodecH265:
 			nalus, err = sample.GetH26x()
 			if isKeyFrame {
-				c := initTrack.Codec.(*fmp4.CodecH265)
 				nalus = append([][]byte{c.VPS, c.SPS, c.PPS}, nalus...)
 			}
 		}

@@ -60,11 +60,12 @@ func TestWorker_DoBackupAndCleanup(t *testing.T) {
 	foundGenerated := false
 
 	for _, entry := range entries {
-		if entry.Name() == "old.bak" {
+		switch entry.Name() {
+		case "old.bak":
 			foundOld = true
-		} else if entry.Name() == "new.bak" {
+		case "new.bak":
 			foundNew = true
-		} else {
+		default:
 			foundGenerated = true
 		}
 	}

@@ -94,7 +94,7 @@ func (w *Worker) cleanupOldBackups() {
 		path string
 	}
 
-	var backups []backupFile
+	backups := make([]backupFile, 0, len(files))
 	for _, entry := range files {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".bak" {
 			continue

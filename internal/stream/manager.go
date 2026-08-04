@@ -63,7 +63,7 @@ func (m *Manager) GetStreams() []*Stream {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var result []*Stream
+	result := make([]*Stream, 0, len(m.streams))
 	for _, s := range m.streams {
 		result = append(result, s)
 	}

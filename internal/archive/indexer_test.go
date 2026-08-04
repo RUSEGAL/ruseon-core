@@ -48,13 +48,14 @@ func TestGetCameraArchive(t *testing.T) {
 	foundOvernight := false
 
 	for _, inv := range intervals {
-		if inv.Filename == f1Name {
+		switch inv.Filename {
+		case f1Name:
 			foundOngoing = true
 			expectedStart, _ := time.ParseInLocation("2006-01-02_15-04-05", "2026-07-31_15-04-05", time.Local)
 			if !inv.StartTime.Equal(expectedStart) {
 				t.Errorf("ongoing start time mismatch")
 			}
-		} else if inv.Filename == f2Name {
+		case f2Name:
 			foundSameDay = true
 			expectedStart, _ := time.ParseInLocation("2006-01-02_15-04-05", "2026-07-31_12-00-00", time.Local)
 			if !inv.StartTime.Equal(expectedStart) {
@@ -64,7 +65,7 @@ func TestGetCameraArchive(t *testing.T) {
 			if !inv.EndTime.Equal(expectedEnd) {
 				t.Errorf("same day end time mismatch: got %v, expected %v", inv.EndTime, expectedEnd)
 			}
-		} else if inv.Filename == f3Name {
+		case f3Name:
 			foundOvernight = true
 			expectedStart, _ := time.ParseInLocation("2006-01-02_15-04-05", "2026-07-31_23-00-00", time.Local)
 			if !inv.StartTime.Equal(expectedStart) {

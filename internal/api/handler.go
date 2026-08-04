@@ -166,7 +166,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 		if stats != nil {
 			s := stats.GetStats()
 			connected = s.Connected
-			uptime = uint64(s.Uptime)
+			uptime = uint64(s.Uptime) //nolint:gosec
 			bytesReceived = s.BytesReceived
 			bytesSent = s.BytesSent
 			frames = s.Frames

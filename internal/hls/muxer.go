@@ -281,7 +281,8 @@ func (m *Muxer) GetPlaylist() string {
 			buf.WriteString("#EXT-X-DISCONTINUITY\n")
 		}
 		buf.WriteString(fmt.Sprintf("#EXTINF:%.3f,\n", seg.Duration.Seconds()))
-		buf.WriteString(seg.Name + "\n")
+		buf.WriteString(seg.Name)
+		buf.WriteByte('\n')
 	}
 
 	return buf.String()
