@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -253,5 +254,101 @@ func TestHLSAndArchive(t *testing.T) {
 	
 	if w3.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for non-existent stream segment, got %d", w3.Code)
+	}
+}
+
+func TestFolderCRUD(t *testing.T) {
+	router, handler, store := setupTestRouter(t)
+	defer store.Close()
+	
+	router.GET("/api/folders", handler.GetFolders)
+	router.POST("/api/folders", handler.AddFolder)
+	router.DELETE("/api/folders/:id", handler.DeleteFolder)
+	
+	// 1. Add Folder
+	folderJSON := []byte(`{"id":"folder1","name":"Main Area"}`)
+	w1 := httptest.NewRecorder()
+	req1, _ := http.NewRequest("POST", "/api/folders", bytes.NewBuffer(folderJSON))
+	router.ServeHTTP(w1, req1)
+	
+	if w1.Code != http.StatusOK {
+		t.Fatalf("expected 200 for add folder, got %d: %s", w1.Code, w1.Body.String())
+	}
+	
+	// 2. Get Folders
+	w2 := httptest.NewRecorder()
+	req2, _ := http.NewRequest("GET", "/api/folders", nil)
+	router.ServeHTTP(w2, req2)
+	
+	if w2.Code != http.StatusOK {
+		t.Fatalf("expected 200 for get folders")
+	}
+	var folders []map[string]interface{}
+	json.Unmarshal(w2.Body.Bytes(), &folders)
+	if len(folders) != 1 || folders[0]["id"] != "folder1" {
+		t.Errorf("expected 1 folder 'folder1', got: %v", folders)
+	}
+	
+	// 3. Delete Folder
+	w3 := httptest.NewRecorder()
+	req3, _ := http.NewRequest("DELETE", "/api/folders/folder1", nil)
+	router.ServeHTTP(w3, req3)
+	
+	if w3.Code != http.StatusOK {
+		t.Fatalf("expected 200 for delete folder")
+	}
+}
+
+func TestImportBackupJSON(t *testing.T) {
+	router, handler, store := setupTestRouter(t)
+	defer store.Close()
+	
+	router.POST("/api/backup/import", handler.ImportBackupJSON)
+	
+	backupData := []byte(`{"cameras":[{"id":"import1","url":"rtsp://import"}],"tags":[{"id":"tag1","name":"T"}]}`)
+	
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("backup", "backup.json")
+	part.Write(backupData)
+	writer.Close()
+	
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/api/backup/import", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	router.ServeHTTP(w, req)
+	
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 for import, got %d", w.Code)
+	}
+	
+	// check DB
+	cam, err := store.GetCamera("import1")
+	if err != nil || cam.URL != "rtsp://import" {
+		t.Fatalf("camera not imported correctly")
+	}
+}
+
+func TestArchiveEndpoints(t *testing.T) {
+	router, handler, store := setupTestRouter(t)
+	defer store.Close()
+	
+	router.GET("/hls/:id/archive.m3u8", handler.GetArchiveHLSPlaylist)
+	router.GET("/hls/:id/archive/:segment", handler.GetArchiveHLSSegment)
+	router.GET("/api/cameras/:id/export", handler.ExportCameraArchive)
+	
+	// Just test that they return 400 or 404 for invalid data
+	w1 := httptest.NewRecorder()
+	req1, _ := http.NewRequest("GET", "/hls/cam1/archive.m3u8?start=0&end=1000", nil)
+	router.ServeHTTP(w1, req1)
+	if w1.Code != http.StatusNotFound && w1.Code != http.StatusBadRequest {
+		t.Errorf("expected 404 or 400, got %d", w1.Code)
+	}
+	
+	w2 := httptest.NewRecorder()
+	req2, _ := http.NewRequest("GET", "/api/cameras/cam1/export?start=0&end=1000", nil)
+	router.ServeHTTP(w2, req2)
+	if w2.Code != http.StatusNotFound && w2.Code != http.StatusBadRequest {
+		t.Errorf("expected 404 or 400, got %d", w2.Code)
 	}
 }

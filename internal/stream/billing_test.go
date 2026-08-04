@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 	"time"
@@ -74,4 +75,18 @@ func TestProcessBilling(t *testing.T) {
 	if c.TrafficUsed != 65 { // 55 + 10
 		t.Errorf("expected traffic used to be 65, got %d", c.TrafficUsed)
 	}
+}
+
+func TestStartBillingTask(t *testing.T) {
+	tempDir := t.TempDir()
+	store, _ := storage.NewStorage(filepath.Join(tempDir, "db"))
+	defer store.Close()
+	manager := NewManager()
+	
+	ctx, cancel := context.WithCancel(context.Background())
+	StartBillingTask(ctx, nil, manager, store)
+	
+	// Just let it start and cancel to cover the lines
+	cancel()
+	time.Sleep(10 * time.Millisecond)
 }

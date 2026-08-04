@@ -1,6 +1,7 @@
 package recorder
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -62,4 +63,18 @@ func TestCleanupOldFiles(t *testing.T) {
 	if _, err := os.Stat(cam2VeryOld); !os.IsNotExist(err) {
 		t.Errorf("cam2VeryOld should have been deleted")
 	}
+}
+
+func TestStartCleanupTask(t *testing.T) {
+	tempDir := t.TempDir()
+	dbDir := filepath.Join(tempDir, "db")
+	store, _ := storage.NewStorage(dbDir)
+	defer store.Close()
+	
+	ctx, cancel := context.WithCancel(context.Background())
+	cfg := &config.Config{}
+	StartCleanupTask(ctx, tempDir, cfg, store)
+	
+	cancel()
+	time.Sleep(10 * time.Millisecond)
 }

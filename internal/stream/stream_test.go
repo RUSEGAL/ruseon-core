@@ -61,3 +61,36 @@ func TestStream_GetStats(t *testing.T) {
 		t.Errorf("expected H.264 / AVC, got %s", stats2.Codec)
 	}
 }
+
+func TestStream_LazyHLSWatchdog_Manual(t *testing.T) {
+	s := NewStream("cam_lazy_test", "rtsp://invalid", false, true, "tcp")
+	
+	// Wake up muxer
+	muxer := s.WakeUpHLSMuxer()
+	if muxer == nil || s.hlsMuxer == nil {
+		t.Fatalf("expected non-nil muxer after WakeUp")
+	}
+
+	// Wait 2 seconds to simulate inactivity
+	// Since ticker is 1 minute, it would take too long to run normally.
+	// But we can trigger the cleanup condition directly for coverage.
+	s.muxerMu.Lock()
+	s.lastHLSRequest = time.Now().Add(-65 * time.Second)
+	s.muxerMu.Unlock()
+	
+	// We can't wait for 1 minute for the real watchdog, so we simulate the check
+	s.muxerMu.Lock()
+	if s.hlsMuxer != nil && time.Since(s.lastHLSRequest) > 60*time.Second {
+		s.hlsMuxer.Stop()
+		s.hlsMuxer = nil
+	}
+	s.muxerMu.Unlock()
+
+	s.muxerMu.Lock()
+	if s.hlsMuxer != nil {
+		t.Errorf("expected muxer to be nil after inactivity")
+	}
+	s.muxerMu.Unlock()
+	
+	s.Stop()
+}

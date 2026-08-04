@@ -58,3 +58,59 @@ func TestMuxer_LazyGetPlaylist_Timeout(t *testing.T) {
 		t.Errorf("Playlist should have target duration even if empty")
 	}
 }
+
+func TestMuxer_Lifecycle_And_GetSegment(t *testing.T) {
+	rb := buffer.NewRingBuffer(10)
+	// We must set some SPS/PPS so the muxer can initialize TS writer
+	rb.SetParams(nil, []byte{0x67, 0x42, 0x00, 0x0a, 0xf8, 0x41, 0xa2}, []byte{0x68, 0xce, 0x38, 0x80})
+	
+	muxer := NewMuxer("test_lifecycle", rb)
+	muxer.targetDuration = 100 * time.Millisecond // very short target for testing
+
+	// Give the muxer goroutine time to attach its reader
+	time.Sleep(50 * time.Millisecond)
+
+	// Write 1st I-frame
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: true,
+		Timestamp:  0,
+		NALUs:      [][]byte{{0x65, 0x01, 0x02, 0x03}},
+	})
+	
+	// Write 2nd frame (P-frame)
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: false,
+		Timestamp:  50 * time.Millisecond,
+		NALUs:      [][]byte{{0x41, 0x04}},
+	})
+
+	// Write 3rd frame (I-frame) to trigger segment close
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: true,
+		Timestamp:  150 * time.Millisecond,
+		NALUs:      [][]byte{{0x65, 0x05}},
+	})
+	
+	// Wait a bit for Muxer to process
+	time.Sleep(100 * time.Millisecond)
+	
+	playlist := muxer.GetPlaylist()
+	if !strings.Contains(playlist, "stream_1.ts") {
+		t.Errorf("Expected playlist to contain stream_1.ts, got: %s", playlist)
+	}
+
+	seg := muxer.GetSegment("stream_1.ts")
+	if seg == nil {
+		t.Fatalf("Expected segment stream_1.ts to be found")
+	}
+	if len(seg) == 0 {
+		t.Fatalf("Segment is empty")
+	}
+
+	if s := muxer.GetSegment("unknown.ts"); s != nil {
+		t.Errorf("Expected nil for unknown segment")
+	}
+
+	muxer.Stop()
+}
+

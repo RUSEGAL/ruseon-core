@@ -208,3 +208,87 @@ func TestStorage_BackupBadger(t *testing.T) {
 		t.Fatalf("backup file is empty")
 	}
 }
+
+func TestStorage_FolderCRUD(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := NewStorage(tempDir)
+	if err != nil {
+		t.Fatalf("failed to create storage: %v", err)
+	}
+	defer store.Close()
+
+	folder := &config.FolderConfig{
+		ID:       "folder1",
+		Name:     "Test Folder",
+	}
+
+	if err := store.SaveFolder(folder); err != nil {
+		t.Fatalf("failed to save folder: %v", err)
+	}
+
+	fetchedFolder, err := store.GetFolder("folder1")
+	if err != nil {
+		t.Fatalf("failed to get folder: %v", err)
+	}
+	if fetchedFolder.Name != "Test Folder" {
+		t.Errorf("fetched folder mismatch: %+v", fetchedFolder)
+	}
+
+	folders, err := store.ListFolders()
+	if err != nil {
+		t.Fatalf("failed to list folders: %v", err)
+	}
+	if len(folders) != 1 {
+		t.Errorf("expected 1 folder, got %d", len(folders))
+	}
+
+	if err := store.DeleteFolder("folder1"); err != nil {
+		t.Fatalf("failed to delete folder: %v", err)
+	}
+
+	_, err = store.GetFolder("folder1")
+	if err == nil {
+		t.Errorf("expected error when getting deleted folder, got nil")
+	}
+}
+
+func TestStorage_MigrateFromConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	store, _ := NewStorage(tempDir)
+	defer store.Close()
+
+	cfg := &config.Config{}
+	cfg.Cameras = []config.CameraConfig{
+		{ID: "cam_migrate_1", URL: "rtsp://migrate1"},
+		{ID: "cam_migrate_2", URL: "rtsp://migrate2"},
+	}
+	cfg.GlobalTags = []config.TagConfig{
+		{ID: "tag_migrate_1", Name: "Tag1"},
+	}
+
+	if err := store.MigrateFromConfig(cfg); err != nil {
+		t.Fatalf("migration failed: %v", err)
+	}
+
+	cams, _ := store.ListCameras()
+	if len(cams) != 2 {
+		t.Fatalf("expected 2 cameras after migration, got %d", len(cams))
+	}
+
+	tags, _ := store.ListTags()
+	if len(tags) != 1 {
+		t.Fatalf("expected 1 tag after migration, got %d", len(tags))
+	}
+	
+	// Ensure subsequent migration doesn't run again if db is populated
+	cfg.Cameras = []config.CameraConfig{
+		{ID: "cam_migrate_3"},
+	}
+	if err := store.MigrateFromConfig(cfg); err != nil {
+		t.Fatalf("migration failed: %v", err)
+	}
+	cams, _ = store.ListCameras()
+	if len(cams) != 2 {
+		t.Fatalf("expected 2 cameras since migration should be skipped, got %d", len(cams))
+	}
+}
