@@ -42,14 +42,12 @@ func NewClient(id, url string, transportStr string) *Client {
 		},
 	}
 
-	if transportStr == "tcp" {
-		t := gortsplib.TransportTCP
-		c.client.Transport = &t
-	} else if transportStr == "udp" {
+	switch transportStr {
+	case "udp":
 		t := gortsplib.TransportUDP
 		c.client.Transport = &t
-	} else {
-		// "auto" или пустая строка: по умолчанию TCP
+	default:
+		// "tcp", "auto" или любая другая строка: по умолчанию TCP
 		t := gortsplib.TransportTCP
 		c.client.Transport = &t
 	}
