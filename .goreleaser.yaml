@@ -1,0 +1,63 @@
+version: 2
+
+project_name: ruseon-core
+
+before:
+  hooks:
+    - go mod tidy
+    - npm --prefix ./web install
+    - npm --prefix ./web run build
+
+builds:
+  - id: ruseon-core
+    main: ./cmd/server
+    binary: ruseon-core
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+
+dockers:
+  - image_templates:
+      - "ghcr.io/rusegal/ruseon-core:{{ .Tag }}-amd64"
+    dockerfile: Dockerfile.goreleaser
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+  - image_templates:
+      - "ghcr.io/rusegal/ruseon-core:{{ .Tag }}-arm64"
+    dockerfile: Dockerfile.goreleaser
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64"
+
+docker_manifests:
+  - name_template: "ghcr.io/rusegal/ruseon-core:{{ .Tag }}"
+    image_templates:
+      - "ghcr.io/rusegal/ruseon-core:{{ .Tag }}-amd64"
+      - "ghcr.io/rusegal/ruseon-core:{{ .Tag }}-arm64"
+  - name_template: "ghcr.io/rusegal/ruseon-core:latest"
+    image_templates:
+      - "ghcr.io/rusegal/ruseon-core:{{ .Tag }}-amd64"
+      - "ghcr.io/rusegal/ruseon-core:{{ .Tag }}-arm64"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"

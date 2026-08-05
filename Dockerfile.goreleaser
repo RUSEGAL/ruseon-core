@@ -1,0 +1,8 @@
+FROM alpine:3.19
+RUN apk --no-cache add ca-certificates tzdata
+WORKDIR /app
+COPY ruseon-core /app/ruseon-core
+RUN mkdir -p /app/data /app/recordings /app/backups
+EXPOSE 8080
+VOLUME ["/app/data", "/app/recordings", "/app/backups"]
+CMD ["/app/ruseon-core"]
