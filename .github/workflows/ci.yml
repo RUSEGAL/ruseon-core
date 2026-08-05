@@ -25,10 +25,9 @@ jobs:
           cache: true
 
       - name: Run Linter
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          args: --timeout=5m --go=1.24
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@master
+          $(go env GOPATH)/bin/golangci-lint run --timeout=5m
 
       - name: Run Tests
         env:
