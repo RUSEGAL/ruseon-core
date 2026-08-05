@@ -17,6 +17,10 @@
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License">
 </p>
 
+<p align="center">
+  <em>Read this in other languages: <a href="README.md">English</a>, <a href="README.ru.md">Русский</a>.</em>
+</p>
+
 <hr>
 
 **RUSEON Core** (Community Edition) is a state-of-the-art Enterprise Video Data Platform engineered in Go. Designed for cloud-native and edge environments, it provides zero-copy RTSP-to-HLS transmuxing, high-performance fMP4 archiving, and a seamless pipeline for AI video analytics.

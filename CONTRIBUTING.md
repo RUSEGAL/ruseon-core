@@ -1,5 +1,7 @@
 # Contributing to RUSEON Core
 
+*Read this in other languages: [English](CONTRIBUTING.md), [Русский](CONTRIBUTING.ru.md).*
+
 Thank you for your interest in contributing to RUSEON Core! We welcome contributions from the community to help make our Cloud-Native Video Data Platform even better.
 
 ## How to Contribute
