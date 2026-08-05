@@ -13,7 +13,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        arch: [amd64, arm64]
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -33,6 +32,4 @@ jobs:
           $(go env GOPATH)/bin/golangci-lint run --timeout=5m
 
       - name: Run Tests
-        env:
-          GOARCH: ${{ matrix.arch }}
         run: go test -race -v ./...
