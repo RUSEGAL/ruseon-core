@@ -8,7 +8,7 @@ server:
 auth:
   username: "admin"
   password: "password123"
-  # secret: "your-jwt-secret-here" # Секрет генерируется автоматически при первом запуске
+  # secret: "your-jwt-secret-here" # Секрет генерируется автоматически при первом запуске ruseon-core
 
 global_tags:
   - id: "indoor"
