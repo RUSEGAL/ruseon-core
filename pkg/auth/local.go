@@ -23,14 +23,14 @@ func NewLocalAuthenticator(cfg *config.Config) *LocalAuthenticator {
 	}
 }
 
-// AuthRequest модель запроса логина
-type AuthRequest struct {
+// Request модель запроса логина
+type Request struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
 func (a *LocalAuthenticator) Login(c *gin.Context) {
-	var req AuthRequest
+	var req Request
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return

@@ -36,6 +36,7 @@ func NewRingBuffer(capacity int) *RingBuffer {
 func (rb *RingBuffer) Write(f *Frame) {
 	// 1. Сохраняем в кольцевой буфер (для истории новым клиентам)
 	rb.mu.Lock()
+	//nolint:gosec // capacity is always positive
 	idx := rb.head % uint64(rb.capacity)
 	rb.frames[idx] = f
 	rb.head++
@@ -116,10 +117,13 @@ func (rb *RingBuffer) Subscribe() *Reader {
 	startIdx := rb.head
 	found := false
 	for i := 0; i < rb.capacity; i++ {
-		if rb.head < uint64(i+1) {
+		//nolint:gosec // i is always positive
+		step := uint64(i + 1)
+		if rb.head < step {
 			break
 		}
-		idx := rb.head - uint64(i+1)
+		idx := rb.head - step
+		//nolint:gosec // capacity is always positive
 		frame := rb.frames[idx%uint64(rb.capacity)]
 		if frame != nil && frame.IsKeyFrame {
 			startIdx = idx
@@ -131,6 +135,7 @@ func (rb *RingBuffer) Subscribe() *Reader {
 	// Закидываем исторические кадры в канал (начиная с найденного I-Frame)
 	if found {
 		for i := startIdx; i < rb.head; i++ {
+			//nolint:gosec // capacity is always positive
 			f := rb.frames[i%uint64(rb.capacity)]
 			if f != nil {
 				r.C <- f
@@ -154,12 +159,10 @@ func (rb *RingBuffer) Subscribe() *Reader {
 func (r *Reader) Close() {
 	r.rb.subMu.Lock()
 	defer r.rb.subMu.Unlock()
-	if _, ok := r.rb.subs[r]; ok {
-		delete(r.rb.subs, r)
-		// Очищаем канал для GC, чтобы не было гонок при одновременном Write и Close
-		// Сам канал закрывать здесь опасно, так как Writer может писать в него под RLock.
-		// Горутина GC сама соберет канал, когда на него не останется ссылок.
-	}
+	delete(r.rb.subs, r)
+	// Очищаем канал для GC, чтобы не было гонок при одновременном Write и Close
+	// Сам канал закрывать здесь опасно, так как Writer может писать в него под RLock.
+	// Горутина GC сама соберет канал, когда на него не останется ссылок.
 }
 
 // NewReader - обратная совместимость со старым API.

@@ -82,7 +82,9 @@ func cleanupOldFiles(recordDir string, cfg *config.Config, store registry.StateS
 				if info.ModTime().Before(cutoff) {
 					filePath := filepath.Join(camDir, fileInfo.Name())
 					log.Info().Str("file", filePath).Msg("Removing old record file")
-					registry.CurrentBlobStore.Delete(filePath)
+					if err := registry.CurrentBlobStore.Delete(filePath); err != nil {
+						log.Warn().Err(err).Str("file", filePath).Msg("Failed to delete record file")
+					}
 				}
 			}
 		}

@@ -32,7 +32,7 @@ func (l *LocalFS) Write(path string, data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(fp), 0755); err != nil {
 		return err
 	}
-	return os.WriteFile(fp, data, 0644)
+	return os.WriteFile(fp, data, 0600)
 }
 
 func (l *LocalFS) Read(path string) ([]byte, error) {
