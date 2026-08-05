@@ -76,12 +76,10 @@ func (rb *RingBuffer) SetParams(vps, sps, pps []byte) {
 
 // Close закрывает буфер и каналы всех читателей.
 func (rb *RingBuffer) Close() {
-	rb.mu.Lock()
-	rb.closed = true
-	rb.mu.Unlock()
-	
 	rb.subMu.Lock()
 	defer rb.subMu.Unlock()
+	
+	rb.closed = true
 	for sub := range rb.subs {
 		close(sub.C)
 		delete(rb.subs, sub)
