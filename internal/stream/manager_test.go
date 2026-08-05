@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/storage"
 )
 
 func TestManager_Concurrency(t *testing.T) {

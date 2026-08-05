@@ -5,7 +5,14 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/storage/localfs"
 )
+
+func init() {
+	registry.RegisterBlobStore(localfs.NewLocalFS(""))
+}
 
 func TestExportMP4(t *testing.T) {
 	tempDir := t.TempDir()

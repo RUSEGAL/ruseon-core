@@ -8,13 +8,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
 
 	"github.com/RUSEGAL/REA-Stream-Engine/internal/archive"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/logger"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/logger"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
 	"github.com/RUSEGAL/REA-Stream-Engine/internal/stream"
 	"strconv"
 	"strings"
@@ -63,13 +62,13 @@ func (c *ClientTracker) GetActiveClients(timeout time.Duration) []ClientInfo {
 type Handler struct {
 	manager   *stream.Manager
 	cfg       *config.Config
-	store     *storage.Storage
+	store     registry.StateStore
 	startTime time.Time
 	tracker   *ClientTracker
 }
 
 // NewHandler создает новый обработчик API.
-func NewHandler(manager *stream.Manager, cfg *config.Config, store *storage.Storage) *Handler {
+func NewHandler(manager *stream.Manager, cfg *config.Config, store registry.StateStore) *Handler {
 	return &Handler{
 		manager:   manager,
 		cfg:       cfg,
@@ -204,38 +203,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-// AuthRequest модель запроса логина
-type AuthRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
 
-// Login проверяет учетные данные и возвращает JWT токен
-func (h *Handler) Login(c *gin.Context) {
-	var req AuthRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
-		return
-	}
-
-	if req.Username == h.cfg.Auth.Username && req.Password == h.cfg.Auth.Password && req.Username != "" {
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-			"username": req.Username,
-			"exp":      time.Now().Add(time.Hour * 24 * 7).Unix(), // 7 дней
-		})
-
-		tokenString, err := token.SignedString([]byte(h.cfg.Auth.Secret))
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to generate JWT token")
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{"token": tokenString})
-	} else {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
-	}
-}
 
 // AddCamera добавляет новую камеру
 func (h *Handler) AddCamera(c *gin.Context) {

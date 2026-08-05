@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package ruseon.core.frame;
+
+option go_package = "github.com/RUSEGAL/REA-Stream-Engine/pkg/grpc/pb";
+
+// FrameService предоставляет потоковый доступ к сырым видеокадрам.
+service FrameService {
+  // StreamFrames подписывается на поток камеры и возвращает H.264/H.265 кадры.
+  rpc StreamFrames(StreamRequest) returns (stream FrameResponse) {}
+}
+
+message StreamRequest {
+  string camera_id = 1;
+}
+
+message FrameResponse {
+  string codec = 1;        // Например, "H264" или "H265"
+  bool is_keyframe = 2;    // true если это I-Frame (ключевой кадр)
+  int64 pts = 3;           // Presentation Time Stamp (миллисекунды)
+  bytes payload = 4;       // Сырые байты кадра (NAL-юниты)
+}

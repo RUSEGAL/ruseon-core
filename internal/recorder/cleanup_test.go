@@ -7,9 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/storage/localfs"
 )
+
+func init() {
+	registry.RegisterBlobStore(localfs.NewLocalFS(""))
+}
 
 func TestCleanupOldFiles(t *testing.T) {
 	tempDir := t.TempDir()

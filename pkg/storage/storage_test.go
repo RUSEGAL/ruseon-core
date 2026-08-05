@@ -3,7 +3,7 @@ package storage
 import (
 	"os"
 	"testing"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/config"
 )
 
 func TestStorage_CameraCRUD(t *testing.T) {

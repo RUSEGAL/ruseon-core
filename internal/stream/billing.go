@@ -5,12 +5,12 @@ import (
 	"time"
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
 )
 
 // StartBillingTask запускает фоновую задачу для трекинга трафика
-func StartBillingTask(ctx context.Context, _ *config.Config, manager *Manager, store *storage.Storage) {
+func StartBillingTask(ctx context.Context, _ *config.Config, manager *Manager, store registry.StateStore) {
 	
 	// Храним последние значения байт для вычисления дельты
 	lastBytes := make(map[string]uint64)
@@ -34,7 +34,7 @@ func StartBillingTask(ctx context.Context, _ *config.Config, manager *Manager, s
 	}()
 }
 
-func processBilling(manager *Manager, store *storage.Storage, lastBytes map[string]uint64) {
+func processBilling(manager *Manager, store registry.StateStore, lastBytes map[string]uint64) {
 	nowMonth := time.Now().Format("2006-01")
 
 	cams, _ := store.ListCameras()

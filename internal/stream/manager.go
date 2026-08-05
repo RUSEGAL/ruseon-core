@@ -6,7 +6,7 @@ import (
 	
 	"github.com/rs/zerolog/log"
 	
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
 )
 
 
@@ -70,8 +70,8 @@ func (m *Manager) GetStreams() []*Stream {
 	return result
 }
 
-// SyncWithStorage синхронизирует состояние манагера с базой данных
-func (m *Manager) SyncWithStorage(store *storage.Storage) error {
+// SyncWithStorage синхронизирует состояние потоков с базой.
+func (m *Manager) SyncWithStorage(store registry.StateStore) error {
 	log.Info().Msg("Syncing stream manager with storage...")
 	
 	cams, err := store.ListCameras()

@@ -3,7 +3,6 @@ package recorder
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/RUSEGAL/REA-Stream-Engine/internal/buffer"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
 )
 
 // Recorder читает кадры из RingBuffer и пишет их в fMP4 архив.
@@ -33,14 +33,14 @@ func NewRecorder(streamID string, rb *buffer.RingBuffer, recordDir string) *Reco
 		recordDir:  recordDir,
 	}
 
-	_ = os.MkdirAll(recordDir, 0755)
+	_ = registry.CurrentBlobStore.MkdirAll(recordDir)
 
 	go r.run()
 	return r
 }
 
 func (r *Recorder) run() {
-	var file *os.File
+	var file registry.WriteSeekCloser
 	var seq uint32
 	var partSamples = make([]*fmp4.PartSample, 0, 150) // Preallocate for ~5 sec GOP
 
@@ -56,7 +56,7 @@ func (r *Recorder) run() {
 			file.Close()
 			recordEndTime := time.Now()
 			finalFilename := filepath.Join(filepath.Dir(currentFilename), fmt.Sprintf("%s_to_%s.mp4", recordStartTime.Format("2006-01-02_15-04-05"), recordEndTime.Format("15-04-05")))
-			_ = os.Rename(currentFilename, finalFilename)
+			_ = registry.CurrentBlobStore.Rename(currentFilename, finalFilename)
 			file = nil
 		}
 	}
@@ -69,6 +69,7 @@ func (r *Recorder) run() {
 	}()
 
 	reader := r.ringBuffer.NewReader()
+	defer reader.Close()
 
 	// Ждем получения параметров кодека
 	_, sps, pps := r.ringBuffer.GetParams()
@@ -124,12 +125,12 @@ func (r *Recorder) run() {
 
 			// Создаем подпапку по имени потока
 			streamDir := filepath.Join(r.recordDir, r.streamID)
-			_ = os.MkdirAll(streamDir, 0755)
+			_ = registry.CurrentBlobStore.MkdirAll(streamDir)
 
 			recordStartTime = time.Now()
 			currentFilename = filepath.Join(streamDir, fmt.Sprintf("%s_ongoing.mp4", recordStartTime.Format("2006-01-02_15-04-05")))
 			var err error
-			file, err = os.Create(currentFilename)
+			file, err = registry.CurrentBlobStore.Create(currentFilename)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to create record file")
 				time.Sleep(1 * time.Second)

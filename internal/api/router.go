@@ -1,11 +1,9 @@
 package api
 
 import (
-	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
-	"strings"
 	"time"
 	"mime"
 
@@ -14,8 +12,9 @@ import (
 	"github.com/arl/statsviz"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
+
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
 )
 
 func init() {
@@ -27,7 +26,7 @@ func init() {
 }
 
 // SetupRouter инициализирует маршруты Gin.
-func SetupRouter(h *Handler, debug bool) *gin.Engine {
+func SetupRouter(h *Handler, auth registry.Authenticator, debug bool) *gin.Engine {
 	if !debug {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -99,39 +98,11 @@ func SetupRouter(h *Handler, debug bool) *gin.Engine {
 
 	// Роуты без авторизации
 	r.GET("/health", h.HealthCheck)
-	r.POST("/api/login", h.Login)
+	r.POST("/api/login", auth.Login)
 
 	// API с авторизацией
 	api := r.Group("/api")
-	api.Use(func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		tokenString := ""
-
-		if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
-			tokenString = strings.TrimPrefix(authHeader, "Bearer ")
-		} else {
-			tokenString = c.Query("token")
-		}
-
-		if tokenString == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-			return
-		}
-
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-			}
-			return []byte(h.cfg.Auth.Secret), nil
-		})
-
-		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
-			return
-		}
-
-		c.Next()
-	})
+	api.Use(auth.Middleware())
 	
 	api.GET("/cameras", h.GetCameras)
 	api.POST("/cameras", h.AddCamera)

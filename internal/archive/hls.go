@@ -5,9 +5,10 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
 
 	"github.com/bluenviron/mediacommon/pkg/formats/fmp4"
 	"github.com/bluenviron/mediacommon/pkg/formats/mpegts"
@@ -51,7 +52,7 @@ func getFileIndex(path string) (*FileIndex, error) {
 
 	log.Info().Str("file", path).Msg("Indexing archive file for HLS")
 
-	f, err := os.Open(path)
+	f, err := registry.CurrentBlobStore.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +186,7 @@ func GenerateHLSSegment(recordDir, cameraID, filename string, seq int) ([]byte, 
 		return nil, fmt.Errorf("segment out of bounds")
 	}
 
-	f, err := os.Open(path)
+	f, err := registry.CurrentBlobStore.Open(path)
 	if err != nil {
 		return nil, err
 	}

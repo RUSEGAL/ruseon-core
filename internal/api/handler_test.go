@@ -11,12 +11,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/auth"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/storage"
 	"github.com/RUSEGAL/REA-Stream-Engine/internal/stream"
 )
 
-func setupTestRouter(t *testing.T) (*gin.Engine, *Handler, *storage.Storage) {
+func setupTestRouter(t *testing.T) (*gin.Engine, *Handler, registry.StateStore) {
 	gin.SetMode(gin.TestMode)
 	tempDir := t.TempDir()
 	store, _ := storage.NewStorage(filepath.Join(tempDir, "db"))
@@ -31,6 +33,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *Handler, *storage.Storage) {
 	handler := NewHandler(manager, cfg, store)
 	
 	router := gin.New()
+	// (мы не используем SetupRouter здесь во всех тестах, но там, где нужно, можно использовать auth)
 	
 	return router, handler, store
 }
@@ -51,10 +54,17 @@ func TestHealthCheck(t *testing.T) {
 }
 
 func TestLogin(t *testing.T) {
-	router, handler, store := setupTestRouter(t)
+	router, _, store := setupTestRouter(t)
 	defer store.Close()
 	
-	router.POST("/login", handler.Login)
+	// В тестах логина нам нужно использовать SetupRouter, чтобы был корректный роутинг с auth.Login
+	cfg := &config.Config{}
+	cfg.Auth.Username = "admin"
+	cfg.Auth.Password = "password"
+	cfg.Auth.Secret = "secret"
+	authenticator := auth.NewLocalAuthenticator(cfg)
+	
+	router.POST("/login", authenticator.Login)
 	
 	// Valid login
 	validBody := []byte(`{"username":"admin","password":"password"}`)

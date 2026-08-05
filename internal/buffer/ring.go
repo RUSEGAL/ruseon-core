@@ -2,20 +2,24 @@ package buffer
 
 import (
 	"sync"
+	"sync/atomic"
 )
 
-// RingBuffer хранит последние N кадров для обеспечения быстрого старта новых клиентов.
+// RingBuffer хранит последние N кадров и раздает их подписчикам (Router/Broadcaster).
 type RingBuffer struct {
 	mu       sync.RWMutex
-	cond     *sync.Cond
 	frames   []*Frame
 	capacity int
-	head     uint64 // монотонно возрастающий индекс (текущая позиция для записи)
+	head     uint64 
 	closed   bool
 
 	vps []byte
 	sps []byte
 	pps []byte
+	
+	// Подписчики
+	subMu sync.RWMutex
+	subs  map[*Reader]struct{}
 }
 
 // NewRingBuffer создает новый буфер заданного размера.
@@ -23,20 +27,41 @@ func NewRingBuffer(capacity int) *RingBuffer {
 	rb := &RingBuffer{
 		capacity: capacity,
 		frames:   make([]*Frame, capacity),
+		subs:     make(map[*Reader]struct{}),
 	}
-	rb.cond = sync.NewCond(rb.mu.RLocker())
 	return rb
 }
 
-// Write добавляет новый кадр в буфер.
+// Write добавляет новый кадр в буфер и рассылает его подписчикам.
 func (rb *RingBuffer) Write(f *Frame) {
+	// 1. Сохраняем в кольцевой буфер (для истории новым клиентам)
 	rb.mu.Lock()
-	defer rb.mu.Unlock()
-
-	idx := rb.head % uint64(rb.capacity) //nolint:gosec
+	idx := rb.head % uint64(rb.capacity)
 	rb.frames[idx] = f
 	rb.head++
-	rb.cond.Broadcast()
+	rb.mu.Unlock()
+
+	// 2. Рассылаем всем текущим подписчикам
+	rb.subMu.RLock()
+	defer rb.subMu.RUnlock()
+	for sub := range rb.subs {
+		if sub.NeedsIFrame {
+			if !f.IsKeyFrame {
+				continue // Ждем ключевой кадр после обрыва (drop)
+			}
+			sub.NeedsIFrame = false
+		}
+
+		// Non-blocking send
+		select {
+		case sub.C <- f:
+			// Успешно доставили
+		default:
+			// Клиент тормозит, канал забит. Пропускаем кадр (Drop).
+			atomic.AddUint64(&sub.Drops, 1)
+			sub.NeedsIFrame = true // Требуем I-Frame для возобновления
+		}
+	}
 }
 
 // SetParams сохраняет параметры кодека (VPS, SPS, PPS).
@@ -48,12 +73,18 @@ func (rb *RingBuffer) SetParams(vps, sps, pps []byte) {
 	rb.pps = pps
 }
 
-// Close закрывает буфер и будит всех читателей.
+// Close закрывает буфер и каналы всех читателей.
 func (rb *RingBuffer) Close() {
 	rb.mu.Lock()
-	defer rb.mu.Unlock()
 	rb.closed = true
-	rb.cond.Broadcast()
+	rb.mu.Unlock()
+	
+	rb.subMu.Lock()
+	defer rb.subMu.Unlock()
+	for sub := range rb.subs {
+		close(sub.C)
+		delete(rb.subs, sub)
+	}
 }
 
 // GetParams возвращает текущие параметры кодека (VPS, SPS, PPS).
@@ -63,68 +94,85 @@ func (rb *RingBuffer) GetParams() ([]byte, []byte, []byte) {
 	return rb.vps, rb.sps, rb.pps
 }
 
-// Reader предоставляет интерфейс для чтения из RingBuffer.
+// Reader предоставляет интерфейс для чтения из RingBuffer через неблокирующий канал.
 type Reader struct {
-	rb     *RingBuffer
-	cursor uint64
+	C           chan *Frame
+	Drops       uint64
+	NeedsIFrame bool
+	rb          *RingBuffer
 }
 
-// NewReader создает нового читателя, который начинает чтение с ближайшего прошлого ключевого кадра (I-frame).
-func (rb *RingBuffer) NewReader() *Reader {
+// Subscribe создает нового читателя. Если в истории есть кадры,
+// он начинает чтение с ближайшего прошлого ключевого кадра (I-frame).
+func (rb *RingBuffer) Subscribe() *Reader {
+	// Буфер на 100 кадров позволяет компенсировать кратковременные сетевые задержки клиента
+	r := &Reader{
+		C:  make(chan *Frame, rb.capacity),
+		rb: rb,
+	}
+	
 	rb.mu.RLock()
-	defer rb.mu.RUnlock()
-
+	// Ищем I-Frame в истории, чтобы сразу закинуть его в канал подписчика
 	startIdx := rb.head
-	// Идем назад в поиске I-frame
+	found := false
 	for i := 0; i < rb.capacity; i++ {
-		if rb.head < uint64(i+1) { //nolint:gosec
+		if rb.head < uint64(i+1) {
 			break
 		}
-		idx := rb.head - uint64(i+1) //nolint:gosec
-		frame := rb.frames[idx%uint64(rb.capacity)] //nolint:gosec
+		idx := rb.head - uint64(i+1)
+		frame := rb.frames[idx%uint64(rb.capacity)]
 		if frame != nil && frame.IsKeyFrame {
 			startIdx = idx
+			found = true
 			break
 		}
 	}
 
-	return &Reader{
-		rb:     rb,
-		cursor: startIdx,
-	}
-}
-
-// Read блокирует выполнение до появления нового кадра и возвращает его. Если буфер закрыт, возвращает nil.
-func (r *Reader) Read() *Frame {
-	r.rb.mu.RLock()
-	defer r.rb.mu.RUnlock()
-
-	for r.cursor >= r.rb.head {
-		if r.rb.closed {
-			return nil
-		}
-		r.rb.cond.Wait() // ожидаем поступления новых кадров
-	}
-
-	if r.rb.closed && r.cursor >= r.rb.head {
-		return nil
-	}
-
-	// Проверка на overrun (писатель обогнал читателя больше чем на capacity)
-	if r.rb.head-r.cursor > uint64(r.rb.capacity) { //nolint:gosec
-		// Сбрасываем курсор на последний доступный I-frame, чтобы не нарушать декодирование
-		r.cursor = r.rb.head - 1
-		for i := 0; i < r.rb.capacity; i++ {
-			idx := r.rb.head - uint64(i+1) //nolint:gosec
-			if r.rb.frames[idx%uint64(r.rb.capacity)].IsKeyFrame { //nolint:gosec
-				r.cursor = idx
-				break
+	// Закидываем исторические кадры в канал (начиная с найденного I-Frame)
+	if found {
+		for i := startIdx; i < rb.head; i++ {
+			f := rb.frames[i%uint64(rb.capacity)]
+			if f != nil {
+				r.C <- f
 			}
 		}
 	}
+	rb.mu.RUnlock()
 
-	idx := r.cursor % uint64(r.rb.capacity) //nolint:gosec
-	f := r.rb.frames[idx]
-	r.cursor++
+	rb.subMu.Lock()
+	if rb.closed {
+		close(r.C)
+	} else {
+		rb.subs[r] = struct{}{}
+	}
+	rb.subMu.Unlock()
+
+	return r
+}
+
+// Close отписывает читателя от рассылки.
+func (r *Reader) Close() {
+	r.rb.subMu.Lock()
+	defer r.rb.subMu.Unlock()
+	if _, ok := r.rb.subs[r]; ok {
+		delete(r.rb.subs, r)
+		// Очищаем канал для GC, чтобы не было гонок при одновременном Write и Close
+		// Сам канал закрывать здесь опасно, так как Writer может писать в него под RLock.
+		// Горутина GC сама соберет канал, когда на него не останется ссылок.
+	}
+}
+
+// NewReader - обратная совместимость со старым API.
+func (rb *RingBuffer) NewReader() *Reader {
+	return rb.Subscribe()
+}
+
+// Read - обратная совместимость со старым API.
+// Блокирует выполнение до получения следующего кадра.
+func (r *Reader) Read() *Frame {
+	f, ok := <-r.C
+	if !ok {
+		return nil
+	}
 	return f
 }

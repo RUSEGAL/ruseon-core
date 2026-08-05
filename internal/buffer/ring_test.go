@@ -8,6 +8,7 @@ import (
 
 func TestRingBuffer_WriteAndRead(t *testing.T) {
 	rb := NewRingBuffer(5)
+	defer rb.Close()
 	
 	f1 := &Frame{IsKeyFrame: true, Timestamp: 1}
 	f2 := &Frame{IsKeyFrame: false, Timestamp: 2}
@@ -16,6 +17,7 @@ func TestRingBuffer_WriteAndRead(t *testing.T) {
 	rb.Write(f2)
 	
 	reader := rb.NewReader()
+	defer reader.Close()
 	
 	read1 := reader.Read()
 	if read1.Timestamp != 1 {
@@ -30,6 +32,7 @@ func TestRingBuffer_WriteAndRead(t *testing.T) {
 
 func TestRingBuffer_Overwrite(t *testing.T) {
 	rb := NewRingBuffer(3)
+	defer rb.Close()
 	
 	// Пишем 5 кадров в буфер размером 3
 	for i := 1; i <= 5; i++ {
@@ -39,9 +42,9 @@ func TestRingBuffer_Overwrite(t *testing.T) {
 	// В буфере должны остаться кадры 3, 4, 5. 
 	// Кадр 4 - I-frame.
 	reader := rb.NewReader()
+	defer reader.Close()
 	
-	// Новый читатель должен найти ближайший прошлый I-frame.
-	// Последний I-frame был под номером 4.
+	// Новый читатель должен найти ближайший прошлый I-frame (кадр 4).
 	firstRead := reader.Read()
 	if firstRead == nil {
 		t.Fatal("expected frame, got nil")
@@ -58,6 +61,8 @@ func TestRingBuffer_Overwrite(t *testing.T) {
 
 func TestRingBuffer_GetSetParams(t *testing.T) {
 	rb := NewRingBuffer(10)
+	defer rb.Close()
+
 	vps := []byte{0x01}
 	sps := []byte{0x02}
 	pps := []byte{0x03}
@@ -81,6 +86,7 @@ func TestRingBuffer_Close(t *testing.T) {
 	rb := NewRingBuffer(5)
 	
 	reader := rb.NewReader()
+	// не делаем defer reader.Close(), так как мы тестируем rb.Close()
 	
 	// Запускаем горутину, которая закроет буфер через 50 мс
 	go func() {
@@ -95,24 +101,39 @@ func TestRingBuffer_Close(t *testing.T) {
 	}
 }
 
-func TestRingBuffer_Overrun(t *testing.T) {
-	rb := NewRingBuffer(3)
+func TestRingBuffer_DropsAndRecovery(t *testing.T) {
+	rb := NewRingBuffer(2)
+	defer rb.Close()
 	
-	rb.Write(&Frame{IsKeyFrame: true, Timestamp: 1})
 	reader := rb.NewReader()
+	defer reader.Close()
 	
-	// Пишем еще 5 кадров, перезаписывая старые. Читатель "отстал".
-	for i := 2; i <= 6; i++ {
-		rb.Write(&Frame{IsKeyFrame: i == 5, Timestamp: time.Duration(i)})
+	// Пишем 3 кадра, канал читателя имеет размер 2. 
+	// Канал забьется, и 3-й кадр будет сброшен (Drop).
+	rb.Write(&Frame{IsKeyFrame: true, Timestamp: 1})
+	rb.Write(&Frame{IsKeyFrame: false, Timestamp: 2})
+	rb.Write(&Frame{IsKeyFrame: false, Timestamp: 3}) // DROPPED
+
+	// Читаем из канала всё что там есть (кадры 1 и 2)
+	f1 := reader.Read()
+	if f1.Timestamp != 1 {
+		t.Errorf("expected 1, got %v", f1.Timestamp)
 	}
-	
-	// Читатель должен обнаружить overrun (буфер переполнен новыми данными)
-	// и прыгнуть на ближайший доступный I-frame (кадр 5)
-	f := reader.Read()
-	if f == nil {
-		t.Fatal("expected frame, got nil")
+	f2 := reader.Read()
+	if f2.Timestamp != 2 {
+		t.Errorf("expected 2, got %v", f2.Timestamp)
 	}
-	if f.Timestamp != 5 {
-		t.Errorf("expected Timestamp 5 after overrun, got %v", f.Timestamp)
+
+	// Теперь читатель требует I-Frame (NeedsIFrame == true)
+	// Пишем P-Frame (не I-Frame). Он должен быть проигнорирован.
+	rb.Write(&Frame{IsKeyFrame: false, Timestamp: 4})
+
+	// Пишем I-Frame (ключевой). Он должен быть доставлен.
+	rb.Write(&Frame{IsKeyFrame: true, Timestamp: 5})
+
+	// Читаем из канала. Там должен быть кадр 5, так как кадр 4 был проигнорирован.
+	f5 := reader.Read()
+	if f5.Timestamp != 5 {
+		t.Errorf("expected 5 after recovery, got %v", f5.Timestamp)
 	}
 }

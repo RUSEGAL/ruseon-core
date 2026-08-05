@@ -10,8 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/config"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/auth"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/config"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/storage"
 	"github.com/RUSEGAL/REA-Stream-Engine/internal/stream"
 )
 
@@ -28,9 +29,10 @@ func TestRouterMiddleware(t *testing.T) {
 
 	manager := stream.NewManager()
 	handler := NewHandler(manager, cfg, store)
+	authenticator := auth.NewLocalAuthenticator(cfg)
 
 	// debug=true turns on statsviz and pprof
-	router := SetupRouter(handler, true)
+	router := SetupRouter(handler, authenticator, true)
 
 	// 1. Test CORS Options
 	w1 := httptest.NewRecorder()

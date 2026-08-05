@@ -3,8 +3,9 @@ package archive
 import (
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
+
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
 )
 
 // ExportMP4 читает нужные фрагменты из fMP4 файла и напрямую стримит их в `io.Writer` (например, HTTP-ответ)
@@ -25,7 +26,7 @@ func ExportMP4(recordDir, cameraID, filename string, startSeq, endSeq int, w io.
 		startSeq = endSeq
 	}
 
-	f, err := os.Open(path)
+	f, err := registry.CurrentBlobStore.Open(path)
 	if err != nil {
 		return err
 	}
@@ -48,7 +49,7 @@ func ExportMP4(recordDir, cameraID, filename string, startSeq, endSeq int, w io.
 			partSize = idx.Parts[i+1].Offset - startOffset
 		} else {
 			// Для последней части читаем до конца файла
-			info, err := f.Stat()
+			info, err := registry.CurrentBlobStore.Stat(path)
 			if err != nil {
 				return err
 			}

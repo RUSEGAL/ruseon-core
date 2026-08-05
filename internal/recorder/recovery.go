@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
+	
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
 )
 
 // RecoverCrashedFiles сканирует директорию с архивами при старте сервера и переименовывает
@@ -17,7 +19,7 @@ import (
 func RecoverCrashedFiles(recordDir string) {
 	log.Info().Msg("Scanning for crashed/ongoing MP4 recordings to recover...")
 
-	entries, err := os.ReadDir(recordDir)
+	entries, err := registry.CurrentBlobStore.ReadDir(recordDir)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			log.Warn().Err(err).Msg("Failed to read recordings directory")
@@ -33,7 +35,7 @@ func RecoverCrashedFiles(recordDir string) {
 		}
 
 		streamDir := filepath.Join(recordDir, entry.Name())
-		files, err := os.ReadDir(streamDir)
+		files, err := registry.CurrentBlobStore.ReadDir(streamDir)
 		if err != nil {
 			continue
 		}
@@ -60,7 +62,7 @@ func RecoverCrashedFiles(recordDir string) {
 				newPath := filepath.Join(streamDir, fmt.Sprintf("%s_to_%s.mp4", startTimeStr, endTimeStr))
 
 				// Переименовываем
-				if err := os.Rename(oldPath, newPath); err == nil {
+				if err := registry.CurrentBlobStore.Rename(oldPath, newPath); err == nil {
 					log.Info().Str("stream", entry.Name()).Str("recovered_file", newPath).Msg("Recovered crashed MP4 file")
 					recoveredCount++
 				}

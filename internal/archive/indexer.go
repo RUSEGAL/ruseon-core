@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
 )
 
 // RecordInterval представляет один записанный отрезок видео
@@ -17,7 +19,7 @@ type RecordInterval struct {
 // GetCameraArchive сканирует директорию камеры и возвращает доступные отрезки
 func GetCameraArchive(recordDir, cameraID string) ([]RecordInterval, error) {
 	dir := filepath.Join(recordDir, cameraID)
-	entries, err := os.ReadDir(dir)
+	entries, err := registry.CurrentBlobStore.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []RecordInterval{}, nil

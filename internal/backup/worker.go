@@ -10,19 +10,19 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/storage"
+	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
 )
 
-// Worker управляет фоновыми бэкапами БД.
+// Worker управляет фоновым процессом создания бэкапов.
 type Worker struct {
-	store        *storage.Storage
+	store        registry.StateStore
 	backupDir    string
 	interval     time.Duration
 	retentionDays int
 }
 
-// NewWorker создает воркер для бэкапов.
-func NewWorker(store *storage.Storage, backupDir string, interval time.Duration, retentionDays int) *Worker {
+// NewWorker создает новый воркер для бэкапов.
+func NewWorker(store registry.StateStore, backupDir string, interval time.Duration, retentionDays int) *Worker {
 	if err := os.MkdirAll(backupDir, 0755); err != nil {
 		log.Error().Err(err).Msg("Failed to create backup directory")
 	}

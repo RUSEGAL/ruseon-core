@@ -69,6 +69,7 @@ func (m *Muxer) run() {
 		}
 	}()
 	reader := m.ringBuffer.NewReader()
+	defer reader.Close()
 
 	var currentBuf *bytes.Buffer
 	var tsWriter *mpegts.Writer
