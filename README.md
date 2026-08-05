@@ -38,6 +38,24 @@ Built for scale, RUSEON Core delivers massive throughput with minimal resource f
 
 ---
 
+## ⚔️ Why RUSEON? (Comparison)
+
+Unlike generic media routers or legacy transcoders, **RUSEON Core** is purpose-built for the **Edge and AI Data pipelines**. We eliminate the need for heavy FFmpeg scripts and provide a production-ready, zero-copy infrastructure right out of the box.
+
+| Feature / Capability | ⚡ **RUSEON Core** | MediaMTX | Flussonic | FFmpeg |
+| :--- | :---: | :---: | :---: | :---: |
+| **Zero-Copy RTSP ➔ HLS** | ✅ Yes (Ultra-low CPU) | ✅ Yes | ✅ Yes | ❌ Re-encoding (High CPU) |
+| **Built-in Dashboard** | ✅ **Yes (React 19)** | ❌ No UI | ✅ Yes | ❌ CLI only |
+| **fMP4 Archiving & Timeshift** | ✅ Native Support | ⚠️ Basic / External | ✅ Yes | ⚠️ Complex Scripting |
+| **State & Metrics DB** | ✅ **BadgerDB Embedded** | ❌ YAML only | ✅ Proprietary DB | ❌ None |
+| **Cloud-Native & Dockerized** | ✅ 100% Ready | ✅ Yes | ✅ Yes | ⚠️ Requires orchestration |
+| **License & Cost** | 🆓 **Free (MIT)** | 🆓 Free (MIT) | 💰 Expensive ($$$) | 🆓 Free (GPL) |
+| **Primary Focus** | **Enterprise Edge, CCTV, AI** | Simple Stream Routing | IPTV / Telecom | Media Transcoding |
+
+> **The RUSEON Advantage:** Stop managing raw FFmpeg processes or building custom UIs over barebones routers. RUSEON gives you an Enterprise-grade pipeline — complete with a database, persistent archiving, and a modern dashboard — in a single, lightweight Go binary.
+
+---
+
 ## 🏗 Architecture & AI Data Pipeline
 
 RUSEON Core acts as the critical bridge between edge hardware and your AI / Cloud workloads.
@@ -140,6 +158,28 @@ cameras:
     url: "rtsp://admin:admin@192.168.1.100/stream"
     record: true
 ```
+
+---
+
+## 💎 Choose Your RUSEON Edition
+
+RUSEON is built on an Open Core model. Start for free with the Community Edition, and upgrade to Pro or Enterprise when your video infrastructure scales and requires advanced B2B features.
+
+| Feature / Capability | 🟢 **Core (Community)** | 🔵 **Pro** | 🟣 **Enterprise** |
+| :--- | :---: | :---: | :---: |
+| **Zero-Copy Routing (RTSP/HLS)** | ✅ Yes | ✅ Yes | ✅ Yes |
+| **React Edge Dashboard** | ✅ Yes | ✅ Yes | ✅ Yes |
+| **fMP4 Archiving (Local)** | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Max Cameras per Node** | Unlimited (Hardware limit) | Unlimited | Unlimited |
+| **Advanced IAM & RBAC** | ❌ Basic Auth | ✅ Role-based Access | ✅ Role-based Access |
+| **SSO (Active Directory, OIDC, SAML)** | ❌ No | ❌ No | ✅ **Yes** |
+| **Infinite Cloud Archiving (S3 / Minio)**| ❌ No | ❌ No | ✅ **Yes** |
+| **Clustering & High Availability** | ❌ Single Node | ⚠️ Basic Sync | ✅ **Global HA Cluster** |
+| **Hardware / GPU Transcoding** | ❌ No | ✅ NVENC / Intel QSV | ✅ Distributed GPU |
+| **Support SLA** | 🌐 Community (GitHub) | 📧 Email Support | 🚀 **24/7 Dedicated SLA** |
+| **License / Pricing** | **Free (MIT)** | **Pay per Camera** | **Custom Enterprise** |
+
+> **Ready to scale?** [Contact our Sales Team](mailto:rusegal.dev@yahoo.com) to request a trial key for **RUSEON Enterprise** and unlock SSO, S3 storage, and Clustering.
 
 ---
 ## 🤝 Contributing
