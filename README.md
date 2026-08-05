@@ -10,10 +10,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/RUSEON/ruseon-core/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/RUSEON/ruseon-core/ci.yml?branch=main&style=flat-square" alt="CI Status"></a>
-  <a href="https://goreportcard.com/report/github.com/RUSEON/ruseon-core"><img src="https://goreportcard.com/badge/github.com/RUSEON/ruseon-core?style=flat-square" alt="Go Report Card"></a>
-  <a href="https://github.com/RUSEON/ruseon-core/releases/latest"><img src="https://img.shields.io/github/v/release/RUSEON/ruseon-core?style=flat-square" alt="Latest Release"></a>
-  <img src="https://img.shields.io/docker/pulls/ruseon/ruseon-core?style=flat-square" alt="Docker Pulls">
+  <a href="https://github.com/RUSEGAL/ruseon-core/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/RUSEGAL/ruseon-core/ci.yml?branch=main&style=flat-square" alt="CI Status"></a>
+  <a href="https://goreportcard.com/report/github.com/RUSEGAL/ruseon-core"><img src="https://goreportcard.com/badge/github.com/RUSEGAL/ruseon-core?style=flat-square" alt="Go Report Card"></a>
+  <a href="https://github.com/RUSEGAL/ruseon-core/releases/latest"><img src="https://img.shields.io/github/v/release/RUSEGAL/ruseon-core?style=flat-square" alt="Latest Release"></a>
+
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License">
 </p>
 
@@ -90,7 +90,7 @@ docker run -d \
   -p 8080:8080 \
   -v ruseon-data:/data \
   --name ruseon-core \
-  ghcr.io/ruseon/ruseon-core:latest
+  ghcr.io/RUSEGAL/ruseon-core:latest
 ```
 
 The Enterprise Edge Dashboard will be available at `http://localhost:8080`.
@@ -101,7 +101,7 @@ For developers and contributors:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/RUSEON/ruseon-core.git
+git clone https://github.com/RUSEGAL/ruseon-core.git
 cd ruseon-core
 
 # 2. Build the Edge Dashboard (React)
