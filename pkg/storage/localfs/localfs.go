@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
 // LocalFS реализует registry.BlobStore поверх локальной файловой системы.

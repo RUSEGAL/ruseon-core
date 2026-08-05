@@ -11,11 +11,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/auth"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/config"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/storage"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/pkg/auth"
+	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/pkg/storage"
+	"github.com/RUSEGAL/ruseon-core/internal/stream"
 )
 
 func setupTestRouter(t *testing.T) (*gin.Engine, *Handler, registry.StateStore) {

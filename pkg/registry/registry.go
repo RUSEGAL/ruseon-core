@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/pkg/config"
 )
 
 // StateStore абстрагирует хранение состояния (конфиги камер, тегов и папок).

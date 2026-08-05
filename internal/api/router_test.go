@@ -10,10 +10,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/auth"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/config"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/storage"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/pkg/auth"
+	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/pkg/storage"
+	"github.com/RUSEGAL/ruseon-core/internal/stream"
 )
 
 func TestRouterMiddleware(t *testing.T) {

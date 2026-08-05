@@ -10,7 +10,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
 // Worker управляет фоновым процессом создания бэкапов.

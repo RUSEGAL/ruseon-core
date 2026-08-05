@@ -7,14 +7,14 @@ import (
 	"time"
 	"mime"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/web"
+	"github.com/RUSEGAL/ruseon-core/web"
 
 	"github.com/arl/statsviz"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
 func init() {

@@ -7,8 +7,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/stream"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/grpc/pb"
+	"github.com/RUSEGAL/ruseon-core/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
 )
 
 // Server реализует gRPC API для трансляции сырых видеокадров.

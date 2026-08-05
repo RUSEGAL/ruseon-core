@@ -10,11 +10,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/archive"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/config"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/logger"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/internal/archive"
+	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/pkg/logger"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/internal/stream"
 	"strconv"
 	"strings"
 )

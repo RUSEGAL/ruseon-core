@@ -11,13 +11,13 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/api"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/backup"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/grpc"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/config"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/recorder"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/internal/api"
+	"github.com/RUSEGAL/ruseon-core/internal/backup"
+	"github.com/RUSEGAL/ruseon-core/internal/grpc"
+	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/internal/recorder"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/internal/stream"
 )
 
 // Run запускает все подсистемы ядра (стриминг, API, воркеры).

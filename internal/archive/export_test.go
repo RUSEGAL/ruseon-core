@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/storage/localfs"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/pkg/storage/localfs"
 )
 
 func init() {

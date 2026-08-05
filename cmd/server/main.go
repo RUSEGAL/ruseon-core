@@ -6,14 +6,14 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/auth"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/config"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/logger"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/recorder"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/storage"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/storage/localfs"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/engine"
+	"github.com/RUSEGAL/ruseon-core/pkg/auth"
+	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/pkg/logger"
+	"github.com/RUSEGAL/ruseon-core/internal/recorder"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/pkg/storage"
+	"github.com/RUSEGAL/ruseon-core/pkg/storage/localfs"
+	"github.com/RUSEGAL/ruseon-core/pkg/engine"
 )
 
 func main() {

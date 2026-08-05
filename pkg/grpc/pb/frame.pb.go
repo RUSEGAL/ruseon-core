@@ -147,7 +147,7 @@ const file_api_proto_frame_proto_rawDesc = "" +
 	"\x03pts\x18\x03 \x01(\x03R\x03pts\x12\x18\n" +
 	"\apayload\x18\x04 \x01(\fR\apayload2f\n" +
 	"\fFrameService\x12V\n" +
-	"\fStreamFrames\x12 .ruseon.core.frame.StreamRequest\x1a .ruseon.core.frame.FrameResponse\"\x000\x01B2Z0github.com/RUSEGAL/REA-Stream-Engine/pkg/grpc/pbb\x06proto3"
+	"\fStreamFrames\x12 .ruseon.core.frame.StreamRequest\x1a .ruseon.core.frame.FrameResponse\"\x000\x01B2Z0github.com/RUSEGAL/ruseon-core/pkg/grpc/pbb\x06proto3"
 
 var (
 	file_api_proto_frame_proto_rawDescOnce sync.Once

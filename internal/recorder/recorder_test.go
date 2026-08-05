@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/internal/buffer"
 )
 
 func TestRecorder_Lifecycle(t *testing.T) {

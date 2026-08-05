@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/internal/buffer"
 )
 
 func TestMuxer_LazyGetPlaylist_Wait(t *testing.T) {

@@ -1,4 +1,4 @@
-module github.com/RUSEGAL/REA-Stream-Engine
+module github.com/RUSEGAL/ruseon-core
 
 go 1.26
 

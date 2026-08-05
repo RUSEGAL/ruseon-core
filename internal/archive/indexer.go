@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
 // RecordInterval представляет один записанный отрезок видео

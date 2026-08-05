@@ -9,11 +9,11 @@ import (
 	"golang.org/x/sync/singleflight"
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/buffer"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/hls"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/models"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/recorder"
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/rtsp"
+	"github.com/RUSEGAL/ruseon-core/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/internal/hls"
+	"github.com/RUSEGAL/ruseon-core/internal/models"
+	"github.com/RUSEGAL/ruseon-core/internal/recorder"
+	"github.com/RUSEGAL/ruseon-core/internal/rtsp"
 )
 
 // Stream представляет логику работы с конкретной камерой.

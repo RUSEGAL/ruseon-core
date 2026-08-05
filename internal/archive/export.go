@@ -5,7 +5,7 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
 // ExportMP4 читает нужные фрагменты из fMP4 файла и напрямую стримит их в `io.Writer` (например, HTTP-ответ)

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/config"
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/storage"
+	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/pkg/storage"
 )
 
 func TestWorker_DoBackupAndCleanup(t *testing.T) {

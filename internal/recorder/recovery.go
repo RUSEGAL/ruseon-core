@@ -8,7 +8,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	
-	"github.com/RUSEGAL/REA-Stream-Engine/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
 // RecoverCrashedFiles сканирует директорию с архивами при старте сервера и переименовывает

@@ -11,7 +11,7 @@ import (
 	"github.com/bluenviron/mediacommon/pkg/formats/mpegts"
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/REA-Stream-Engine/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/internal/buffer"
 )
 
 // Segment представляет один HLS ts-сегмент.
