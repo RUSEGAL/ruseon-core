@@ -1,194 +1,123 @@
 <p align="center">
-  <img src="web/public/favicon.svg" width="150" alt="REA Stream Engine Logo" />
+  <img src="web/public/favicon.svg" width="150" alt="RUSEON Logo" />
 </p>
 
-<h1 align="center">REA Stream Engine</h1>
+<h1 align="center">RUSEON Core</h1>
 
 <p align="center">
-  <strong>Высокопроизводительный сервер ретрансляции RTSP в HLS и записи архива.</strong><br>
-  <em>(Zero-Copy Transmuxing, fMP4 Archive, React 19 Dashboard)</em>
+  <strong>Edge Video Infrastructure & AI Data Pipeline</strong><br>
+  <em>Cloud-Native, High-Performance Video Data Platform</em>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat-square&logo=go" alt="Go Version">
-  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React">
+  <a href="https://github.com/RUSEON/ruseon-core/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/RUSEON/ruseon-core/ci.yml?branch=main&style=flat-square" alt="CI Status"></a>
+  <a href="https://goreportcard.com/report/github.com/RUSEON/ruseon-core"><img src="https://goreportcard.com/badge/github.com/RUSEON/ruseon-core?style=flat-square" alt="Go Report Card"></a>
+  <a href="https://github.com/RUSEON/ruseon-core/releases/latest"><img src="https://img.shields.io/github/v/release/RUSEON/ruseon-core?style=flat-square" alt="Latest Release"></a>
+  <img src="https://img.shields.io/docker/pulls/ruseon/ruseon-core?style=flat-square" alt="Docker Pulls">
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License">
-  <img src="https://img.shields.io/badge/Architecture-Zero--Copy-success?style=flat-square" alt="Zero-Copy">
 </p>
 
 <hr>
 
-**REA Stream Engine** — это современное Enterprise-решение для видеонаблюдения и потокового вещания, написанное на Go и React. Он обеспечивает захват RTSP потоков и их "на лету" переупаковку в HLS прямо в оперативной памяти, запись видеоархива без потери кадров и продвинутую систему таймшифта.
+**RUSEON Core** (Community Edition) is a state-of-the-art Enterprise Video Data Platform engineered in Go. Designed for cloud-native and edge environments, it provides zero-copy RTSP-to-HLS transmuxing, high-performance fMP4 archiving, and a seamless pipeline for AI video analytics.
 
-## 📑 Оглавление
-- [✨ Ключевые возможности](#-ключевые-возможности)
-- [🏗 Архитектура](#-архитектура)
-- [🚀 Быстрый старт](#-быстрый-старт)
-- [🛠 Установка (Production)](#-установка-production)
-- [⚙️ Конфигурация](#️-конфигурация)
-- [📚 Документация](#-документация)
+Built for scale, RUSEON Core delivers massive throughput with minimal resource footprint, making it the ideal foundation for enterprise CCTV networks, smart cities, and AI data pipelines.
 
----
+## 🚀 Key Features
 
-## ✨ Ключевые возможности
-
-* ⚡ **Молниеносная ретрансляция (Zero-Copy)**: Никакого FFmpeg и промежуточного перекодирования. Использование чистого Go (`gortsplib` и `mediacommon`) для получения RTSP и упаковки в HLS "на лету" прямо в RAM.
-* 🛡 **Thundering Herd Protection**: Защита от лавинных нагрузок при одновременном подключении тысяч клиентов.
-* 📦 **Умная запись (fMP4)**: Непрерывная запись потоков в fragmented MP4. Уникальная система бесшовной нарезки файлов при ротации без потери единого кадра.
-* ⏪ **Timeshift (Плеер Архива)**: Мгновенный просмотр архива через веб-интерфейс, графический таймлайн и скачивание готовых `.mp4` отрезков.
-* 🗄 **BadgerDB (NoSQL)**: Встроенная сверхбыстрая LSM-tree база данных для конфигураций и статистики (миллисекундный отклик, минимальное потребление RAM).
-* 🔄 **Горячее управление и Бэкапы**: Добавление/удаление камер без перезагрузки сервера. Автоматические бинарные бэкапы БД и экспорт/импорт в JSON.
-* 🎨 **Glassmorphism UI**: Фронтенд на React 19 (Vite, TypeScript) с JWT-авторизацией, SSE логами реального времени и локализацией (i18n).
+* ⚡ **Zero-Copy Transmuxing**: Ultra-low latency bridging from RTSP to HLS directly in RAM. Bypasses intermediate transcoding for maximum efficiency.
+* 🛡 **Cloud-Native Resilience**: Built-in Thundering Herd protection and robust OOM management to safely handle thousands of concurrent streams.
+* 📦 **High-Performance Archiving (fMP4)**: Continuous, gapless recording into fragmented MP4. Optimized for edge storage and rapid cloud synchronization.
+* ⏪ **Advanced Timeshift Pipeline**: Real-time HLS playback of historical data, with seamless export capabilities for AI training datasets.
+* 🗄 **Embedded NoSQL Engine**: Powered by BadgerDB for sub-millisecond configuration states and metrics, delivering high IOPS without external dependencies.
+* 🎨 **Modern Observability UI**: Includes a React 19 (TypeScript) Edge Dashboard with JWT auth, real-time SSE telemetry, and rich timeline visualization.
 
 ---
 
-## 🏗 Архитектура
+## 🏗 Architecture & AI Data Pipeline
+
+RUSEON Core acts as the critical bridge between edge hardware and your AI / Cloud workloads.
 
 ```mermaid
 graph LR
-  subgraph Sources [Data Sources]
-    Cam1[RTSP Camera]
-    Cam2[RTSP Camera]
+  subgraph Edge [Edge Devices / Cameras]
+    Cam1[RTSP Stream]
+    Cam2[RTSP Stream]
   end
 
-  subgraph Engine [REA Stream Engine]
+  subgraph Engine [RUSEON Core]
     Demux[Zero-Copy Demuxer]
     Pool[Memory Pool]
-    HLS[HLS Muxer]
-    Rec[fMP4 Recorder]
+    HLS[Edge HLS Muxer]
+    Rec[fMP4 Storage Engine]
     DB[(BadgerDB)]
   end
 
-  subgraph Clients [Clients]
-    Browser[Web Dashboard]
-    Player[HLS / MP4 Player]
+  subgraph Cloud [Cloud & AI Infrastructure]
+    Browser[Observability Dashboard]
+    Player[Analytics Node]
+    AI[AI / ML Pipeline]
   end
 
   Cam1 & Cam2 -->|H.264/H.265| Demux
   Demux --> Pool
   Pool --> HLS
   Pool --> Rec
-  DB -.->|Configs & Stats| Demux
-  HLS -->|Live Stream| Player
-  Rec -->|Archive| Player
-  Browser <-->|REST API & SSE| Demux
+  DB -.->|State & Config| Demux
+  HLS -->|Live Feed| Player
+  Rec -->|Dataset Export| AI
+  Browser <-->|REST & SSE Telemetry| Demux
 ```
 
 ---
 
-## 🚀 Быстрый старт
+## 🏎 Quick Start
 
-### Требования
-- [Go](https://go.dev/) 1.23+
-- [Node.js](https://nodejs.org/) 18+
-- [Docker](https://www.docker.com/) (опционально)
+### Prerequisites
+- [Docker](https://www.docker.com/) (Recommended for rapid deployment)
+- [Go](https://go.dev/) 1.23+ (For source builds)
 
-### Быстрый старт через Docker (Рекомендуется) 🐳
-Запуск всего приложения одной командой:
+### Deploy via Docker (GHCR) 🐳
+
+The fastest way to deploy RUSEON Core is using our official multi-arch Docker image:
+
 ```bash
-docker-compose up -d --build
-```
-Сервер будет доступен по адресу: `http://localhost:8080`.
-
----
-
-### Сборка из исходников (Local)
-
-**1. Сборка фронтенда:**
-```bash
-cd web
-npm install
-npm run build
-cd ..
+docker run -d \
+  -p 8080:8080 \
+  -v ruseon-data:/data \
+  --name ruseon-core \
+  ghcr.io/ruseon/ruseon-core:latest
 ```
 
-**2. Запуск бэкенда:**
+The Enterprise Edge Dashboard will be available at `http://localhost:8080`.
+
+### Build from Source
+
+For developers and contributors:
+
 ```bash
+# 1. Clone the repository
+git clone https://github.com/RUSEON/ruseon-core.git
+cd ruseon-core
+
+# 2. Build the Edge Dashboard (React)
+cd web && npm install && npm run build && cd ..
+
+# 3. Start the Core Engine
 go mod tidy
 go run ./cmd/server
 ```
-
-**3. Доступ к панели управления:**
-Откройте браузер по адресу: [http://localhost:8080](http://localhost:8080)
-
-*Учетные данные по умолчанию:*
-- **Логин**: admin
-- **Пароль**: admin
+*(Default Credentials: admin / admin)*
 
 ---
 
-## 🛠 Установка (Production)
+## 🤝 Contributing
 
-Для надежной работы сервер следует запускать как системную службу.
+We believe in the power of open-source and welcome contributions from the community. 
+Whether it's a bug report, new feature, or documentation improvement, please see our [Contributing Guidelines](CONTRIBUTING.md) to get started.
 
-### Windows
-**1. Настройка брандмауэра:**
-```powershell
-New-NetFirewallRule -DisplayName "REA Stream Engine" -Direction Inbound -LocalPort 8080 -Protocol TCP -Action Allow
-```
+Please ensure your commits follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.
 
-**2. Автозагрузка (NSSM):**
-1. Скачайте [NSSM](http://nssm.cc/).
-2. В CMD (от администратора): `nssm install REAStreamEngine`
-3. Укажите `Path` (путь к `.exe`) и `Directory` (путь к рабочей папке).
-4. Запустите: `nssm start REAStreamEngine`
+## 📄 License
 
-### Linux (Systemd)
-**1. Настройка файрвола (UFW):**
-```bash
-sudo ufw allow 8080/tcp
-```
-
-**2. Автозагрузка (Systemd):**
-Создайте `/etc/systemd/system/reastream.service`:
-```ini
-[Unit]
-Description=REA Stream Engine
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/reastream
-ExecStart=/opt/reastream/REAStreamEngine-linux
-Restart=on-failure
-RestartSec=5
-LimitNOFILE=65536
-
-[Install]
-WantedBy=multi-user.target
-```
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable reastream
-sudo systemctl start reastream
-```
-
----
-
-## ⚙️ Конфигурация
-
-Глобальные настройки сервера генерируются в `config.yaml` при первом запуске:
-```yaml
-server:
-  port: 8080
-  debug: true
-  record_retention_days: 14   # Срок хранения архива
-  gc_percent: 50              # Тюнинг сборщика мусора
-  gc_memory_limit_mb: 2048    # Защита от OOM
-auth:
-  username: admin
-  password: mysecretpassword
-  secret: "generated_jwt_secret"
-```
-> **Примечание:** Настройки камер и тегов динамически управляются через веб-интерфейс и хранятся в БД `BadgerDB`.
-
----
-
-## 📚 Документация
-
-Подробные материалы по архитектуре и техническим решениям:
-- 🏗 [Архитектура (ARCHITECTURE.md)](docs/ARCHITECTURE.md)
-- 📝 [Журнал решений (DECISIONS.md)](docs/DECISIONS.md)
-- 🖥 [Инфраструктура (INFRASTRUCTURE.MD)](docs/INFRASTRUCTURE.MD)
-- 🗺 [Дорожная карта (ROADMAP.MD)](docs/ROADMAP.MD)
+RUSEON Core (Community Edition) is distributed under the [MIT License](LICENSE). 

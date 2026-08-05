@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+
+jobs:
+  test:
+    name: Test and Lint
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        arch: [amd64, arm64]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Run Linter
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
+
+      - name: Run Tests
+        env:
+          GOARCH: ${{ matrix.arch }}
+        run: go test -race -v ./...

@@ -3,81 +3,37 @@ name: Release
 on:
   push:
     tags:
-      - 'v*' # Срабатывает при создании тега, например v1.0.0
-
-permissions:
-  contents: write
+      - 'v*'
 
 jobs:
-  build:
-    name: Build & Release
+  goreleaser:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
+      packages: write
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: 24
+          fetch-depth: 0
 
-      - name: Build Frontend
-        working-directory: ./web
-        run: |
-          npm ci
-          npm run build
-
-      - name: Setup Go
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: '1.23'
 
-      - name: Embed Windows Icon
-        run: |
-          go install github.com/tc-hib/go-winres@latest
-          go-winres make
-
-      - name: Build Backend (Windows)
-        run: GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o REAStreamEngine.exe ./cmd/server
-
-      - name: Build Backend (Linux)
-        run: GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o REAStreamEngine-linux ./cmd/server
-
-      - name: Create Default Config
-        run: |
-          cat << 'EOF' > config.yaml
-          server:
-            port: 8080
-            debug: false
-            record_retention_days: 14
-            gc_percent: 50
-            gc_memory_limit_mb: 2048
-          auth:
-            username: admin
-            password: admin
-            secret: ""
-          EOF
-
-      - name: Package Release (Windows)
-        run: |
-          mkdir -p release-windows
-          cp -r REAStreamEngine.exe release-windows/
-          cp config.yaml release-windows/ || true
-          cd release-windows && zip -r ../REAStreamEngine-${{ github.ref_name }}-Windows.zip ./*
-
-      - name: Package Release (Linux)
-        run: |
-          mkdir -p release-linux
-          cp -r REAStreamEngine-linux release-linux/
-          cp config.yaml release-linux/ || true
-          cd release-linux && zip -r ../REAStreamEngine-${{ github.ref_name }}-Linux.zip ./*
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          files: |
-            REAStreamEngine-${{ github.ref_name }}-Windows.zip
-            REAStreamEngine-${{ github.ref_name }}-Linux.zip
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

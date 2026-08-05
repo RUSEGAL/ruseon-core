@@ -1,10 +1,16 @@
-## Описание изменений
-Пожалуйста, кратко опишите, что делает этот Pull Request и какую проблему/Issue он решает.
+## Description
 
-## Номер Issue (если есть)
-#
+<!-- Describe your changes in detail here -->
 
-## Чек-лист перед отправкой
-- [ ] Я провел(а) самоанализ (self-review) своего кода.
-- [ ] Если это ключевая функция, я добавил(а) тесты.
-- [ ] Требуется ли обновление документации? Если да, я обновил(а) её.
+## Related Issues
+
+<!-- Link to the related issue(s) if applicable. For example: "Fixes #123" -->
+
+## Checklist
+
+- [ ] I have read the [CONTRIBUTING](../CONTRIBUTING.md) guidelines.
+- [ ] My code follows the code style of this project (run `golangci-lint run`).
+- [ ] I have added tests to cover my changes (if applicable).
+- [ ] All new and existing tests passed (`go test -race ./...`).
+- [ ] I have updated the documentation accordingly.
+- [ ] My commits follow the Conventional Commits specification.
