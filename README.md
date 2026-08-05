@@ -115,6 +115,33 @@ go run ./cmd/server
 
 ---
 
+## ⚙️ Configuration
+
+RUSEON Core requires a `config.yaml` file to run. By default, the engine will look for it in the current directory.
+
+You can copy the provided [`config.example.yaml`](config.example.yaml) to get started:
+
+```bash
+cp config.example.yaml config.yaml
+```
+
+**Example configuration:**
+```yaml
+server:
+  port: 8080
+  record_retention_days: 7
+
+auth:
+  username: "admin"
+  password: "password123"
+
+cameras:
+  - id: "cam-01"
+    url: "rtsp://admin:admin@192.168.1.100/stream"
+    record: true
+```
+
+---
 ## 🤝 Contributing
 
 We believe in the power of open-source and welcome contributions from the community. 

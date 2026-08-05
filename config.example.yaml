@@ -1,0 +1,29 @@
+server:
+  port: 8080
+  debug: false
+  record_retention_days: 7
+  gc_percent: 50
+  gc_memory_limit_mb: 2048
+
+auth:
+  username: "admin"
+  password: "password123"
+  # secret: "your-jwt-secret-here" # Секрет генерируется автоматически при первом запуске
+
+global_tags:
+  - id: "indoor"
+    name: "Внутри помещения"
+    color: "#28a745"
+  - id: "outdoor"
+    name: "На улице"
+    color: "#dc3545"
+
+cameras:
+  - id: "cam-01"
+    url: "rtsp://username:password@192.168.1.100:554/stream1"
+    record: true
+    retention_days: 14
+    tags: ["outdoor"]
+    folder_id: "main-building"
+    comment: "Парковка"
+    transport: "tcp"
