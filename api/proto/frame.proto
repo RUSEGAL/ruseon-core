@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ruseon.core.frame;
 
-option go_package = "github.com/RUSEGAL/REA-Stream-Engine/pkg/grpc/pb";
+option go_package = "github.com/RUSEGAL/ruseon-core/pkg/grpc/pb";
 
 // FrameService предоставляет потоковый доступ к сырым видеокадрам.
 service FrameService {
