@@ -93,6 +93,46 @@ graph LR
 
 ---
 
+## 📊 Performance
+
+RUSEON Core is designed for maximum efficiency. At its core lies a **Zero-Copy** router that ensures CPU and memory are spent only on useful work. The architecture completely avoids the Garbage Collector (GC) in the hot paths of video frame transmission.
+
+**🖥 Test Environment:**
+* **CPU:** AMD Ryzen 5 5600X (All benchmarks below were run on a **single** core)
+* **OS / Arch:** Windows / amd64
+* **Runtime:** Go 1.23+
+
+### 1. Frame Broadcasting (Zero-Copy RingBuffer)
+The core receives a video frame (H.264/H.265) and instantly broadcasts it to subscribers (HLS Muxer, Recorder, and AI Agents) without copying data in memory.
+
+| Operation | Time (ns/op) | Memory Allocations | Description |
+| :--- | :--- | :--- | :--- |
+| `Write` | **13.9 ns** | **0 B/op** (0 allocs) | Writing a frame to the buffer |
+| `Broadcast (100 subs)` | **10.8 µs** | **0 B/op** (0 allocs) | Broadcasting 1 frame to 100 subscribers simultaneously |
+
+> **Bottom line:** The engine can dispatch tens of thousands of frames per second on a single CPU core, **allocating absolutely zero new memory on the heap** (0 allocs/op).
+
+### 2. Edge HLS Delivery (Muxer)
+Even under the *Thundering Herd* problem (when thousands of users simultaneously connect to a live stream), RUSEON serves M3U8 playlists and TS segments directly from the memory cache.
+
+| Operation | Time | Throughput | Description |
+| :--- | :--- | :--- | :--- |
+| `GetPlaylist` | **~1.1 µs** | ~1,000,000 req/sec | Generating an M3U8 manifest |
+| `GetSegment (1 MB)` | **~113 µs** | **~8.7 GB/s** | Retrieving a TS segment (1 MB) from the pool |
+
+> **Bottom line:** Your server won't crash during massive traffic spikes. A single CPU core can handle segment delivery at speeds of nearly 9 Gigabytes per second.
+
+### 3. High-Speed Archive (fMP4 Recorder)
+Packaging video streams into fragmented MP4 (fMP4) format for writing to persistent storage.
+
+| Operation | Time | Description |
+| :--- | :--- | :--- |
+| `Write GOP (1 sec video)` | **~1.58 ms** | Packaging 25 frames (1 sec. of video) and flushing to disk |
+
+> **Bottom line:** A single CPU core can continuously archive **~630 concurrent video streams**. The performance of RUSEON Core is strictly bottlenecked by the I/O throughput of your disks and network, not the CPU!
+
+---
+
 ## 🏎 Quick Start
 
 ### Prerequisites

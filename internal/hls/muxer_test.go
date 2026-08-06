@@ -1,6 +1,7 @@
 package hls
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -114,3 +115,46 @@ func TestMuxer_Lifecycle_And_GetSegment(t *testing.T) {
 	muxer.Stop()
 }
 
+func BenchmarkMuxer_GetPlaylist(b *testing.B) {
+	rb := buffer.NewRingBuffer(10)
+	defer rb.Close()
+	muxer := NewMuxer("bench", rb)
+	
+	muxer.mu.Lock()
+	for i := 0; i < 5; i++ {
+		muxer.segments = append(muxer.segments, &Segment{
+			Name:     fmt.Sprintf("stream_%d.ts", i),
+			Duration: 2 * time.Second,
+		})
+	}
+	muxer.seqCount = 5
+	muxer.mu.Unlock()
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = muxer.GetPlaylist()
+	}
+}
+
+func BenchmarkMuxer_GetSegment(b *testing.B) {
+	rb := buffer.NewRingBuffer(10)
+	defer rb.Close()
+	muxer := NewMuxer("bench", rb)
+	
+	data := make([]byte, 1024*1024) // 1MB segment
+	muxer.mu.Lock()
+	muxer.segments = append(muxer.segments, &Segment{
+		Name:     "stream_1.ts",
+		Duration: 2 * time.Second,
+		Data:     data,
+	})
+	muxer.seqCount = 1
+	muxer.mu.Unlock()
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = muxer.GetSegment("stream_1.ts")
+	}
+}

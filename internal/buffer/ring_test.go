@@ -137,3 +137,37 @@ func TestRingBuffer_DropsAndRecovery(t *testing.T) {
 		t.Errorf("expected 5 after recovery, got %v", f5.Timestamp)
 	}
 }
+
+func BenchmarkRingBuffer_Write(b *testing.B) {
+	rb := NewRingBuffer(100)
+	defer rb.Close()
+	frame := &Frame{IsKeyFrame: true, NALUs: [][]byte{make([]byte, 1024)}}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		rb.Write(frame)
+	}
+}
+
+func BenchmarkRingBuffer_WriteAndBroadcast_100_Subs(b *testing.B) {
+	rb := NewRingBuffer(100)
+	defer rb.Close()
+	frame := &Frame{IsKeyFrame: true, NALUs: [][]byte{make([]byte, 1024)}}
+
+	// Subscribe 100 readers
+	for i := 0; i < 100; i++ {
+		r := rb.Subscribe()
+		defer r.Close()
+		go func(reader *Reader) {
+			for reader.Read() != nil {
+			}
+		}(r)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		rb.Write(frame)
+	}
+}
