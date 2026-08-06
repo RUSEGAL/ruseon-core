@@ -161,6 +161,8 @@ func BenchmarkRingBuffer_WriteAndBroadcast_100_Subs(b *testing.B) {
 		defer r.Close()
 		go func(reader *Reader) {
 			for reader.Read() != nil {
+				// drain the reader
+				continue
 			}
 		}(r)
 	}
