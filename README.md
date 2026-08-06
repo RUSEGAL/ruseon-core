@@ -23,14 +23,18 @@
 
 <hr>
 
-**RUSEON Core** (Community Edition) is a state-of-the-art Enterprise Video Data Platform engineered in Go. Designed for cloud-native and edge environments, it provides zero-copy RTSP-to-HLS transmuxing, high-performance fMP4 archiving, and a seamless pipeline for AI video analytics.
+<p align="center">
+  <em>Most open-source video servers solve streaming.<br>RUSEON solves the entire video data lifecycle.<br>Ingest. Route. Record. Analyze. Export.<br>One engine.</em>
+</p>
 
-Built for scale, RUSEON Core delivers massive throughput with minimal resource footprint, making it the ideal foundation for enterprise CCTV networks, smart cities, and AI data pipelines.
+**RUSEON Core** is an open-source Edge Video Infrastructure Platform engineered in Go. Designed for cloud-native and edge environments, it provides zero-copy RTSP-to-HLS transmuxing, fMP4 archiving, and an API foundation for AI video analytics.
+
+Rather than trying to do everything (like AI inference or GPU transcoding) inside a single monolith, RUSEON focuses purely on moving and storing video bytes efficiently. It is designed to act as the central routing and storage engine, while heavy analytical tasks (like YOLO or Face Recognition) can run as separate downstream modules (e.g., `ruseon-yolo`, `ruseon-lpr`).
 
 ## 🚀 Key Features
 
 * ⚡ **Zero-Copy Transmuxing**: Ultra-low latency bridging from RTSP to HLS directly in RAM. Bypasses intermediate transcoding for maximum efficiency.
-* 🛡 **Cloud-Native Resilience**: Built-in Thundering Herd protection and robust OOM management to safely handle thousands of concurrent streams.
+* 🛡 **Cloud-Native Architecture**: Built-in Thundering Herd protection and strict OOM management to safely handle thousands of concurrent streams.
 * 📦 **High-Performance Archiving (fMP4)**: Continuous, gapless recording into fragmented MP4. Optimized for edge storage and rapid cloud synchronization.
 * ⏪ **Advanced Timeshift Pipeline**: Real-time HLS playback of historical data, with seamless export capabilities for AI training datasets.
 * 🗄 **Embedded NoSQL Engine**: Powered by BadgerDB for sub-millisecond configuration states and metrics, delivering high IOPS without external dependencies.
@@ -38,21 +42,14 @@ Built for scale, RUSEON Core delivers massive throughput with minimal resource f
 
 ---
 
-## ⚔️ Why RUSEON? (Comparison)
+## ⚔️ Comparison & Philosophy
 
-Unlike generic media routers or legacy transcoders, **RUSEON Core** is purpose-built for the **Edge and AI Data pipelines**. We eliminate the need for heavy FFmpeg scripts and provide a production-ready, zero-copy infrastructure right out of the box.
+RUSEON Core has a different philosophy compared to other popular tools in the video ecosystem. Rather than directly competing, it serves a completely different architectural purpose:
 
-| Feature / Capability | ⚡ **RUSEON Core** | MediaMTX | Flussonic | FFmpeg |
-| :--- | :---: | :---: | :---: | :---: |
-| **Zero-Copy RTSP ➔ HLS** | ✅ Yes (Ultra-low CPU) | ✅ Yes | ✅ Yes | ❌ Re-encoding (High CPU) |
-| **Built-in Dashboard** | ✅ **Yes (React 19)** | ❌ No UI | ✅ Yes | ❌ CLI only |
-| **fMP4 Archiving & Timeshift** | ✅ Native Support | ⚠️ Basic / External | ✅ Yes | ⚠️ Complex Scripting |
-| **State & Metrics DB** | ✅ **BadgerDB Embedded** | ❌ YAML only | ✅ Proprietary DB | ❌ None |
-| **Cloud-Native & Dockerized** | ✅ 100% Ready | ✅ Yes | ✅ Yes | ⚠️ Requires orchestration |
-| **License & Cost** | 🆓 **Free (MIT)** | 🆓 Free (MIT) | 💰 Expensive ($$$) | 🆓 Free (GPL) |
-| **Primary Focus** | **Enterprise Edge, CCTV, AI** | Simple Stream Routing | IPTV / Telecom | Media Transcoding |
-
-> **The RUSEON Advantage:** Stop managing raw FFmpeg processes or building custom UIs over barebones routers. RUSEON gives you an Enterprise-grade pipeline — complete with a database, persistent archiving, and a modern dashboard — in a single, lightweight Go binary.
+- **MediaMTX**: A fantastic **Media Router**. It focuses on broad protocol translation (RTSP, WebRTC, RTMP, SRT). RUSEON, on the other hand, focuses on the **Video Data Lifecycle** (archiving, timeshift, AI dataset export).
+- **FFmpeg**: The ultimate **Media Toolkit**. It is exceptional for processing video, but requires complex scripting to run as a reliable, API-driven daemon.
+- **Flussonic**: A comprehensive **IPTV Platform** tailored for telecom and broadcasting networks.
+- **RUSEON Core**: An **Edge Video Infrastructure**. Built specifically to ingest CCTV streams, persist them to disk, and efficiently deliver them to human operators and AI pipelines.
 
 ---
 
@@ -143,7 +140,7 @@ We performed an End-to-End load test on Live HLS delivery using Grafana's `k6`. 
 | **Latency (avg)** | **3.13 ms** | Average time to serve a video segment to a viewer |
 | **Latency p(95)** | **6.13 ms** | 95% of all viewers received segments in under 6 milliseconds |
 
-> **Bottom line:** RUSEON Core effortlessly saturates 10G (10 Gigabit) network interfaces while keeping response latencies under 6 milliseconds for thousands of concurrent TCP connections. The Thundering Herd problem is completely solved at the architectural level!
+> **Bottom line:** The architecture is designed to mitigate the thundering herd problem and demonstrated highly stable behavior under our benchmark scenarios. RUSEON Core effortlessly saturated local 10G interfaces while keeping response latencies under 6 milliseconds for thousands of concurrent TCP connections.
 
 ![k6 HLS Stress Test Results](assets/k6-test.png)
 
@@ -241,8 +238,8 @@ RUSEON is built on an Open Core model. Start for free with the Community Edition
 | **Advanced IAM & RBAC** | ❌ Basic Auth | ✅ Role-based Access | ✅ Role-based Access |
 | **SSO (Active Directory, OIDC, SAML)** | ❌ No | ❌ No | ✅ **Yes** |
 | **Infinite Cloud Archiving (S3 / Minio)**| ❌ No | ❌ No | ✅ **Yes** |
-| **Clustering & High Availability** | ❌ Single Node | ⚠️ Basic Sync | ✅ **Global HA Cluster** |
-| **Hardware / GPU Transcoding** | ❌ No | ✅ NVENC / Intel QSV | ✅ Distributed GPU |
+| **Clustering & High Availability** | ❌ Single Node | ⚠️ Basic Sync | 🚧 **Planned (Roadmap)** |
+| **Hardware / GPU Transcoding** | ❌ No | 🚧 Planned | 🚧 **Planned (Roadmap)** |
 | **Support SLA** | 🌐 Community (GitHub) | 📧 Email Support | 🚀 **24/7 Dedicated SLA** |
 | **License / Pricing** | **Free (MIT)** | **Pay per Camera** | **Custom Enterprise** |
 

@@ -9,21 +9,21 @@ import (
 func TestRingBuffer_WriteAndRead(t *testing.T) {
 	rb := NewRingBuffer(5)
 	defer rb.Close()
-	
+
 	f1 := &Frame{IsKeyFrame: true, Timestamp: 1}
 	f2 := &Frame{IsKeyFrame: false, Timestamp: 2}
-	
+
 	rb.Write(f1)
 	rb.Write(f2)
-	
+
 	reader := rb.NewReader()
 	defer reader.Close()
-	
+
 	read1 := reader.Read()
 	if read1.Timestamp != 1 {
 		t.Errorf("expected Timestamp 1, got %v", read1.Timestamp)
 	}
-	
+
 	read2 := reader.Read()
 	if read2.Timestamp != 2 {
 		t.Errorf("expected Timestamp 2, got %v", read2.Timestamp)
@@ -33,17 +33,17 @@ func TestRingBuffer_WriteAndRead(t *testing.T) {
 func TestRingBuffer_Overwrite(t *testing.T) {
 	rb := NewRingBuffer(3)
 	defer rb.Close()
-	
+
 	// Пишем 5 кадров в буфер размером 3
 	for i := 1; i <= 5; i++ {
 		rb.Write(&Frame{IsKeyFrame: i == 1 || i == 4, Timestamp: time.Duration(i)})
 	}
-	
-	// В буфере должны остаться кадры 3, 4, 5. 
+
+	// В буфере должны остаться кадры 3, 4, 5.
 	// Кадр 4 - I-frame.
 	reader := rb.NewReader()
 	defer reader.Close()
-	
+
 	// Новый читатель должен найти ближайший прошлый I-frame (кадр 4).
 	firstRead := reader.Read()
 	if firstRead == nil {
@@ -52,7 +52,7 @@ func TestRingBuffer_Overwrite(t *testing.T) {
 	if firstRead.Timestamp != 4 {
 		t.Errorf("expected Timestamp 4 (latest I-frame), got %v", firstRead.Timestamp)
 	}
-	
+
 	secondRead := reader.Read()
 	if secondRead.Timestamp != 5 {
 		t.Errorf("expected Timestamp 5, got %v", secondRead.Timestamp)
@@ -66,11 +66,11 @@ func TestRingBuffer_GetSetParams(t *testing.T) {
 	vps := []byte{0x01}
 	sps := []byte{0x02}
 	pps := []byte{0x03}
-	
+
 	rb.SetParams(vps, sps, pps)
-	
+
 	gotVps, gotSps, gotPps := rb.GetParams()
-	
+
 	if !bytes.Equal(gotVps, vps) {
 		t.Errorf("VPS mismatch")
 	}
@@ -84,16 +84,16 @@ func TestRingBuffer_GetSetParams(t *testing.T) {
 
 func TestRingBuffer_Close(t *testing.T) {
 	rb := NewRingBuffer(5)
-	
+
 	reader := rb.NewReader()
 	// не делаем defer reader.Close(), так как мы тестируем rb.Close()
-	
+
 	// Запускаем горутину, которая закроет буфер через 50 мс
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 		rb.Close()
 	}()
-	
+
 	// Чтение должно разблокироваться и вернуть nil после Close()
 	f := reader.Read()
 	if f != nil {
@@ -104,11 +104,11 @@ func TestRingBuffer_Close(t *testing.T) {
 func TestRingBuffer_DropsAndRecovery(t *testing.T) {
 	rb := NewRingBuffer(2)
 	defer rb.Close()
-	
+
 	reader := rb.NewReader()
 	defer reader.Close()
-	
-	// Пишем 3 кадра, канал читателя имеет размер 2. 
+
+	// Пишем 3 кадра, канал читателя имеет размер 2.
 	// Канал забьется, и 3-й кадр будет сброшен (Drop).
 	rb.Write(&Frame{IsKeyFrame: true, Timestamp: 1})
 	rb.Write(&Frame{IsKeyFrame: false, Timestamp: 2})
