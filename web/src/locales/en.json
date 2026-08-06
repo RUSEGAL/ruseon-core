@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "REA Stream Engine"
+    "title": "RUSEON Core"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -14,7 +14,7 @@
     "list": "List"
   },
   "login": {
-    "title": "Gritprof Media Server",
+    "title": "RUSEON Core",
     "placeholder": "Password...",
     "button": "Login",
     "error": "Invalid password"
