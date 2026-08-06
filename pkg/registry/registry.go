@@ -47,6 +47,11 @@ type WriteSeekCloser interface {
 	io.Closer
 }
 
+// CacheDropper позволяет сбросить дисковый кэш ОС (Page Cache) для файла.
+type CacheDropper interface {
+	DropCache() error
+}
+
 // BlobStore абстрагирует запись файлов (LocalFS vs S3).
 type BlobStore interface {
 	Write(path string, data []byte) error

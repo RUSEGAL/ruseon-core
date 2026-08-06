@@ -56,7 +56,11 @@ func (l *LocalFS) Create(path string) (registry.WriteSeekCloser, error) {
 	if err := os.MkdirAll(filepath.Dir(fp), 0755); err != nil {
 		return nil, err
 	}
-	return os.Create(fp)
+	f, err := os.Create(fp)
+	if err != nil {
+		return nil, err
+	}
+	return &FileWrapper{File: f}, nil
 }
 
 func (l *LocalFS) Open(path string) (io.ReadSeekCloser, error) {

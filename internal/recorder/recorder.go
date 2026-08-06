@@ -203,6 +203,11 @@ func (r *Recorder) run() {
 				continue
 			}
 
+			// OPTIMIZATION: Drop Page Cache to save RAM (Direct I/O alternative)
+			if dropper, ok := file.(registry.CacheDropper); ok {
+				_ = dropper.DropCache()
+			}
+
 			partSamples = partSamples[:0]
 			seq++
 			partStartBaseTime = uint64(currentPts) //nolint:gosec
