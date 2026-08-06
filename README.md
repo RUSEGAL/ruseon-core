@@ -145,6 +145,19 @@ We performed an End-to-End load test on Live HLS delivery using Grafana's `k6`. 
 
 > **Bottom line:** RUSEON Core effortlessly saturates 10G (10 Gigabit) network interfaces while keeping response latencies under 6 milliseconds for thousands of concurrent TCP connections. The Thundering Herd problem is completely solved at the architectural level!
 
+![k6 HLS Stress Test Results](assets/k6-test.png)
+
+### 5. Ingest Resource Consumption (100 RTSP Streams) 🎥
+We also tested the engine's ability to simultaneously receive and process 100 RTSP streams (H.264/HEVC).
+
+Despite handling hundreds of megabytes of incoming traffic per second, thanks to Zero-Copy RTP parsing and no transcoding, the server consumes **just over 250 MB of RAM and ~1% of a standard desktop CPU**!
+
+![Dashboard with 100 cameras](assets/100-cameras.png)
+![Advanced memory and GC stats](assets/advanced-stats.png)
+![CPU and RAM consumption in Task Manager](assets/ram-cpu.png)
+
+The low Garbage Collector overhead (only 68 collections) proves the efficiency of the `sync.Pool` byte buffers and the RingBuffer architecture.
+
 ---
 
 ## 🏎 Quick Start
