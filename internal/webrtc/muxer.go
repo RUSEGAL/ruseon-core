@@ -26,7 +26,7 @@ func NewWHEPHandler(streamID string, rb *buffer.RingBuffer) *WHEPHandler {
 }
 
 // HandleOffer принимает SDP Offer клиента, создает PeerConnection и возвращает SDP Answer.
-func (h *WHEPHandler) HandleOffer(ctx context.Context, offerSDP string) (string, error) {
+func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, error) {
 	_, sps, pps := h.rb.GetParams()
 	if sps == nil || pps == nil {
 		return "", errors.New("stream codec parameters not ready yet, please wait")
