@@ -131,6 +131,9 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool) *gin.Engin
 	r.GET("/stream/hls/:id/index.m3u8", h.GetHLSPlaylist)
 	r.GET("/stream/hls/:id/:segment", h.GetHLSSegment)
 
+	// WebRTC (WHEP)
+	r.POST("/stream/webrtc/whep/:id", h.PostWHEP)
+
 	// HLS стриминг (Archive)
 	r.GET("/hls/:id/archive.m3u8", h.GetArchiveHLSPlaylist)
 	r.GET("/hls/:id/segment.ts", h.GetArchiveHLSSegment)

@@ -5,6 +5,7 @@ import type { CameraInfo, TagConfig, HlsTelemetry } from '../../types';
 import { formatBytes, formatUptime } from '../../utils/formatters';
 import { VideoPlayer } from '../VideoPlayer';
 import { ArchivePlayer } from '../ArchivePlayer';
+import { WebRTCPlayer } from '../WebRTCPlayer';
 import { ChevronDown, ChevronRight, Zap } from 'lucide-react';
 
 interface CameraDetailsModalProps {
@@ -20,7 +21,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
   const [copied, setCopied] = useState(false);
   const [telemetry, setTelemetry] = useState<HlsTelemetry | null>(null);
   const [showTelemetry, setShowTelemetry] = useState(false);
-  const [activeTab, setActiveTab] = useState<'live' | 'archive'>('live');
+  const [activeTab, setActiveTab] = useState<'live' | 'webrtc' | 'archive'>('live');
   
   const isOnline = detailsCam.connected && !detailsCam.disabled;
   const trafficPercent = Math.min(100, ((detailsCam.trafficUsed || 0) / (detailsCam.trafficLimit || 200 * 1024 * 1024 * 1024)) * 100);
@@ -66,6 +67,12 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                 {t('cameras.details.live')}
               </button>
               <button 
+                onClick={() => setActiveTab('webrtc')}
+                style={{ background: 'none', border: 'none', padding: '0.5rem 1rem', color: activeTab === 'webrtc' ? 'var(--primary)' : 'var(--text-muted)', borderBottom: activeTab === 'webrtc' ? '2px solid var(--primary)' : '2px solid transparent', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Live (WebRTC)
+              </button>
+              <button 
                 onClick={() => setActiveTab('archive')}
                 style={{ background: 'none', border: 'none', padding: '0.5rem 1rem', color: activeTab === 'archive' ? 'var(--primary)' : 'var(--text-muted)', borderBottom: activeTab === 'archive' ? '2px solid var(--primary)' : '2px solid transparent', cursor: 'pointer', fontWeight: 600 }}
               >
@@ -77,6 +84,17 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
               <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--card-border)', background: '#000', aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {isOnline ? (
                   <VideoPlayer streamId={detailsCam.id} onTelemetryUpdate={setTelemetry} />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--text-muted)' }}>
+                    <ShieldAlert size={48} style={{ color: 'var(--danger)', marginBottom: '1rem', opacity: 0.8 }} />
+                    <span style={{ fontSize: '1.1rem' }}>{detailsCam.disabled ? t('cameras.details.streamDisabledMsg') : t('cameras.details.cameraOfflineMsg')}</span>
+                  </div>
+                )}
+              </div>
+            ) : activeTab === 'webrtc' ? (
+              <div style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--card-border)', background: '#000', aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {isOnline ? (
+                  <WebRTCPlayer streamId={detailsCam.id} />
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--text-muted)' }}>
                     <ShieldAlert size={48} style={{ color: 'var(--danger)', marginBottom: '1rem', opacity: 0.8 }} />
@@ -122,7 +140,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
             )}
 
             <div className="glass" style={{ padding: '1.2rem', borderRadius: '12px' }}>
-              <h4 style={{ margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><HardDrive size={16} color="var(--primary)"/> {t('cameras.details.processing')}</h4>
+              <h4 style={{ margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><HardDrive size={16} color="var(--primary)"/> {t('cameras.details.processing')} {activeTab === 'webrtc' ? '(WebRTC)' : '(HLS)'}</h4>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('cameras.details.dataIn')}</div>
@@ -173,24 +191,43 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                     </div>
                     
                     <div>
-                      <h5 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' }}>{t('cameras.details.frontend')}</h5>
+                      <h5 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' }}>{t('cameras.details.frontend')} {activeTab === 'webrtc' ? '(WebRTC)' : '(HLS)'}</h5>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.buffer')}</span>
-                          <span style={{ color: '#fff' }}>{telemetry ? `${telemetry.bufferLength.toFixed(2)} s` : '-'}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.latency')}</span>
-                          <span style={{ color: '#fff' }}>{telemetry ? `${telemetry.latency.toFixed(2)} s` : '-'}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.capacity')}</span>
-                          <span style={{ color: '#fff' }}>{telemetry ? `${(telemetry.bandwidth / 1000000).toFixed(1)} Mbps` : '-'}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.dropped')}</span>
-                          <span style={{ color: telemetry && telemetry.droppedFrames > 0 ? 'var(--danger)' : '#fff' }}>{telemetry ? telemetry.droppedFrames : '-'}</span>
-                        </div>
+                        {activeTab === 'webrtc' ? (
+                          <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.latency')}</span>
+                              <span style={{ color: 'var(--success)', fontWeight: 600 }}>&lt; 0.5 s (Ultra-Low)</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>Protocol</span>
+                              <span style={{ color: '#fff' }}>WHEP (UDP)</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.buffer')}</span>
+                              <span style={{ color: '#fff' }}>N/A (Real-time)</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.buffer')}</span>
+                              <span style={{ color: '#fff' }}>{telemetry ? `${telemetry.bufferLength.toFixed(2)} s` : '-'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.latency')}</span>
+                              <span style={{ color: '#fff' }}>{telemetry ? `${telemetry.latency.toFixed(2)} s` : '-'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.capacity')}</span>
+                              <span style={{ color: '#fff' }}>{telemetry ? `${(telemetry.bandwidth / 1000000).toFixed(1)} Mbps` : '-'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.dropped')}</span>
+                              <span style={{ color: telemetry && telemetry.droppedFrames > 0 ? 'var(--danger)' : '#fff' }}>{telemetry ? telemetry.droppedFrames : '-'}</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -237,12 +274,14 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                 </div>
                 
                 <div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '2px' }}>{t('cameras.details.output')}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '2px' }}>{t('cameras.details.output')} {activeTab === 'webrtc' ? '(WebRTC WHEP)' : '(HLS)'}</div>
                   <div 
                     style={{ fontSize: '0.9rem', wordBreak: 'break-all', fontFamily: 'monospace', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: '0.2s' }}
                     onClick={() => {
-                      const hlsUrl = `${window.location.protocol}//${window.location.hostname}:8080/stream/hls/${detailsCam.id}/index.m3u8`;
-                      navigator.clipboard.writeText(hlsUrl);
+                      const url = activeTab === 'webrtc' 
+                        ? `${window.location.protocol}//${window.location.hostname}:8080/stream/webrtc/whep/${detailsCam.id}`
+                        : `${window.location.protocol}//${window.location.hostname}:8080/stream/hls/${detailsCam.id}/index.m3u8`;
+                      navigator.clipboard.writeText(url);
                       setCopied(true);
                       setTimeout(() => setCopied(false), 2000);
                     }}
@@ -250,7 +289,11 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                     onMouseOut={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.2)'}
                     title="Click to copy URL"
                   >
-                    <span>{`${window.location.protocol}//${window.location.hostname}:8080/stream/hls/${detailsCam.id}/index.m3u8`}</span>
+                    <span>
+                      {activeTab === 'webrtc' 
+                        ? `${window.location.protocol}//${window.location.hostname}:8080/stream/webrtc/whep/${detailsCam.id}`
+                        : `${window.location.protocol}//${window.location.hostname}:8080/stream/hls/${detailsCam.id}/index.m3u8`}
+                    </span>
                     {copied ? <Check size={16} color="var(--success)" /> : <Copy size={16} style={{ color: 'var(--text-muted)' }} />}
                   </div>
                 </div>

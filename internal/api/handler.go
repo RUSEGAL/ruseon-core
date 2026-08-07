@@ -15,6 +15,7 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/logger"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 	"github.com/RUSEGAL/ruseon-core/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/internal/webrtc"
 	"strconv"
 	"strings"
 )
@@ -352,6 +353,36 @@ func (h *Handler) GetHLSSegment(c *gin.Context) {
 	c.Data(http.StatusOK, "video/mp2t", data)
 
 	st.AddBytesSent(uint64(len(data)))
+}
+
+// PostWHEP обрабатывает WebRTC SDP Offer и возвращает SDP Answer (WHEP протокол).
+func (h *Handler) PostWHEP(c *gin.Context) {
+	id := c.Param("id")
+	h.tracker.Mark(c.ClientIP(), id)
+	
+	st, ok := h.manager.GetStream(id)
+	if !ok {
+		c.String(http.StatusNotFound, "Stream not found")
+		return
+	}
+
+	body, err := c.GetRawData()
+	if err != nil {
+		c.String(http.StatusBadRequest, "Failed to read SDP offer")
+		return
+	}
+	offerSDP := string(body)
+
+	whepHandler := webrtc.NewWHEPHandler(id, st.GetRingBuffer())
+	answerSDP, err := whepHandler.HandleOffer(c.Request.Context(), offerSDP)
+	if err != nil {
+		log.Error().Err(err).Str("stream", id).Msg("WHEP HandleOffer failed")
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.Header("Content-Type", "application/sdp")
+	c.String(http.StatusCreated, answerSDP)
 }
 
 // GetServerStats   
