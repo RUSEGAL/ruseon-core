@@ -11,6 +11,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/pion/rtp v1.10.5
+	github.com/pion/webrtc/v4 v4.2.18
 	github.com/rs/zerolog v1.32.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/sys v0.47.0
@@ -65,7 +66,6 @@ require (
 	github.com/pion/stun/v3 v3.1.6 // indirect
 	github.com/pion/transport/v4 v4.0.2 // indirect
 	github.com/pion/turn/v5 v5.0.12 // indirect
-	github.com/pion/webrtc/v4 v4.2.18 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/quic-go/quic-go v0.59.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
