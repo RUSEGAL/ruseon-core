@@ -1,10 +1,12 @@
 package localfs
 
 import (
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
@@ -20,15 +22,22 @@ func NewLocalFS(baseDir string) *LocalFS {
 	}
 }
 
-func (l *LocalFS) fullPath(path string) string {
-	if l.baseDir == "" {
-		return path
+func (l *LocalFS) fullPath(p string) (string, error) {
+	cleanPath := filepath.Clean(p)
+	if filepath.IsAbs(cleanPath) || strings.HasPrefix(cleanPath, "..") {
+		return "", fmt.Errorf("invalid path: %s", p)
 	}
-	return filepath.Join(l.baseDir, path)
+	if l.baseDir == "" {
+		return cleanPath, nil
+	}
+	return filepath.Join(l.baseDir, cleanPath), nil
 }
 
 func (l *LocalFS) Write(path string, data []byte) error {
-	fp := l.fullPath(path)
+	fp, err := l.fullPath(path)
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(fp), 0755); err != nil {
 		return err
 	}
@@ -36,23 +45,42 @@ func (l *LocalFS) Write(path string, data []byte) error {
 }
 
 func (l *LocalFS) Read(path string) ([]byte, error) {
-	return os.ReadFile(l.fullPath(path))
+	fp, err := l.fullPath(path)
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadFile(fp)
 }
 
 func (l *LocalFS) Delete(path string) error {
-	return os.Remove(l.fullPath(path))
+	fp, err := l.fullPath(path)
+	if err != nil {
+		return err
+	}
+	return os.Remove(fp)
 }
 
 func (l *LocalFS) Stat(path string) (fs.FileInfo, error) {
-	return os.Stat(l.fullPath(path))
+	fp, err := l.fullPath(path)
+	if err != nil {
+		return nil, err
+	}
+	return os.Stat(fp)
 }
 
 func (l *LocalFS) ReadDir(path string) ([]fs.DirEntry, error) {
-	return os.ReadDir(l.fullPath(path))
+	fp, err := l.fullPath(path)
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadDir(fp)
 }
 
 func (l *LocalFS) Create(path string) (registry.WriteSeekCloser, error) {
-	fp := l.fullPath(path)
+	fp, err := l.fullPath(path)
+	if err != nil {
+		return nil, err
+	}
 	if err := os.MkdirAll(filepath.Dir(fp), 0755); err != nil {
 		return nil, err
 	}
@@ -64,13 +92,29 @@ func (l *LocalFS) Create(path string) (registry.WriteSeekCloser, error) {
 }
 
 func (l *LocalFS) Open(path string) (io.ReadSeekCloser, error) {
-	return os.Open(l.fullPath(path))
+	fp, err := l.fullPath(path)
+	if err != nil {
+		return nil, err
+	}
+	return os.Open(fp)
 }
 
 func (l *LocalFS) MkdirAll(path string) error {
-	return os.MkdirAll(l.fullPath(path), 0755)
+	fp, err := l.fullPath(path)
+	if err != nil {
+		return err
+	}
+	return os.MkdirAll(fp, 0755)
 }
 
 func (l *LocalFS) Rename(oldPath, newPath string) error {
-	return os.Rename(l.fullPath(oldPath), l.fullPath(newPath))
+	oldFp, err := l.fullPath(oldPath)
+	if err != nil {
+		return err
+	}
+	newFp, err := l.fullPath(newPath)
+	if err != nil {
+		return err
+	}
+	return os.Rename(oldFp, newFp)
 }
