@@ -24,11 +24,16 @@ func NewLocalFS(baseDir string) *LocalFS {
 
 func (l *LocalFS) fullPath(p string) (string, error) {
 	cleanPath := filepath.Clean(p)
+	
+	if l.baseDir == "" {
+		if strings.HasPrefix(cleanPath, "..") {
+			return "", fmt.Errorf("invalid path: %s", p)
+		}
+		return cleanPath, nil
+	}
+
 	if filepath.IsAbs(cleanPath) || strings.HasPrefix(cleanPath, "..") {
 		return "", fmt.Errorf("invalid path: %s", p)
-	}
-	if l.baseDir == "" {
-		return cleanPath, nil
 	}
 	return filepath.Join(l.baseDir, cleanPath), nil
 }
