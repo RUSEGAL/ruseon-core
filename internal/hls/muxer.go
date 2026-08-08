@@ -129,11 +129,11 @@ func (m *Muxer) run() {
 
 				ms := localPts / 90
 				sec := ms / 1000
-				ms = ms % 1000
-				min := sec / 60
-				sec = sec % 60
-				hr := min / 60
-				min = min % 60
+				ms %= 1000
+				minutes := sec / 60
+				sec %= 60
+				hr := minutes / 60
+				minutes %= 60
 
 				// Сделаем cue длительностью 300мс
 				msEnd := ms + 300
@@ -142,7 +142,7 @@ func (m *Muxer) run() {
 					msEnd -= 1000
 					secEnd++
 				}
-				minEnd := min
+				minEnd := minutes
 				if secEnd >= 60 {
 					secEnd -= 60
 					minEnd++

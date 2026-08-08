@@ -66,7 +66,7 @@ func TestMetadataBroadcaster_SlowClient(t *testing.T) {
 	}
 }
 
-func TestMetadataBroadcaster_Race(t *testing.T) {
+func TestMetadataBroadcaster_Race(_ *testing.T) {
 	mb := NewMetadataBroadcaster()
 	
 	// Запускаем подписчиков
