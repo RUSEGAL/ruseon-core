@@ -153,7 +153,7 @@ func (m *Muxer) run() {
 					hrEnd++
 				}
 
-				vttBuf.WriteString(fmt.Sprintf("%02d:%02d:%02d.%03d --> %02d:%02d:%02d.%03d\n", hr, min, sec, ms, hrEnd, minEnd, secEnd, msEnd))
+				vttBuf.WriteString(fmt.Sprintf("%02d:%02d:%02d.%03d --> %02d:%02d:%02d.%03d\n", hr, minutes, sec, ms, hrEnd, minEnd, secEnd, msEnd))
 				data, _ := json.Marshal(req)
 				vttBuf.Write(data)
 				vttBuf.WriteString("\n\n")
@@ -209,7 +209,7 @@ func (m *Muxer) run() {
 
 		nalus := frame.NALUs
 
-		// Для H264/H265 перед ключевым кадром добавляем параметры (VPS/SPS/PPS), 
+		// Для H264/H265 перед ключевым кадром добавляем параметры (VPS/SPS/PPS),
 		// чтобы клиенты могли инициализировать декодер, если они подключились к этому сегменту.
 		if frame.IsKeyFrame && sps != nil && pps != nil {
 			hasParams := false
@@ -325,8 +325,8 @@ func (m *Muxer) watchdog() {
 
 // GetPlaylist генерирует M3U8 манифест.
 func (m *Muxer) GetPlaylist() string {
-	// В режиме Lazy HLS при первом запуске сегментов еще нет. 
-	// Ждем до 5 секунд, пока сгенерируется хотя бы один сегмент, 
+	// В режиме Lazy HLS при первом запуске сегментов еще нет.
+	// Ждем до 5 секунд, пока сгенерируется хотя бы один сегмент,
 	// чтобы плееры (VLC, k6) не зависали и не паниковали из-за пустого плейлиста.
 	for i := 0; i < 100; i++ {
 		m.mu.RLock()
@@ -344,7 +344,7 @@ func (m *Muxer) GetPlaylist() string {
 	var buf bytes.Buffer
 	buf.WriteString("#EXTM3U\n")
 	buf.WriteString("#EXT-X-VERSION:3\n")
-	
+
 	maxDuration := 2
 	for _, seg := range m.segments {
 		d := int(seg.Duration.Seconds())
@@ -353,7 +353,7 @@ func (m *Muxer) GetPlaylist() string {
 		}
 	}
 	buf.WriteString(fmt.Sprintf("#EXT-X-TARGETDURATION:%d\n", maxDuration+1))
-	
+
 	if len(m.segments) > 0 {
 		seq := m.seqCount - uint64(len(m.segments)) + 1
 		buf.WriteString(fmt.Sprintf("#EXT-X-MEDIA-SEQUENCE:%d\n", seq))
@@ -379,7 +379,7 @@ func (m *Muxer) GetSubsPlaylist() string {
 	var buf bytes.Buffer
 	buf.WriteString("#EXTM3U\n")
 	buf.WriteString("#EXT-X-VERSION:3\n")
-	
+
 	maxDuration := 2
 	for _, seg := range m.segments {
 		d := int(seg.Duration.Seconds())
@@ -388,7 +388,7 @@ func (m *Muxer) GetSubsPlaylist() string {
 		}
 	}
 	buf.WriteString(fmt.Sprintf("#EXT-X-TARGETDURATION:%d\n", maxDuration+1))
-	
+
 	if len(m.segments) > 0 {
 		seq := m.seqCount - uint64(len(m.segments)) + 1
 		buf.WriteString(fmt.Sprintf("#EXT-X-MEDIA-SEQUENCE:%d\n", seq))
