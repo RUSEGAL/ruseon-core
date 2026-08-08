@@ -4,10 +4,33 @@ package ruseon.core.frame;
 
 option go_package = "github.com/RUSEGAL/ruseon-core/pkg/grpc/pb";
 
-// FrameService предоставляет потоковый доступ к сырым видеокадрам.
+// FrameService предоставляет потоковый доступ к сырым видеокадрам и позволяет загружать метаданные.
 service FrameService {
   // StreamFrames подписывается на поток камеры и возвращает H.264/H.265 кадры.
   rpc StreamFrames(StreamRequest) returns (stream FrameResponse) {}
+
+  // PushMetadata принимает поток метаданных (например, Bounding Boxes) от ИИ-модулей.
+  rpc PushMetadata(stream MetadataRequest) returns (MetadataResponse) {}
+}
+
+message BoundingBox {
+  float x = 1;          // Координата X левого верхнего угла (0.0 - 1.0)
+  float y = 2;          // Координата Y левого верхнего угла (0.0 - 1.0)
+  float width = 3;      // Ширина рамки (0.0 - 1.0)
+  float height = 4;     // Высота рамки (0.0 - 1.0)
+  string label = 5;     // Имя класса (например, "person")
+  float confidence = 6; // Уверенность детекции (0.0 - 1.0)
+}
+
+message MetadataRequest {
+  string camera_id = 1;
+  int64 pts = 2;                    // PTS кадра, к которому относятся метаданные
+  repeated BoundingBox objects = 3; // Обнаруженные объекты
+}
+
+message MetadataResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 message StreamRequest {

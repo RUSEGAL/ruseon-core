@@ -3,6 +3,7 @@ package hls
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -12,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/RUSEGAL/ruseon-core/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
 )
 
 // Segment представляет один HLS ts-сегмент.
@@ -21,6 +23,7 @@ type Segment struct {
 	Data            []byte
 	buf             *bytes.Buffer // ссылка для возврата в пул
 	IsDiscontinuity bool
+	VTTData         []byte
 }
 
 var bufferPool = sync.Pool{
@@ -37,16 +40,22 @@ type Muxer struct {
 	cancel         context.CancelFunc
 	targetDuration time.Duration
 
+	metaChan    <-chan *pb.MetadataRequest
+	unsubscribe func()
+
 	mu       sync.RWMutex
 	segments []*Segment
 	seqCount uint64
+
+	currentMetaMu sync.Mutex
+	currentMeta   []*pb.MetadataRequest
 
 	lastFrameTime      atomic.Int64
 	needsDiscontinuity bool
 }
 
 // NewMuxer создает новый Muxer для потока.
-func NewMuxer(streamID string, rb *buffer.RingBuffer) *Muxer {
+func NewMuxer(streamID string, rb *buffer.RingBuffer, metaChan <-chan *pb.MetadataRequest, unsubscribe func()) *Muxer {
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &Muxer{
 		streamID:       streamID,
@@ -55,10 +64,15 @@ func NewMuxer(streamID string, rb *buffer.RingBuffer) *Muxer {
 		cancel:         cancel,
 		targetDuration: 2 * time.Second, // Целевая длина сегмента: 2 секунды (хорошо для low-latency)
 		segments:       make([]*Segment, 0, 10),
+		metaChan:       metaChan,
+		unsubscribe:    unsubscribe,
 	}
 	m.lastFrameTime.Store(time.Now().UnixNano())
 	go m.run()
 	go m.watchdog()
+	if metaChan != nil {
+		go m.readMetadata()
+	}
 	return m
 }
 
@@ -97,6 +111,54 @@ func (m *Muxer) run() {
 
 		// Если текущий сегмент достиг целевой длины и пришел новый I-кадр, закрываем сегмент
 		if currentBuf != nil && frame.IsKeyFrame && frame.Timestamp-segmentStart >= m.targetDuration {
+			m.currentMetaMu.Lock()
+			meta := m.currentMeta
+			m.currentMeta = nil
+			m.currentMetaMu.Unlock()
+
+			segmentStartPts := int64(segmentStart * 90000 / time.Second)
+			var vttBuf bytes.Buffer
+			vttBuf.WriteString("WEBVTT\n")
+			vttBuf.WriteString(fmt.Sprintf("X-TIMESTAMP-MAP=MPEGTS:%d,LOCAL:00:00:00.000\n\n", segmentStartPts))
+
+			for _, req := range meta {
+				var localPts int64
+				if int64(req.Pts) > segmentStartPts {
+					localPts = int64(req.Pts) - segmentStartPts
+				}
+
+				ms := localPts / 90
+				sec := ms / 1000
+				ms = ms % 1000
+				min := sec / 60
+				sec = sec % 60
+				hr := min / 60
+				min = min % 60
+
+				// Сделаем cue длительностью 300мс
+				msEnd := ms + 300
+				secEnd := sec
+				if msEnd >= 1000 {
+					msEnd -= 1000
+					secEnd++
+				}
+				minEnd := min
+				if secEnd >= 60 {
+					secEnd -= 60
+					minEnd++
+				}
+				hrEnd := hr
+				if minEnd >= 60 {
+					minEnd -= 60
+					hrEnd++
+				}
+
+				vttBuf.WriteString(fmt.Sprintf("%02d:%02d:%02d.%03d --> %02d:%02d:%02d.%03d\n", hr, min, sec, ms, hrEnd, minEnd, secEnd, msEnd))
+				data, _ := json.Marshal(req)
+				vttBuf.Write(data)
+				vttBuf.WriteString("\n\n")
+			}
+
 			m.mu.Lock()
 			m.seqCount++
 			seg := &Segment{
@@ -105,6 +167,7 @@ func (m *Muxer) run() {
 				Data:            currentBuf.Bytes(),
 				buf:             currentBuf,
 				IsDiscontinuity: m.needsDiscontinuity,
+				VTTData:         vttBuf.Bytes(),
 			}
 			m.needsDiscontinuity = false
 			m.segments = append(m.segments, seg)
@@ -190,8 +253,27 @@ func (m *Muxer) run() {
 	}
 }
 
+func (m *Muxer) readMetadata() {
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case req, ok := <-m.metaChan:
+			if !ok {
+				return
+			}
+			m.currentMetaMu.Lock()
+			m.currentMeta = append(m.currentMeta, req)
+			m.currentMetaMu.Unlock()
+		}
+	}
+}
+
 // Stop останавливает работу Muxer'а.
 func (m *Muxer) Stop() {
+	if m.unsubscribe != nil {
+		m.unsubscribe()
+	}
 	m.cancel()
 }
 
@@ -289,19 +371,62 @@ func (m *Muxer) GetPlaylist() string {
 	return buf.String()
 }
 
-// GetSegment возвращает данные TS-сегмента по его имени.
-func (m *Muxer) GetSegment(name string) []byte {
+// GetSubsPlaylist генерирует M3U8 манифест для субтитров (WebVTT).
+func (m *Muxer) GetSubsPlaylist() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var buf bytes.Buffer
+	buf.WriteString("#EXTM3U\n")
+	buf.WriteString("#EXT-X-VERSION:3\n")
+	
+	maxDuration := 2
+	for _, seg := range m.segments {
+		d := int(seg.Duration.Seconds())
+		if d > maxDuration {
+			maxDuration = d
+		}
+	}
+	buf.WriteString(fmt.Sprintf("#EXT-X-TARGETDURATION:%d\n", maxDuration+1))
+	
+	if len(m.segments) > 0 {
+		seq := m.seqCount - uint64(len(m.segments)) + 1
+		buf.WriteString(fmt.Sprintf("#EXT-X-MEDIA-SEQUENCE:%d\n", seq))
+	}
+
+	for _, seg := range m.segments {
+		if seg.IsDiscontinuity {
+			buf.WriteString("#EXT-X-DISCONTINUITY\n")
+		}
+		buf.WriteString(fmt.Sprintf("#EXTINF:%.3f,\n", seg.Duration.Seconds()))
+		// Меняем .ts на .vtt
+		vttName := seg.Name[:len(seg.Name)-3] + ".vtt"
+		buf.WriteString(vttName)
+		buf.WriteByte('\n')
+	}
+
+	return buf.String()
+}
+
+// GetSegment возвращает данные TS или VTT сегмента по его имени.
+func (m *Muxer) GetSegment(name string) ([]byte, string) {
+	isVTT := len(name) > 4 && name[len(name)-4:] == ".vtt"
+	tsName := name
+	if isVTT {
+		tsName = name[:len(name)-4] + ".ts"
+	}
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	for _, seg := range m.segments {
-		if seg.Name == name {
-			// Создаем копию байтов для ответа, так как buf может уйти обратно в пул.
-			// Плеер читает медленно, и буфер может переиспользоваться во время отдачи файла.
-			// Либо мы можем отдавать его как есть, но это риск Data Race. Для безопасности копируем.
+		if seg.Name == tsName {
+			if isVTT {
+				return seg.VTTData, "text/vtt"
+			}
 			resp := make([]byte, len(seg.Data))
 			copy(resp, seg.Data)
-			return resp
+			return resp, "video/mp2t"
 		}
 	}
-	return nil
+	return nil, ""
 }

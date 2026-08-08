@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
-import { Loader2, Maximize, Minimize, WifiOff } from 'lucide-react';
+import { Loader2, Maximize, Minimize, WifiOff, Eye, EyeOff } from 'lucide-react';
+import { MetadataOverlay } from './MetadataOverlay';
+import type { MetadataPayload } from './MetadataOverlay';
 
 import type { HlsTelemetry } from '../types';
 
@@ -23,6 +25,8 @@ export function VideoPlayer({ streamId, sourceUrl, autoPlay = true, onTelemetryU
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [metadata, setMetadata] = useState<MetadataPayload | null>(null);
+  const [showMetadata, setShowMetadata] = useState(false);
 
   const maxRetries = 5;
   const hlsRef = useRef<Hls | null>(null);
@@ -190,13 +194,34 @@ export function VideoPlayer({ streamId, sourceUrl, autoPlay = true, onTelemetryU
       }
     };
 
+    const handleAddTrack = (e: TrackEvent) => {
+      const track = e.track as TextTrack;
+      if (track) {
+        track.mode = 'hidden'; // Hide the JSON subtitles
+        track.addEventListener('cuechange', () => {
+          const activeCues = track.activeCues;
+          if (activeCues && activeCues.length > 0) {
+            const cue = activeCues[0] as any;
+            try {
+              const data = JSON.parse(cue.text);
+              setMetadata(data);
+            } catch (err) {}
+          } else {
+            setMetadata(null);
+          }
+        });
+      }
+    };
+
     video.addEventListener('playing', handlePlaying);
     video.addEventListener('waiting', handleWaiting);
+    video.textTracks.addEventListener('addtrack', handleAddTrack);
 
     return () => {
       video.removeEventListener('playing', handlePlaying);
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('error', handleNativeError);
+      video.textTracks.removeEventListener('addtrack', handleAddTrack);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
@@ -248,20 +273,19 @@ export function VideoPlayer({ streamId, sourceUrl, autoPlay = true, onTelemetryU
       {status === 'reconnecting' && (
         <div className="player-overlay bg-dark">
           <Loader2 className="spinner mb-3 text-primary" size={42} />
-          <span className="text-base font-semibold tracking-wide text-white-90">Reconnecting ({retryCount}/{maxRetries})</span>
+          <span className="text-sm font-semibold tracking-wide text-white-90">Reconnecting ({retryCount}/{maxRetries})</span>
           <span className="text-sm text-white-60 mt-1">Please wait, restoring signal...</span>
         </div>
       )}
 
       {status === 'error' && (
-        <div className="player-overlay bg-error">
-          <div className="error-box">
-            <WifiOff size={48} className="error-icon text-danger" />
-            <h3>Signal Lost</h3>
-            <p>{errorMsg}</p>
-          </div>
+        <div className="player-overlay bg-dark border border-danger/30">
+          <WifiOff className="text-danger mb-2" size={42} />
+          <span className="text-sm font-semibold text-danger">{errorMsg}</span>
         </div>
       )}
+
+      {showMetadata && <MetadataOverlay metadata={metadata} videoRef={videoRef} />}
 
       {/* Custom Controls UI (Hover) */}
       <div className={`player-controls ${showControls || status !== 'playing' ? 'visible' : 'hidden'}`}>
@@ -274,15 +298,26 @@ export function VideoPlayer({ streamId, sourceUrl, autoPlay = true, onTelemetryU
           </div>
         )}
 
-        {/* Bottom-right Fullscreen */}
+        {/* Bottom-right Controls */}
         {(status === 'playing' || status === 'reconnecting' || status === 'loading') && (
-          <button 
-            onClick={toggleFullscreen}
-            className="btn-fullscreen"
-            title="Toggle Fullscreen"
-          >
-            {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
-          </button>
+          <div style={{ position: 'absolute', bottom: '1rem', right: '1rem', display: 'flex', gap: '8px', pointerEvents: 'auto' }}>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setShowMetadata(!showMetadata); }}
+              className="btn-fullscreen"
+              style={{ position: 'relative', bottom: 'auto', right: 'auto', opacity: showMetadata ? 1 : 0.5 }}
+              title="Toggle Metadata"
+            >
+              {showMetadata ? <Eye size={20} /> : <EyeOff size={20} />}
+            </button>
+            <button 
+              onClick={toggleFullscreen}
+              className="btn-fullscreen"
+              style={{ position: 'relative', bottom: 'auto', right: 'auto' }}
+              title="Toggle Fullscreen"
+            >
+              {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+            </button>
+          </div>
         )}
       </div>
     </div>

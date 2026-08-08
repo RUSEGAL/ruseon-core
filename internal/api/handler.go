@@ -322,6 +322,32 @@ func (h *Handler) GetHLSPlaylist(c *gin.Context) {
 	}
 
 	muxer := st.WakeUpHLSMuxer()
+	// Force muxer to wake up and generate stream, but we return Master Playlist here
+	_ = muxer.GetPlaylist()
+
+	c.Header("Content-Type", "application/vnd.apple.mpegurl")
+	masterPlaylist := `#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="Metadata",DEFAULT=YES,AUTOSELECT=YES,URI="subs.m3u8"
+#EXT-X-STREAM-INF:BANDWIDTH=5000000,SUBTITLES="subs"
+stream.m3u8
+`
+	c.String(http.StatusOK, masterPlaylist)
+
+	st.AddBytesSent(uint64(len(masterPlaylist)))
+}
+
+// GetHLSVideoPlaylist возвращает M3U8 плейлист видео (оригинальный) для конкретной камеры.
+func (h *Handler) GetHLSVideoPlaylist(c *gin.Context) {
+	id := c.Param("id")
+	h.tracker.Mark(c.ClientIP(), id)
+	st, ok := h.manager.GetStream(id)
+	if !ok {
+		c.String(http.StatusNotFound, "Stream not found")
+		return
+	}
+
+	muxer := st.WakeUpHLSMuxer()
 	playlist := muxer.GetPlaylist()
 
 	c.Header("Content-Type", "application/vnd.apple.mpegurl")
@@ -330,7 +356,24 @@ func (h *Handler) GetHLSPlaylist(c *gin.Context) {
 	st.AddBytesSent(uint64(len(playlist)))
 }
 
-// GetHLSSegment возвращает TS-сегмент для конкретной камеры.
+// GetHLSSubsPlaylist возвращает M3U8 плейлист субтитров для конкретной камеры.
+func (h *Handler) GetHLSSubsPlaylist(c *gin.Context) {
+	id := c.Param("id")
+	h.tracker.Mark(c.ClientIP(), id)
+	st, ok := h.manager.GetStream(id)
+	if !ok {
+		c.String(http.StatusNotFound, "Stream not found")
+		return
+	}
+
+	muxer := st.WakeUpHLSMuxer()
+	playlist := muxer.GetSubsPlaylist()
+
+	c.Header("Content-Type", "application/vnd.apple.mpegurl")
+	c.String(http.StatusOK, playlist)
+}
+
+// GetHLSSegment возвращает TS-сегмент или VTT файл для конкретной камеры.
 func (h *Handler) GetHLSSegment(c *gin.Context) {
 	id := c.Param("id")
 	h.tracker.Mark(c.ClientIP(), id)
@@ -343,14 +386,14 @@ func (h *Handler) GetHLSSegment(c *gin.Context) {
 	}
 
 	muxer := st.WakeUpHLSMuxer()
-	data := muxer.GetSegment(segment)
+	data, mimeType := muxer.GetSegment(segment)
 	if data == nil {
 		c.String(http.StatusNotFound, "Segment not found")
 		return
 	}
 
-	c.Header("Content-Type", "video/mp2t")
-	c.Data(http.StatusOK, "video/mp2t", data)
+	c.Header("Content-Type", mimeType)
+	c.Data(http.StatusOK, mimeType, data)
 
 	st.AddBytesSent(uint64(len(data)))
 }
@@ -373,7 +416,7 @@ func (h *Handler) PostWHEP(c *gin.Context) {
 	}
 	offerSDP := string(body)
 
-	whepHandler := webrtc.NewWHEPHandler(id, st.GetRingBuffer())
+	whepHandler := webrtc.NewWHEPHandler(id, st.GetRingBuffer(), st.GetMetadataBroadcaster())
 	answerSDP, err := whepHandler.HandleOffer(c.Request.Context(), offerSDP)
 	if err != nil {
 		log.Error().Err(err).Str("stream", id).Msg("WHEP HandleOffer failed")

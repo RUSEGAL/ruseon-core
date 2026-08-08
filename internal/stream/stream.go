@@ -28,6 +28,9 @@ type Stream struct {
 	// Буфер кадров для этой камеры
 	ringBuffer *buffer.RingBuffer
 	
+	// Бродкастер метаданных
+	metaBroadcaster *MetadataBroadcaster
+	
 	muxerMu        sync.Mutex
 	hlsMuxer       *hls.Muxer
 	lastHLSRequest time.Time
@@ -60,13 +63,14 @@ func NewStream(id, url string, record bool, lazyHLS bool, transport string) *Str
 		transport:  transport,
 		ctx:        ctx,
 		cancelCtx:  cancel,
-		// Буфер на 100 кадров (примерно 4 секунды при 25 FPS)
 		ringBuffer: rb,
+		metaBroadcaster: NewMetadataBroadcaster(),
 		lazyHLS:    lazyHLS,
 	}
 
 	if !lazyHLS {
-		s.hlsMuxer = hls.NewMuxer(id, rb)
+		sub := s.metaBroadcaster.Subscribe()
+		s.hlsMuxer = hls.NewMuxer(id, rb, sub.C, func() { s.metaBroadcaster.Unsubscribe(sub) })
 	} else {
 		go s.lazyHLSWatchdog()
 	}
@@ -178,6 +182,10 @@ func (s *Stream) GetRingBuffer() *buffer.RingBuffer {
 	return s.ringBuffer
 }
 
+func (s *Stream) GetMetadataBroadcaster() *MetadataBroadcaster {
+	return s.metaBroadcaster
+}
+
 // WakeUpHLSMuxer возвращает мультиплексор HLS, просыпая его при необходимости.
 func (s *Stream) WakeUpHLSMuxer() *hls.Muxer {
 	v, _, _ := s.sfGroup.Do("wakeup", func() (interface{}, error) {
@@ -188,7 +196,8 @@ func (s *Stream) WakeUpHLSMuxer() *hls.Muxer {
 		
 		if s.hlsMuxer == nil {
 			log.Info().Str("id", s.ID).Msg("Waking up HLS Muxer (Lazy Mode)")
-			s.hlsMuxer = hls.NewMuxer(s.ID, s.ringBuffer)
+			sub := s.metaBroadcaster.Subscribe()
+			s.hlsMuxer = hls.NewMuxer(s.ID, s.ringBuffer, sub.C, func() { s.metaBroadcaster.Unsubscribe(sub) })
 		}
 		return s.hlsMuxer, nil
 	})

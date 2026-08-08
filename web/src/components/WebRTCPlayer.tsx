@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { MetadataOverlay } from './MetadataOverlay';
+import type { MetadataPayload } from './MetadataOverlay';
 
 interface WebRTCPlayerProps {
   streamId: string;
@@ -9,6 +12,9 @@ export function WebRTCPlayer({ streamId }: WebRTCPlayerProps) {
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string>('Connecting...');
+  const [metadata, setMetadata] = useState<MetadataPayload | null>(null);
+  const [showMetadata, setShowMetadata] = useState(false);
+  const clearMetadataTimeout = useRef<number | null>(null);
 
   useEffect(() => {
     const startWHEP = async () => {
@@ -24,6 +30,23 @@ export function WebRTCPlayer({ streamId }: WebRTCPlayerProps) {
           if (videoRef.current && event.streams[0]) {
             videoRef.current.srcObject = event.streams[0];
             setStatus('Playing (Low Latency)');
+          }
+        };
+
+        const dc = pc.createDataChannel('metadata', { ordered: false, maxRetransmits: 0 });
+        dc.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            setMetadata(data);
+
+            if (clearMetadataTimeout.current) {
+              window.clearTimeout(clearMetadataTimeout.current);
+            }
+            clearMetadataTimeout.current = window.setTimeout(() => {
+              setMetadata(null);
+            }, 1000); // clear if no updates for 1 second
+          } catch (e) {
+            console.error('Failed to parse metadata', e);
           }
         };
 
@@ -92,6 +115,21 @@ export function WebRTCPlayer({ streamId }: WebRTCPlayerProps) {
           <div>{error}</div>
         </div>
       )}
+      {showMetadata && <MetadataOverlay metadata={metadata} videoRef={videoRef} />}
+
+      <div style={{ position: 'absolute', bottom: '16px', right: '16px', display: 'flex', gap: '8px' }}>
+        <button 
+          onClick={(e) => { e.stopPropagation(); setShowMetadata(!showMetadata); }}
+          style={{ 
+            background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', 
+            padding: '8px', borderRadius: '4px', cursor: 'pointer',
+            opacity: showMetadata ? 1 : 0.5 
+          }}
+          title="Toggle Metadata"
+        >
+          {showMetadata ? <Eye size={20} /> : <EyeOff size={20} />}
+        </button>
+      </div>
     </div>
   );
 }

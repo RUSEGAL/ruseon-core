@@ -10,7 +10,7 @@ import (
 
 func TestMuxer_LazyGetPlaylist_Wait(t *testing.T) {
 	rb := buffer.NewRingBuffer(10)
-	muxer := NewMuxer("test", rb)
+	muxer := NewMuxer("test", rb, nil, nil)
 	
 	start := time.Now()
 	
@@ -44,7 +44,7 @@ func TestMuxer_LazyGetPlaylist_Timeout(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 	rb := buffer.NewRingBuffer(10)
-	muxer := NewMuxer("test", rb)
+	muxer := NewMuxer("test", rb, nil, nil)
 	
 	// Ничего не генерируем. Muxer должен прождать ~3 секунды и вернуть пустой плейлист.
 	start := time.Now()
@@ -65,7 +65,7 @@ func TestMuxer_Lifecycle_And_GetSegment(t *testing.T) {
 	// We must set some SPS/PPS so the muxer can initialize TS writer
 	rb.SetParams(nil, []byte{0x67, 0x42, 0x00, 0x0a, 0xf8, 0x41, 0xa2}, []byte{0x68, 0xce, 0x38, 0x80})
 	
-	muxer := NewMuxer("test_lifecycle", rb)
+	muxer := NewMuxer("test_lifecycle", rb, nil, nil)
 	muxer.targetDuration = 100 * time.Millisecond // very short target for testing
 
 	// Give the muxer goroutine time to attach its reader
@@ -100,7 +100,7 @@ func TestMuxer_Lifecycle_And_GetSegment(t *testing.T) {
 		t.Errorf("Expected playlist to contain stream_1.ts, got: %s", playlist)
 	}
 
-	seg := muxer.GetSegment("stream_1.ts")
+	seg, _ := muxer.GetSegment("stream_1.ts")
 	if seg == nil {
 		t.Fatalf("Expected segment stream_1.ts to be found")
 	}
@@ -108,7 +108,7 @@ func TestMuxer_Lifecycle_And_GetSegment(t *testing.T) {
 		t.Fatalf("Segment is empty")
 	}
 
-	if s := muxer.GetSegment("unknown.ts"); s != nil {
+	if s, _ := muxer.GetSegment("unknown.ts"); s != nil {
 		t.Errorf("Expected nil for unknown segment")
 	}
 
@@ -118,7 +118,7 @@ func TestMuxer_Lifecycle_And_GetSegment(t *testing.T) {
 func BenchmarkMuxer_GetPlaylist(b *testing.B) {
 	rb := buffer.NewRingBuffer(10)
 	defer rb.Close()
-	muxer := NewMuxer("bench", rb)
+	muxer := NewMuxer("bench", rb, nil, nil)
 	
 	muxer.mu.Lock()
 	for i := 0; i < 5; i++ {
@@ -140,7 +140,7 @@ func BenchmarkMuxer_GetPlaylist(b *testing.B) {
 func BenchmarkMuxer_GetSegment(b *testing.B) {
 	rb := buffer.NewRingBuffer(10)
 	defer rb.Close()
-	muxer := NewMuxer("bench", rb)
+	muxer := NewMuxer("bench", rb, nil, nil)
 	
 	data := make([]byte, 1024*1024) // 1MB segment
 	muxer.mu.Lock()
@@ -155,6 +155,6 @@ func BenchmarkMuxer_GetSegment(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = muxer.GetSegment("stream_1.ts")
+		_, _ = muxer.GetSegment("stream_1.ts")
 	}
 }

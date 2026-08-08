@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/rs/zerolog/log"
@@ -116,5 +117,28 @@ func (s *Server) StreamFrames(req *pb.StreamRequest, srv pb.FrameService_StreamF
 			
 			// Обновляем статистику трафика потока
 			st.AddBytesSent(uint64(len(payload)))
+	}
+}
+
+// PushMetadata принимает поток метаданных от ИИ-модулей и рассылает их зрителям.
+func (s *Server) PushMetadata(srv pb.FrameService_PushMetadataServer) error {
+	for {
+		req, err := srv.Recv()
+		if err != nil {
+			if err == io.EOF {
+				return srv.SendAndClose(&pb.MetadataResponse{
+					Success: true,
+					Message: "Metadata stream closed",
+				})
+			}
+			return err
+		}
+
+		st, exists := s.manager.GetStream(req.CameraId)
+		if !exists {
+			continue
+		}
+
+		st.GetMetadataBroadcaster().Broadcast(req)
 	}
 }

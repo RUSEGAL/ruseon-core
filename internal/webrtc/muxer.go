@@ -2,6 +2,7 @@ package webrtc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -10,18 +11,21 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/RUSEGAL/ruseon-core/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/internal/stream"
 )
 
 // WHEPHandler обрабатывает подключение по WebRTC.
 type WHEPHandler struct {
 	streamID string
 	rb       *buffer.RingBuffer
+	mb       *stream.MetadataBroadcaster
 }
 
-func NewWHEPHandler(streamID string, rb *buffer.RingBuffer) *WHEPHandler {
+func NewWHEPHandler(streamID string, rb *buffer.RingBuffer, mb *stream.MetadataBroadcaster) *WHEPHandler {
 	return &WHEPHandler{
 		streamID: streamID,
 		rb:       rb,
+		mb:       mb,
 	}
 }
 
@@ -91,6 +95,13 @@ func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, e
 		Type: webrtc.SDPTypeOffer,
 		SDP:  offerSDP,
 	}
+	
+	pc.OnDataChannel(func(d *webrtc.DataChannel) {
+		if d.Label() == "metadata" {
+			log.Info().Str("stream", h.streamID).Msg("Client opened metadata DataChannel")
+			go h.pumpMetadata(pumpCtx, d)
+		}
+	})
 
 	if err := pc.SetRemoteDescription(offer); err != nil {
 		pc.Close()
@@ -115,6 +126,48 @@ func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, e
 	go h.pumpFrames(pumpCtx, pc, videoTrack)
 
 	return pc.LocalDescription().SDP, nil
+}
+
+func (h *WHEPHandler) pumpMetadata(ctx context.Context, dc *webrtc.DataChannel) {
+	// Ждем, пока DataChannel откроется
+	opened := make(chan struct{})
+	dc.OnOpen(func() {
+		close(opened)
+	})
+
+	select {
+	case <-opened:
+	case <-ctx.Done():
+		return
+	case <-time.After(5 * time.Second): // Таймаут на открытие
+		log.Warn().Str("stream", h.streamID).Msg("DataChannel for metadata didn't open in time")
+		return
+	}
+
+	sub := h.mb.Subscribe()
+	defer h.mb.Unsubscribe(sub)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case req, ok := <-sub.C:
+			if !ok {
+				return
+			}
+			
+			// Формируем JSON
+			data, err := json.Marshal(req)
+			if err != nil {
+				continue
+			}
+			
+			if err := dc.SendText(string(data)); err != nil {
+				log.Debug().Err(err).Str("stream", h.streamID).Msg("Failed to send metadata via DataChannel")
+				return
+			}
+		}
+	}
 }
 
 func (h *WHEPHandler) pumpFrames(ctx context.Context, pc *webrtc.PeerConnection, track *webrtc.TrackLocalStaticSample) {
