@@ -114,8 +114,7 @@ func (s *Stream) run() {
 			s.bytesReceived.Add(uint64(size)) //nolint:gosec
 			metrics.NetworkReceiveBytesTotal.Add(float64(size))
 			
-			if !s.connected.Load() {
-				s.connected.Store(true)
+			if s.connected.CompareAndSwap(false, true) {
 				s.connectedAt.Store(time.Now().Unix())
 				metrics.ActiveStreams.Inc()
 				log.Info().Str("id", s.ID).Msg("RTSP connected and receiving frames")
@@ -143,8 +142,10 @@ func (s *Stream) run() {
 			log.Info().Str("id", s.ID).Msg("Received codec parameters")
 		})
 
-		s.connected.Store(false)
-		metrics.ActiveStreams.Dec()
+		wasConnected := s.connected.Swap(false)
+		if wasConnected {
+			metrics.ActiveStreams.Dec()
+		}
 		
 		errMsg := ""
 		if err != nil {

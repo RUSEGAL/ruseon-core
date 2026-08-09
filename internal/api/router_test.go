@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -95,3 +96,32 @@ func TestRouterMiddleware(t *testing.T) {
 	router.ServeHTTP(w6, req6)
 	// Actually req.Context() will be canceled
 }
+
+func TestRouterMetrics(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tempDir := t.TempDir()
+	store, _ := storage.NewStorage(filepath.Join(tempDir, "db"))
+	defer store.Close()
+
+	cfg := &config.Config{}
+	manager := stream.NewManager()
+	handler := NewHandler(manager, cfg, store)
+	authenticator := auth.NewLocalAuthenticator(cfg)
+
+	router := SetupRouter(handler, authenticator, false)
+
+	// Test /metrics endpoint
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/metrics", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for /metrics, got %d", w.Code)
+	}
+
+	// Verify response contains Prometheus formatting
+	if !strings.Contains(w.Body.String(), "go_goroutines") {
+		t.Errorf("expected metrics output to contain go_goroutines, got: %s", w.Body.String())
+	}
+}
+
