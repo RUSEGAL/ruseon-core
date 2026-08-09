@@ -34,8 +34,10 @@ Rather than trying to do everything (like AI inference or GPU transcoding) insid
 ## 🚀 Key Features
 
 * ⚡ **Zero-Copy Transmuxing**: Ultra-low latency bridging from RTSP to HLS directly in RAM. Bypasses intermediate transcoding for maximum efficiency.
-* 🛡 **Cloud-Native Architecture**: Built-in Thundering Herd protection and strict OOM management to safely handle thousands of concurrent streams.
-* 📦 **High-Performance Archiving (fMP4)**: Continuous, gapless recording into fragmented MP4. Optimized for edge storage and rapid cloud synchronization.
+* 🎥 **Ultra-Low Latency (WebRTC WHEP)**: Built-in WebRTC support for near-zero latency playback. Crucial for live PTZ camera control and real-time operator monitoring.
+* 🧠 **Zero-Transcoding AI Metadata**: Direct injection of AI metadata (Bounding Boxes, labels) into video streams via **HLS WebVTT** and **WebRTC DataChannels**. Displays AI results on the client side with 100% CPU savings (no re-encoding required).
+* 💾 **Smart I/O Archiver**: High-performance continuous fMP4 archiving utilizing advanced Linux kernel mechanisms (`FADV_DONTNEED`, sliding window `sync_file_range`). Protects the OS Page Cache from being flushed by gigabytes of video data, ensuring stable RAM and preventing I/O stalls.
+* 🛡 **Cloud-Native Architecture & Security**: Built-in Thundering Herd protection, strict OOM management to handle thousands of concurrent streams, and API defenses against Path Traversal vulnerabilities (verified via CodeQL).
 * ⏪ **Advanced Timeshift Pipeline**: Real-time HLS playback of historical data, with seamless export capabilities for AI training datasets.
 * 🗄 **Embedded NoSQL Engine**: Powered by BadgerDB for sub-millisecond configuration states and metrics, delivering high IOPS without external dependencies.
 * 🎨 **Modern Observability UI**: Includes a React 19 (TypeScript) Edge Dashboard with JWT auth, real-time SSE telemetry, and rich timeline visualization.
