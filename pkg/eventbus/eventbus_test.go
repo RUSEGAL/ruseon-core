@@ -71,7 +71,7 @@ func TestEventBus_DeliveryAndHMAC(t *testing.T) {
 
 func TestEventBus_TopicFiltering(t *testing.T) {
 	var calls atomic.Int32
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		calls.Add(1)
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -100,7 +100,7 @@ func TestEventBus_TopicFiltering(t *testing.T) {
 func TestEventBus_CircuitBreaker(t *testing.T) {
 	var calls atomic.Int32
 	// Сервер всегда возвращает 500 ошибку
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		calls.Add(1)
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
@@ -134,7 +134,7 @@ func TestEventBus_CircuitBreaker(t *testing.T) {
 
 func TestEventBus_DropNewest(t *testing.T) {
 	// Создаем "зависший" сервер, который отвечает очень долго
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(1 * time.Second) // Воркер повиснет на 1 секунду
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -164,7 +164,7 @@ func TestEventBus_DropNewest(t *testing.T) {
 	// Не ждем Stop(), иначе зависнем надолго (по 1с на каждый из 1000 элементов)
 }
 
-func TestEventBus_EdgeCases(t *testing.T) {
+func TestEventBus_EdgeCases(_ *testing.T) {
 	// Test New with <= 0 workers
 	bus := New(config.EventsConfig{Webhooks: []config.WebhookConfig{{URL: "http://localhost", Topics: []string{"*"}}}}, 0)
 	bus.Stop()
@@ -182,7 +182,7 @@ func TestEventBus_EdgeCases(t *testing.T) {
 }
 
 
-func TestEventBus_WebhookEdgeCases(t *testing.T) {
+func TestEventBus_WebhookEdgeCases(_ *testing.T) {
 	// Empty topics (allows all)
 	busEmptyTopics := New(config.EventsConfig{Webhooks: []config.WebhookConfig{{URL: "http://127.0.0.1:1234", Topics: []string{}}}}, 1)
 	busEmptyTopics.Publish("test", "cam1", nil)

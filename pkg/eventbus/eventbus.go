@@ -62,9 +62,7 @@ func (b *EventBus) Publish(topic string, cameraID string, data any) {
 
 	// Защита от panic: send on closed channel во время Graceful Shutdown
 	defer func() {
-		if r := recover(); r != nil {
-			// Канал уже закрыт (система останавливается), просто игнорируем событие
-		}
+		_ = recover() // Канал уже закрыт (система останавливается), просто игнорируем событие
 	}()
 
 	event := Event{
@@ -83,6 +81,7 @@ func (b *EventBus) Publish(topic string, cameraID string, data any) {
 
 	h := fnv.New32a()
 	h.Write([]byte(key))
+	//nolint:gosec // len(b.workers) is always positive, safe to convert
 	workerID := int(h.Sum32() % uint32(len(b.workers)))
 
 	// Non-blocking send (Drop-Newest)
@@ -103,7 +102,7 @@ func (b *EventBus) Stop() {
 	b.wg.Wait()
 }
 
-func (b *EventBus) workerLoop(id int, ch <-chan Event) {
+func (b *EventBus) workerLoop(_ int, ch <-chan Event) {
 	defer b.wg.Done()
 
 	// Настраиваем жесткий HTTP клиент с таймаутом и лимитами
