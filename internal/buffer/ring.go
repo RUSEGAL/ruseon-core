@@ -3,6 +3,8 @@ package buffer
 import (
 	"sync"
 	"sync/atomic"
+
+	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
 )
 
 // RingBuffer хранит последние N кадров и раздает их подписчикам (Router/Broadcaster).
@@ -60,6 +62,7 @@ func (rb *RingBuffer) Write(f *Frame) {
 		default:
 			// Клиент тормозит, канал забит. Пропускаем кадр (Drop).
 			atomic.AddUint64(&sub.Drops, 1)
+			metrics.RingbufferDropsTotal.Inc()
 			sub.NeedsIFrame = true // Требуем I-Frame для возобновления
 		}
 	}

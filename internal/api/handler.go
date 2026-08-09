@@ -13,6 +13,7 @@ import (
 	"github.com/RUSEGAL/ruseon-core/internal/archive"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/logger"
+	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 	"github.com/RUSEGAL/ruseon-core/internal/stream"
 	"github.com/RUSEGAL/ruseon-core/internal/webrtc"
@@ -313,6 +314,7 @@ func (h *Handler) EditCamera(c *gin.Context) {
 
 // GetHLSPlaylist возвращает M3U8 плейлист для конкретной камеры.
 func (h *Handler) GetHLSPlaylist(c *gin.Context) {
+	metrics.HLSRequestsTotal.Inc()
 	id := c.Param("id")
 	h.tracker.Mark(c.ClientIP(), id)
 	st, ok := h.manager.GetStream(id)
@@ -337,8 +339,9 @@ stream.m3u8
 	st.AddBytesSent(uint64(len(masterPlaylist)))
 }
 
-// GetHLSVideoPlaylist возвращает M3U8 плейлист видео (оригинальный) для конкретной камеры.
+// GetHLSVideoPlaylist возвращает плейлист видео сегментов для HLS.
 func (h *Handler) GetHLSVideoPlaylist(c *gin.Context) {
+	metrics.HLSRequestsTotal.Inc()
 	id := c.Param("id")
 	h.tracker.Mark(c.ClientIP(), id)
 	st, ok := h.manager.GetStream(id)
@@ -358,6 +361,7 @@ func (h *Handler) GetHLSVideoPlaylist(c *gin.Context) {
 
 // GetHLSSubsPlaylist возвращает M3U8 плейлист субтитров для конкретной камеры.
 func (h *Handler) GetHLSSubsPlaylist(c *gin.Context) {
+	metrics.HLSRequestsTotal.Inc()
 	id := c.Param("id")
 	h.tracker.Mark(c.ClientIP(), id)
 	st, ok := h.manager.GetStream(id)
@@ -375,6 +379,7 @@ func (h *Handler) GetHLSSubsPlaylist(c *gin.Context) {
 
 // GetHLSSegment возвращает TS-сегмент или VTT файл для конкретной камеры.
 func (h *Handler) GetHLSSegment(c *gin.Context) {
+	metrics.HLSRequestsTotal.Inc()
 	id := c.Param("id")
 	h.tracker.Mark(c.ClientIP(), id)
 	segment := c.Param("segment")
@@ -661,6 +666,7 @@ func (h *Handler) GetCameraArchive(c *gin.Context) {
 
 // GetArchiveHLSPlaylist отдает M3U8 манифест для конкретного файла архива
 func (h *Handler) GetArchiveHLSPlaylist(c *gin.Context) {
+	metrics.HLSRequestsTotal.Inc()
 	id := c.Param("id")
 	filename := c.Query("file")
 	
@@ -735,6 +741,7 @@ func (h *Handler) ImportBackupJSON(c *gin.Context) {
 
 // GetArchiveHLSSegment отдает TS сегмент архива "на лету"
 func (h *Handler) GetArchiveHLSSegment(c *gin.Context) {
+	metrics.HLSRequestsTotal.Inc()
 	id := c.Param("id")
 	filename := c.Query("file")
 	seqStr := c.Query("seq")

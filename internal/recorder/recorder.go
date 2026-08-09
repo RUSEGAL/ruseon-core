@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/RUSEGAL/ruseon-core/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
@@ -57,6 +58,7 @@ func (r *Recorder) run() {
 			recordEndTime := time.Now()
 			finalFilename := filepath.Join(filepath.Dir(currentFilename), fmt.Sprintf("%s_to_%s.mp4", recordStartTime.Format("2006-01-02_15-04-05"), recordEndTime.Format("15-04-05")))
 			_ = registry.CurrentBlobStore.Rename(currentFilename, finalFilename)
+			metrics.ArchiveSegmentsWrittenTotal.Inc()
 			if registry.CurrentEventBus != nil {
 				registry.CurrentEventBus.Publish("archive_segment_ready", r.streamID, map[string]string{"file": finalFilename})
 			}
@@ -110,7 +112,21 @@ func (r *Recorder) run() {
 						Samples:  partSamples,
 					}},
 				}
-				_ = part.Marshal(file)
+				if err := part.Marshal(file); err != nil {
+					metrics.ArchiveErrorsTotal.Inc()
+				}
+			}
+
+			// Считаем примерный объем записанного в байтах по размеру сэмплов
+			var size uint32
+			for _, s := range partSamples {
+				size += uint32(len(s.Payload)) //nolint:gosec
+			}
+			metrics.DiskWriteBytesTotal.Add(float64(size))
+
+			// Если поддерживается DropCache, то сбрасываем Page Cache
+			if dropper, ok := file.(registry.CacheDropper); ok {
+				_ = dropper.DropCache()
 			}
 			
 			log.Info().Str("stream", r.streamID).Msg("Rotating record file")
@@ -135,6 +151,7 @@ func (r *Recorder) run() {
 			var err error
 			file, err = registry.CurrentBlobStore.Create(currentFilename)
 			if err != nil {
+				metrics.ArchiveErrorsTotal.Inc()
 				log.Error().Err(err).Msg("Failed to create record file")
 				time.Sleep(1 * time.Second)
 				continue
@@ -198,6 +215,7 @@ func (r *Recorder) run() {
 			}
 
 			if err := part.Marshal(file); err != nil {
+				metrics.ArchiveErrorsTotal.Inc()
 				log.Error().Err(err).Msg("Failed to write fMP4 part")
 				closeAndRename()
 				pendingSample = nil
@@ -205,6 +223,13 @@ func (r *Recorder) run() {
 				initialPts = -1
 				continue
 			}
+
+			// Считаем примерный объем записанного в байтах по размеру сэмплов
+			var size uint32
+			for _, s := range partSamples {
+				size += uint32(len(s.Payload)) //nolint:gosec
+			}
+			metrics.DiskWriteBytesTotal.Add(float64(size))
 
 			// OPTIMIZATION: Drop Page Cache to save RAM (Direct I/O alternative)
 			if dropper, ok := file.(registry.CacheDropper); ok {

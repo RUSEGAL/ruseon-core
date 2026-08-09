@@ -13,6 +13,7 @@ import (
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
@@ -99,6 +100,9 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool) *gin.Engin
 	// Роуты без авторизации
 	r.GET("/health", h.HealthCheck)
 	r.POST("/api/login", auth.Login)
+
+	// Метрики Prometheus
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// API с авторизацией
 	api := r.Group("/api")

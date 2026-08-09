@@ -14,6 +14,7 @@ import (
 	"github.com/RUSEGAL/ruseon-core/internal/models"
 	"github.com/RUSEGAL/ruseon-core/internal/recorder"
 	"github.com/RUSEGAL/ruseon-core/internal/rtsp"
+	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
@@ -111,18 +112,22 @@ func (s *Stream) run() {
 				size += len(n)
 			}
 			s.bytesReceived.Add(uint64(size)) //nolint:gosec
+			metrics.NetworkReceiveBytesTotal.Add(float64(size))
 			
 			if !s.connected.Load() {
 				s.connected.Store(true)
 				s.connectedAt.Store(time.Now().Unix())
+				metrics.ActiveStreams.Inc()
 				log.Info().Str("id", s.ID).Msg("RTSP connected and receiving frames")
 				if registry.CurrentEventBus != nil {
 					registry.CurrentEventBus.Publish("camera_connected", s.ID, nil)
 				}
 			}
 			
+			metrics.FramesReceivedTotal.Inc()
 			s.framesReceived.Add(1)
 			if isKeyFrame {
+				metrics.KeyFramesTotal.Inc()
 				s.keyFramesReceived.Add(1)
 			}
 
@@ -139,6 +144,8 @@ func (s *Stream) run() {
 		})
 
 		s.connected.Store(false)
+		metrics.ActiveStreams.Dec()
+		
 		errMsg := ""
 		if err != nil {
 			errMsg = err.Error()
@@ -147,6 +154,7 @@ func (s *Stream) run() {
 			registry.CurrentEventBus.Publish("camera_offline", s.ID, map[string]string{"error": errMsg})
 		}
 		s.reconnects.Add(1)
+		metrics.StreamReconnectsTotal.Inc()
 
 		if s.ctx.Err() != nil {
 			log.Info().Str("id", s.ID).Msg("Stream stopped by context")

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
 	"github.com/rs/zerolog/log"
 )
 
@@ -90,6 +91,7 @@ func (b *EventBus) Publish(topic string, cameraID string, data any) {
 		// Успешно отправлено
 	default:
 		// Очередь воркера переполнена, дропаем событие
+		metrics.EventbusDropsTotal.Inc()
 		log.Warn().Str("topic", event.Topic).Str("camera_id", event.CameraID).Int("worker_id", workerID).Msg("EventBus worker queue full, dropping event")
 	}
 }

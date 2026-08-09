@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync/atomic"
 	"time"
 
 	"github.com/pion/webrtc/v4"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/RUSEGAL/ruseon-core/internal/buffer"
 	"github.com/RUSEGAL/ruseon-core/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
 )
 
 // WHEPHandler обрабатывает подключение по WebRTC.
@@ -88,6 +90,21 @@ func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, e
 			connectionState == webrtc.ICEConnectionStateDisconnected {
 			pc.Close()
 			cancelPump()
+		}
+	})
+
+	var isConnected atomic.Bool
+	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
+		log.Info().Str("stream", h.streamID).Str("state", state.String()).Msg("WebRTC Connection State changed")
+		if state == webrtc.PeerConnectionStateConnected {
+			if !isConnected.Swap(true) {
+				metrics.WebRTCPeersActive.Inc()
+			}
+		}
+		if state == webrtc.PeerConnectionStateClosed || state == webrtc.PeerConnectionStateFailed {
+			if isConnected.Swap(false) {
+				metrics.WebRTCPeersActive.Dec()
+			}
 		}
 	})
 
