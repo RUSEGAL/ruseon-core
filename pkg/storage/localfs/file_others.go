@@ -10,8 +10,10 @@ type FileWrapper struct {
 	*os.File
 }
 
+func NewFileWrapper(f *os.File) *FileWrapper {
+	return &FileWrapper{File: f}
+}
+
 func (fw *FileWrapper) DropCache() error {
-	// POSIX_FADV_DONTNEED поддерживается только на Linux.
-	// На других платформах просто сбрасываем данные на диск.
-	return fw.File.Sync()
+	return nil
 }

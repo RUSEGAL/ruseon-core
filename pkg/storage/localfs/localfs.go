@@ -93,7 +93,7 @@ func (l *LocalFS) Create(path string) (registry.WriteSeekCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &FileWrapper{File: f}, nil
+	return NewFileWrapper(f), nil
 }
 
 func (l *LocalFS) Open(path string) (io.ReadSeekCloser, error) {
