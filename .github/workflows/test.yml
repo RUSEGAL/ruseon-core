@@ -32,16 +32,14 @@ jobs:
       - name: Download Dependencies
         run: go mod download
 
-      - name: Build Frontend for go:embed
-        working-directory: ./web
-        run: |
-          npm install
-          npm run build
+      - name: Build mock Frontend for go:embed
+        run: mkdir -p web/dist && touch web/dist/index.html
 
       - name: Run golangci-lint
-        run: |
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@master
-          $(go env GOPATH)/bin/golangci-lint run --timeout=5m
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
 
       - name: Run Gosec Security Scanner
         uses: securego/gosec@master
@@ -49,7 +47,7 @@ jobs:
           args: -exclude-dir=pkg/grpc/pb -exclude=G104,G115,G122,G301,G304 ./...
 
       - name: Build Backend (Go)
-        run: go build -v ./cmd/server
+        run: CGO_ENABLED=0 go build -v ./cmd/server
 
       - name: Run Tests with Race Detector and Coverage
         run: go test -v -race -coverprofile=coverage.out ./...
