@@ -24,6 +24,11 @@ jobs:
           go-version: '1.26'
           cache: true
 
+      - name: Verify Go Modules
+        run: |
+          go mod tidy
+          git diff --exit-code
+
       - name: Download Dependencies
         run: go mod download
 
@@ -42,6 +47,9 @@ jobs:
         uses: securego/gosec@master
         with:
           args: -exclude-dir=pkg/grpc/pb -exclude=G104,G115,G122,G301,G304 ./...
+
+      - name: Build Backend (Go)
+        run: go build -v ./cmd/server
 
       - name: Run Tests with Race Detector and Coverage
         run: go test -v -race -coverprofile=coverage.out ./...
