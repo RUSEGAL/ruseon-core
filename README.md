@@ -27,13 +27,13 @@
   <em>Most open-source video servers solve streaming.<br>RUSEON solves the entire video data lifecycle.<br>Ingest. Route. Record. Analyze. Export.<br>One engine.</em>
 </p>
 
-**RUSEON Core** is an open-source Edge Video Infrastructure Platform engineered in Go. Designed for cloud-native and edge environments, it provides zero-copy RTSP-to-HLS transmuxing, fMP4 archiving, and an API foundation for AI video analytics.
+**RUSEON Core** is an open-source Edge Video Infrastructure Platform engineered in Go. Designed for cloud-native and edge environments, it provides zero-copy RTSP-to-HLS/WebRTC transmuxing, fMP4 archiving, and an API foundation for AI video analytics.
 
 Rather than trying to do everything (like AI inference or GPU transcoding) inside a single monolith, RUSEON focuses purely on moving and storing video bytes efficiently. It is designed to act as the central routing and storage engine, while heavy analytical tasks (like YOLO or Face Recognition) can run as separate downstream modules (e.g., `ruseon-yolo`, `ruseon-lpr`).
 
 ## 🚀 Key Features
 
-* ⚡ **Zero-Copy Transmuxing**: Ultra-low latency bridging from RTSP to HLS directly in RAM. Bypasses intermediate transcoding for maximum efficiency.
+* ⚡ **Zero-Copy Transmuxing**: Ultra-low latency bridging from RTSP to HLS and WebRTC directly in RAM. Bypasses intermediate transcoding for maximum efficiency.
 * 🎥 **Ultra-Low Latency (WebRTC WHEP)**: Built-in WebRTC support for near-zero latency playback. Crucial for live PTZ camera control and real-time operator monitoring.
 * 🧠 **Zero-Transcoding AI Metadata**: Direct injection of AI metadata (Bounding Boxes, labels) into video streams via **HLS WebVTT** and **WebRTC DataChannels**. Displays AI results on the client side with 100% CPU savings (no re-encoding required).
 * 💾 **Smart I/O Archiver**: High-performance continuous fMP4 archiving utilizing advanced Linux kernel mechanisms (`FADV_DONTNEED`, sliding window `sync_file_range`). Protects the OS Page Cache from being flushed by gigabytes of video data, ensuring stable RAM and preventing I/O stalls.
