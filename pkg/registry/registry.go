@@ -70,7 +70,14 @@ var (
 	CurrentStateStore    StateStore
 	CurrentAuthenticator Authenticator
 	CurrentBlobStore     BlobStore
+	CurrentEventBus      EventBus
 )
+
+// EventBus абстрагирует шину событий
+type EventBus interface {
+	Publish(topic string, cameraID string, data any)
+	Stop()
+}
 
 // Функции для инжекции
 func RegisterStateStore(store StateStore) {
@@ -83,4 +90,8 @@ func RegisterAuthenticator(auth Authenticator) {
 
 func RegisterBlobStore(blob BlobStore) {
 	CurrentBlobStore = blob
+}
+
+func RegisterEventBus(bus EventBus) {
+	CurrentEventBus = bus
 }

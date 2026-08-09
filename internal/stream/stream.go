@@ -14,6 +14,7 @@ import (
 	"github.com/RUSEGAL/ruseon-core/internal/models"
 	"github.com/RUSEGAL/ruseon-core/internal/recorder"
 	"github.com/RUSEGAL/ruseon-core/internal/rtsp"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
 // Stream представляет логику работы с конкретной камерой.
@@ -115,6 +116,9 @@ func (s *Stream) run() {
 				s.connected.Store(true)
 				s.connectedAt.Store(time.Now().Unix())
 				log.Info().Str("id", s.ID).Msg("RTSP connected and receiving frames")
+				if registry.CurrentEventBus != nil {
+					registry.CurrentEventBus.Publish("camera_connected", s.ID, nil)
+				}
 			}
 			
 			s.framesReceived.Add(1)
@@ -135,6 +139,13 @@ func (s *Stream) run() {
 		})
 
 		s.connected.Store(false)
+		errMsg := ""
+		if err != nil {
+			errMsg = err.Error()
+		}
+		if registry.CurrentEventBus != nil {
+			registry.CurrentEventBus.Publish("camera_offline", s.ID, map[string]string{"error": errMsg})
+		}
 		s.reconnects.Add(1)
 
 		if s.ctx.Err() != nil {

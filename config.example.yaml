@@ -27,3 +27,11 @@ cameras:
     folder_id: "main-building"
     comment: "РџР°СЂРєРѕРІРєР°"
     transport: "tcp"
+
+# Система событий (рассылка Webhooks)
+# events:
+#   webhooks:
+#     - url: "https://my-vms.com/api/webhook"
+#       topics: ["camera_offline", "archive_segment_ready"]
+#       secret: "super-secret-hmac-key"
+

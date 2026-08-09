@@ -57,6 +57,9 @@ func (r *Recorder) run() {
 			recordEndTime := time.Now()
 			finalFilename := filepath.Join(filepath.Dir(currentFilename), fmt.Sprintf("%s_to_%s.mp4", recordStartTime.Format("2006-01-02_15-04-05"), recordEndTime.Format("15-04-05")))
 			_ = registry.CurrentBlobStore.Rename(currentFilename, finalFilename)
+			if registry.CurrentEventBus != nil {
+				registry.CurrentEventBus.Publish("archive_segment_ready", r.streamID, map[string]string{"file": finalFilename})
+			}
 			file = nil
 		}
 	}

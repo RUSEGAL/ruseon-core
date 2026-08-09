@@ -26,6 +26,19 @@ type Config struct {
 
 	GlobalTags []TagConfig    `yaml:"global_tags,omitempty"`
 	Cameras    []CameraConfig `yaml:"cameras,omitempty"`
+	Events     EventsConfig   `yaml:"events,omitempty"`
+}
+
+// WebhookConfig описывает настройки отправки Webhook.
+type WebhookConfig struct {
+	URL    string   `yaml:"url" json:"url"`
+	Topics []string `yaml:"topics,omitempty" json:"topics"`
+	Secret string   `yaml:"secret,omitempty" json:"secret"`
+}
+
+// EventsConfig содержит все настройки системы событий.
+type EventsConfig struct {
+	Webhooks []WebhookConfig `yaml:"webhooks,omitempty" json:"webhooks"`
 }
 
 // TagConfig описывает пользовательскую метку (тег)

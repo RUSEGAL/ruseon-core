@@ -8,6 +8,7 @@ import (
 
 	"github.com/RUSEGAL/ruseon-core/pkg/auth"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/pkg/eventbus"
 	"github.com/RUSEGAL/ruseon-core/pkg/logger"
 	"github.com/RUSEGAL/ruseon-core/internal/recorder"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
@@ -54,6 +55,10 @@ func main() {
 
 	authenticator := auth.NewLocalAuthenticator(cfg)
 	registry.RegisterAuthenticator(authenticator)
+
+	bus := eventbus.New(cfg.Events, 4)
+	registry.RegisterEventBus(bus)
+	defer bus.Stop()
 
 	// Восстановление архивов (Защита от сбоев питания)
 	recorder.RecoverCrashedFiles("recordings")
