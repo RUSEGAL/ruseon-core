@@ -18,6 +18,9 @@ jobs:
         with:
           go-version: '1.26'
 
+      - name: Build mock Frontend for go:embed
+        run: mkdir -p web/dist && touch web/dist/index.html
+
       - name: Start RUSEON Server in Background
         run: |
           go build -o server ./cmd/server
