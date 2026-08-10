@@ -17,6 +17,7 @@ import (
 
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	// init swagger docs
 	_ "github.com/RUSEGAL/ruseon-core/internal/api/docs"
 
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"

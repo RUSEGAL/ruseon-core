@@ -87,7 +87,7 @@ var rootCmd = &cobra.Command{
 var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Get server status and metrics",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		resp, err := doRequest(http.MethodGet, "stats", nil)
 		if err != nil {
 			return fmt.Errorf("failed to connect to server: %w", err)
@@ -121,7 +121,7 @@ var camerasCmd = &cobra.Command{
 var listCamerasCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all cameras",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		resp, err := doRequest(http.MethodGet, "cameras", nil)
 		if err != nil {
 			return fmt.Errorf("failed to connect to server: %w", err)
@@ -174,7 +174,7 @@ var (
 var addCameraCmd = &cobra.Command{
 	Use:   "add",
 	Short: "Add a new camera",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if camID == "" || camURL == "" {
 			return fmt.Errorf("--id and --url are required")
 		}
@@ -209,7 +209,7 @@ var addCameraCmd = &cobra.Command{
 var deleteCameraCmd = &cobra.Command{
 	Use:   "delete",
 	Short: "Delete a camera",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if camID == "" {
 			return fmt.Errorf("--id is required")
 		}
