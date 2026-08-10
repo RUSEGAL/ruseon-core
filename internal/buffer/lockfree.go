@@ -2,14 +2,13 @@ package buffer
 
 import (
 	"sync/atomic"
-	"unsafe"
 )
 
 // LockFreeRingBuffer is a simple MPSC (Multi-Producer, Single-Consumer) lock-free ring buffer.
 type LockFreeRingBuffer[T any] struct {
 	capacity uint64
 	mask     uint64
-	buffer   []unsafe.Pointer
+	buffer   []atomic.Pointer[T]
 	head     atomic.Uint64
 	tail     atomic.Uint64
 }
@@ -25,7 +24,7 @@ func NewLockFreeRingBuffer[T any](capacity uint64) *LockFreeRingBuffer[T] {
 	return &LockFreeRingBuffer[T]{
 		capacity: capPow2,
 		mask:     capPow2 - 1,
-		buffer:   make([]unsafe.Pointer, capPow2),
+		buffer:   make([]atomic.Pointer[T], capPow2),
 	}
 }
 
@@ -44,7 +43,7 @@ func (rb *LockFreeRingBuffer[T]) Push(item *T) {
 
 		// Try to claim the slot at head
 		if rb.head.CompareAndSwap(head, head+1) {
-			atomic.StorePointer(&rb.buffer[head&rb.mask], unsafe.Pointer(item))
+			rb.buffer[head&rb.mask].Store(item)
 			return
 		}
 	}
@@ -61,7 +60,7 @@ func (rb *LockFreeRingBuffer[T]) Pop() *T {
 			return nil // Empty
 		}
 
-		ptr := atomic.LoadPointer(&rb.buffer[tail&rb.mask])
+		ptr := rb.buffer[tail&rb.mask].Load()
 		if ptr == nil {
 			// Slot claimed by producer but not yet written. Wait/retry.
 			continue
@@ -69,8 +68,8 @@ func (rb *LockFreeRingBuffer[T]) Pop() *T {
 
 		// Try to advance tail
 		if rb.tail.CompareAndSwap(tail, tail+1) {
-			atomic.StorePointer(&rb.buffer[tail&rb.mask], nil)
-			return (*T)(ptr)
+			rb.buffer[tail&rb.mask].Store(nil)
+			return ptr
 		}
 	}
 }
