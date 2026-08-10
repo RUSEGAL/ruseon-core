@@ -138,6 +138,7 @@ type CameraInfo struct {
 	KeyFrames      uint64                 `json:"keyFrames"`
 	Codec          string                 `json:"codec"`
 	LazyHLS        bool                   `json:"lazyHLS"`
+	TokenAuth      bool                   `json:"tokenAuth"`
 	Disabled       bool                   `json:"disabled"`
 	DisableReason  string                 `json:"disableReason"`
 	DisableHistory []config.DisableRecord `json:"disableHistory"`
@@ -205,6 +206,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 			KeyFrames:     keyFrames,
 			Codec:         codec,
 			LazyHLS:       cam.LazyHLS,
+			TokenAuth:     cam.TokenAuth,
 		})
 	}
 
@@ -296,6 +298,7 @@ func (h *Handler) EditCamera(c *gin.Context) {
 		cam.SimPhone = req.SimPhone
 		cam.SimICCID = req.SimICCID
 		cam.LazyHLS = req.LazyHLS
+		cam.TokenAuth = req.TokenAuth
 
 		// Отслеживание изменения статуса записи
 		if cam.Record != req.Record {

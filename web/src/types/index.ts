@@ -19,6 +19,7 @@ export interface CameraInfo {
   reconnects: number;
   codec: string;
   lazyHLS: boolean;
+  tokenAuth?: boolean;
   transport?: string;
   disabled: boolean;
   disableReason: string;

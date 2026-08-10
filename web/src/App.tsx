@@ -27,7 +27,7 @@ export default function App() {
   const [showTagModal, setShowTagModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [camForm, setCamForm] = useState<CamFormState>({ id: '', url: '', record: false, lazyHLS: false, transport: 'tcp', retentionDays: 0, tags: [], folderId: '', comment: '', simPhone: '', simICCID: '', disabled: false, disableReason: 'technical' });
+  const [camForm, setCamForm] = useState<CamFormState>({ id: '', url: '', record: false, lazyHLS: false, tokenAuth: false, transport: 'tcp', retentionDays: 0, tags: [], folderId: '', comment: '', simPhone: '', simICCID: '', disabled: false, disableReason: 'technical' });
   const [globalTags, setGlobalTags] = useState<TagConfig[]>([]);
   const [folders, setFolders] = useState<FolderConfig[]>([]);
   const [showFolderModal, setShowFolderModal] = useState(false);
@@ -178,7 +178,7 @@ export default function App() {
 
   const openAddModal = () => {
     setIsEditing(false);
-    setCamForm({ id: '', url: '', record: false, lazyHLS: false, transport: 'tcp', retentionDays: 0, tags: [], folderId: '', comment: '', simPhone: '', simICCID: '', disabled: false, disableReason: 'technical' });
+    setCamForm({ id: '', url: '', record: false, lazyHLS: false, tokenAuth: false, transport: 'tcp', retentionDays: 0, tags: [], folderId: '', comment: '', simPhone: '', simICCID: '', disabled: false, disableReason: 'technical' });
     setShowModal(true);
   };
 
@@ -189,6 +189,7 @@ export default function App() {
       url: cam.url, 
       record: cam.record || false, 
       lazyHLS: cam.lazyHLS || false,
+      tokenAuth: cam.tokenAuth || false,
       transport: cam.transport || 'tcp',
       retentionDays: cam.retentionDays || 0,
       tags: cam.tags || [],

@@ -8,6 +8,7 @@ export interface CamFormState {
   url: string;
   record: boolean;
   lazyHLS: boolean;
+  tokenAuth: boolean;
   transport: string;
   retentionDays: number;
   tags: string[];
@@ -135,7 +136,18 @@ export function CameraFormModal({ isEditing, camForm, setCamForm, onSave, onClos
                       onChange={e => setCamForm({...camForm, lazyHLS: e.target.checked})}
                       style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                     />
-                    <label htmlFor="lazy-hls-check" style={{ marginBottom: 0, cursor: 'pointer', fontWeight: 500 }}>{t('cameras.lazy')}</label>
+                    <label htmlFor="lazy-hls-check" style={{ marginBottom: 0, cursor: 'pointer', fontWeight: 500 }}>{t('cameras.lazy') || 'Lazy HLS'}</label>
+                  </div>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+                    <input 
+                      type="checkbox" 
+                      id="token-auth-check"
+                      checked={camForm.tokenAuth}
+                      onChange={e => setCamForm({...camForm, tokenAuth: e.target.checked})}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="token-auth-check" style={{ marginBottom: 0, cursor: 'pointer', fontWeight: 500 }}>{t('cameras.tokenAuth') || 'Require Token Auth'}</label>
                   </div>
 
                   {camForm.record && (
