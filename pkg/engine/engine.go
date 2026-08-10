@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	_ "net/http/pprof"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -118,8 +118,23 @@ func Run(cfg *config.Config) {
 	if cfg.Server.PprofPort > 0 {
 		pprofAddr := fmt.Sprintf("localhost:%d", cfg.Server.PprofPort)
 		go func() {
+			mux := http.NewServeMux()
+			mux.HandleFunc("/debug/pprof/", pprof.Index)
+			mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+			mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+			mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+			mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
+			pprofSrv := &http.Server{
+				Addr:              pprofAddr,
+				Handler:           mux,
+				ReadHeaderTimeout: 10 * time.Second,
+				WriteTimeout:      30 * time.Second,
+				IdleTimeout:       60 * time.Second,
+			}
+
 			log.Info().Str("addr", pprofAddr).Msg("Starting pprof profiling server")
-			if err := http.ListenAndServe(pprofAddr, nil); err != nil && err != http.ErrServerClosed {
+			if err := pprofSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				log.Error().Err(err).Msg("pprof server failed")
 			}
 		}()

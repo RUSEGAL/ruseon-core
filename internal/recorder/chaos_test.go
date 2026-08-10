@@ -16,18 +16,18 @@ type ChaosBlobStore struct {
 	freezeDuration time.Duration
 }
 
-func (s *ChaosBlobStore) Write(path string, data []byte) error { return nil }
-func (s *ChaosBlobStore) Read(path string) ([]byte, error)     { return nil, nil }
-func (s *ChaosBlobStore) Delete(path string) error             { return nil }
-func (s *ChaosBlobStore) Stat(path string) (fs.FileInfo, error) { return nil, nil }
-func (s *ChaosBlobStore) ReadDir(path string) ([]fs.DirEntry, error) { return nil, nil }
-func (s *ChaosBlobStore) Create(path string) (registry.WriteSeekCloser, error) {
+func (s *ChaosBlobStore) Write(_ string, _ []byte) error { return nil }
+func (s *ChaosBlobStore) Read(_ string) ([]byte, error)     { return nil, nil }
+func (s *ChaosBlobStore) Delete(_ string) error             { return nil }
+func (s *ChaosBlobStore) Stat(_ string) (fs.FileInfo, error) { return nil, nil }
+func (s *ChaosBlobStore) ReadDir(_ string) ([]fs.DirEntry, error) { return nil, nil }
+func (s *ChaosBlobStore) Create(_ string) (registry.WriteSeekCloser, error) {
 	time.Sleep(s.freezeDuration)
 	return &discardWriteSeekCloser{Writer: io.Discard}, nil
 }
-func (s *ChaosBlobStore) Open(path string) (io.ReadSeekCloser, error) { return nil, os.ErrNotExist }
-func (s *ChaosBlobStore) MkdirAll(path string) error                   { return nil }
-func (s *ChaosBlobStore) Rename(oldPath, newPath string) error         { return nil }
+func (s *ChaosBlobStore) Open(_ string) (io.ReadSeekCloser, error) { return nil, os.ErrNotExist }
+func (s *ChaosBlobStore) MkdirAll(_ string) error                   { return nil }
+func (s *ChaosBlobStore) Rename(_, _ string) error         { return nil }
 
 func TestRecorder_DiskFreeze_Chaos(t *testing.T) {
 	rb := buffer.NewRingBuffer(10)

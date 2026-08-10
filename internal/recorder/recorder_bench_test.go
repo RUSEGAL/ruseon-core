@@ -11,7 +11,7 @@ type discardWriteSeekCloser struct {
 	io.Writer
 }
 
-func (d *discardWriteSeekCloser) Seek(offset int64, whence int) (int64, error) { return 0, nil }
+func (d *discardWriteSeekCloser) Seek(_ int64, _ int) (int64, error) { return 0, nil }
 func (d *discardWriteSeekCloser) Close() error                                 { return nil }
 func (d *discardWriteSeekCloser) DropCache() error                             { return nil }
 
