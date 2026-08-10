@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestRingBuffer_Chaos(t *testing.T) {
+func TestRingBuffer_Chaos(_ *testing.T) {
 	rb := NewRingBuffer(100)
 
 	var writersWg sync.WaitGroup
@@ -15,7 +15,7 @@ func TestRingBuffer_Chaos(t *testing.T) {
 	// 1000 concurrent writers
 	for i := 0; i < 1000; i++ {
 		writersWg.Add(1)
-		go func(writerID int) {
+		go func(_ int) {
 			defer writersWg.Done()
 			for j := 0; j < 50; j++ {
 				// Mix I-frames and P-frames
