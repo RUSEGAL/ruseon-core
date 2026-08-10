@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/bluenviron/mediacommon/pkg/formats/fmp4"
@@ -21,6 +22,7 @@ type Recorder struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	recordDir  string
+	wg         sync.WaitGroup
 }
 
 // NewRecorder создает и запускает архиватор для потока.
@@ -36,11 +38,14 @@ func NewRecorder(streamID string, rb *buffer.RingBuffer, recordDir string) *Reco
 
 	_ = registry.CurrentBlobStore.MkdirAll(recordDir)
 
+	r.wg.Add(1)
 	go r.run()
 	return r
 }
 
 func (r *Recorder) run() {
+	defer r.wg.Done()
+	
 	var file registry.WriteSeekCloser
 	var seq uint32
 	var partSamples = make([]*fmp4.PartSample, 0, 150) // Preallocate for ~5 sec GOP
@@ -263,7 +268,8 @@ func (r *Recorder) run() {
 	}
 }
 
-// Stop останавливает архиватор.
+// Stop останавливает архиватор и ждет завершения.
 func (r *Recorder) Stop() {
 	r.cancel()
+	r.wg.Wait()
 }
