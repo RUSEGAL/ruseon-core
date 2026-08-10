@@ -23,7 +23,9 @@ type LocalAuthenticator struct {
 func generateRandomPassword(length int) string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
 	b := make([]byte, length)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("failed to generate random bytes: " + err.Error())
+	}
 	for i := 0; i < length; i++ {
 		b[i] = charset[b[i]%byte(len(charset))]
 	}
