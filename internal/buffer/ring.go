@@ -48,11 +48,11 @@ func (rb *RingBuffer) Write(f *Frame) {
 	rb.subMu.RLock()
 	defer rb.subMu.RUnlock()
 	for sub := range rb.subs {
-		if sub.NeedsIFrame {
+		if sub.NeedsIFrame.Load() {
 			if !f.IsKeyFrame {
 				continue // Ждем ключевой кадр после обрыва (drop)
 			}
-			sub.NeedsIFrame = false
+			sub.NeedsIFrame.Store(false)
 		}
 
 		// Non-blocking send
@@ -63,7 +63,7 @@ func (rb *RingBuffer) Write(f *Frame) {
 			// Клиент тормозит, канал забит. Пропускаем кадр (Drop).
 			atomic.AddUint64(&sub.Drops, 1)
 			metrics.RingbufferDropsTotal.Inc()
-			sub.NeedsIFrame = true // Требуем I-Frame для возобновления
+			sub.NeedsIFrame.Store(true) // Требуем I-Frame для возобновления
 		}
 	}
 }
@@ -100,7 +100,7 @@ func (rb *RingBuffer) GetParams() ([]byte, []byte, []byte) {
 type Reader struct {
 	C           chan *Frame
 	Drops       uint64
-	NeedsIFrame bool
+	NeedsIFrame atomic.Bool
 	rb          *RingBuffer
 }
 
