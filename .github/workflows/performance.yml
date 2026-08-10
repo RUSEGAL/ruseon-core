@@ -29,7 +29,54 @@ jobs:
           sleep 3 # Wait for server to start
 
       - name: Run k6 Load Test
-        run: docker run --rm --network host -v $(pwd):/app -w /app grafana/k6:latest run tests/performance/k6_load.js
+        run: docker run --rm --network host -v $(pwd):/app -w /app grafana/k6:latest run --summary-export=summary.json tests/performance/k6_load.js
 
       - name: Stop RUSEON Server
         run: pkill -f server || true
+
+      - name: Parse k6 metrics
+        id: metrics
+        run: |
+          LATENCY_RAW=$(jq '.metrics.http_req_duration.values["p(95)"]' summary.json)
+          SUCCESS_RAW=$(jq '100 - (.metrics.http_req_failed.values.rate * 100)' summary.json)
+          VUS_RAW=$(jq '.metrics.vus.values.max' summary.json)
+          
+          if (( $(echo "$LATENCY_RAW < 1" | bc -l) )); then
+            LATENCY="$(echo "$LATENCY_RAW * 1000" | bc | cut -d. -f1)µs"
+          else
+            LATENCY="$(echo "$LATENCY_RAW" | bc | cut -d. -f1)ms"
+          fi
+          
+          echo "latency=$LATENCY" >> $GITHUB_OUTPUT
+          echo "success=${SUCCESS_RAW}%" >> $GITHUB_OUTPUT
+          echo "vus=${VUS_RAW}" >> $GITHUB_OUTPUT
+
+      - name: Update Latency Badge
+        uses: Schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: 9c2397c2c47671c0e65d91e39e91a7a3
+          filename: latency-badge.json
+          label: "Latency p(95)"
+          message: ${{ steps.metrics.outputs.latency }}
+          color: "success"
+
+      - name: Update Success Badge
+        uses: Schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: 9c2397c2c47671c0e65d91e39e91a7a3
+          filename: success-badge.json
+          label: "Success Rate"
+          message: ${{ steps.metrics.outputs.success }}
+          color: "success"
+
+      - name: Update VUs Badge
+        uses: Schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: 9c2397c2c47671c0e65d91e39e91a7a3
+          filename: vus-badge.json
+          label: "Simultaneous Viewers"
+          message: ${{ steps.metrics.outputs.vus }}
+          color: "blue"

@@ -13,8 +13,11 @@
   <a href="https://github.com/RUSEGAL/ruseon-core/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/RUSEGAL/ruseon-core/test.yml?branch=main&style=flat-square" alt="CI Status"></a>
   <a href="https://goreportcard.com/report/github.com/RUSEGAL/ruseon-core"><img src="https://goreportcard.com/badge/github.com/RUSEGAL/ruseon-core?style=flat-square" alt="Go Report Card"></a>
   <a href="https://github.com/RUSEGAL/ruseon-core/releases/latest"><img src="https://img.shields.io/github/v/release/RUSEGAL/ruseon-core?style=flat-square" alt="Latest Release"></a>
-
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License">
+  <br>
+  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/RUSEGAL/9c2397c2c47671c0e65d91e39e91a7a3/raw/latency-badge.json" alt="Latency p(95)">
+  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/RUSEGAL/9c2397c2c47671c0e65d91e39e91a7a3/raw/success-badge.json" alt="Success Rate">
+  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/RUSEGAL/9c2397c2c47671c0e65d91e39e91a7a3/raw/vus-badge.json" alt="Simultaneous Viewers">
 </p>
 
 <p align="center">

@@ -15,6 +15,10 @@
   <a href="https://github.com/RUSEON/ruseon-core/releases/latest"><img src="https://img.shields.io/github/v/release/RUSEON/ruseon-core?style=flat-square" alt="Latest Release"></a>
   <img src="https://img.shields.io/docker/pulls/ruseon/ruseon-core?style=flat-square" alt="Docker Pulls">
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License">
+  <br>
+  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/RUSEGAL/9c2397c2c47671c0e65d91e39e91a7a3/raw/latency-badge.json" alt="Latency p(95)">
+  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/RUSEGAL/9c2397c2c47671c0e65d91e39e91a7a3/raw/success-badge.json" alt="Success Rate">
+  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/RUSEGAL/9c2397c2c47671c0e65d91e39e91a7a3/raw/vus-badge.json" alt="Simultaneous Viewers">
 </p>
 
 <p align="center">
