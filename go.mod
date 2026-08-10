@@ -9,6 +9,7 @@ require (
 	github.com/dgraph-io/badger/v4 v4.9.5
 	github.com/gin-contrib/pprof v1.5.4
 	github.com/gin-gonic/gin v1.12.0
+	github.com/go-co-op/gocron/v2 v2.21.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/pion/rtp v1.10.5
 	github.com/pion/webrtc/v4 v4.2.18
@@ -43,7 +44,6 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
 	github.com/gin-contrib/sse v1.1.1 // indirect
-	github.com/go-co-op/gocron/v2 v2.21.2 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v1.0.0 // indirect

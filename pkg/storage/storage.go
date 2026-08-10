@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/go-co-op/gocron/v2"
 	"github.com/samber/ro"
 	rocron "github.com/samber/ro/plugins/cron"
 )
@@ -46,8 +47,8 @@ func NewStorage(dir string) (*Storage, error) {
 	}
 
 	// Запускаем периодический Garbage Collection для BadgerDB (каждую ночь в 03:00)
-	sub := rocron.Schedule("0 3 * * *").Subscribe(ro.NewObserver(
-		func(_ time.Time) {
+	sub := rocron.NewScheduler(gocron.CronJob("0 3 * * *", false)).Subscribe(ro.NewObserver(
+		func(_ rocron.ScheduleJob) {
 			// Лимит на работу GC - 30 минут, чтобы не создавать нагрузку днем
 			gcCtx, gcCancel := context.WithTimeout(context.Background(), 30*time.Minute)
 			defer gcCancel()
