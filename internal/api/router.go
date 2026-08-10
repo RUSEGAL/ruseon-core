@@ -131,18 +131,30 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool) *gin.Engin
 	api.PUT("/folders/:id", h.EditFolder)
 	api.DELETE("/folders/:id", h.DeleteFolder)
 
+	// Опциональная авторизация для видео-потоков
+	authMiddleware := auth.Middleware()
+	streamAuth := func(c *gin.Context) {
+		id := c.Param("id")
+		cam, err := registry.CurrentStateStore.GetCamera(id)
+		if err == nil && cam != nil && cam.TokenAuth {
+			authMiddleware(c)
+		} else {
+			c.Next()
+		}
+	}
+
 	// HLS стриминг (Live)
-	r.GET("/stream/hls/:id/index.m3u8", h.GetHLSPlaylist)
-	r.GET("/stream/hls/:id/stream.m3u8", h.GetHLSVideoPlaylist)
-	r.GET("/stream/hls/:id/subs.m3u8", h.GetHLSSubsPlaylist)
-	r.GET("/stream/hls/:id/:segment", h.GetHLSSegment)
+	r.GET("/stream/hls/:id/index.m3u8", streamAuth, h.GetHLSPlaylist)
+	r.GET("/stream/hls/:id/stream.m3u8", streamAuth, h.GetHLSVideoPlaylist)
+	r.GET("/stream/hls/:id/subs.m3u8", streamAuth, h.GetHLSSubsPlaylist)
+	r.GET("/stream/hls/:id/:segment", streamAuth, h.GetHLSSegment)
 
 	// WebRTC (WHEP)
-	r.POST("/stream/webrtc/whep/:id", h.PostWHEP)
+	r.POST("/stream/webrtc/whep/:id", streamAuth, h.PostWHEP)
 
 	// HLS стриминг (Archive)
-	r.GET("/hls/:id/archive.m3u8", h.GetArchiveHLSPlaylist)
-	r.GET("/hls/:id/segment.ts", h.GetArchiveHLSSegment)
+	r.GET("/hls/:id/archive.m3u8", streamAuth, h.GetArchiveHLSPlaylist)
+	r.GET("/hls/:id/segment.ts", streamAuth, h.GetArchiveHLSSegment)
 
 	// Статика фронтенда
 	assetsFS, err := fs.Sub(web.FrontendFS, "dist/assets")
