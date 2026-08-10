@@ -32,6 +32,7 @@ func BenchmarkRingBuffer_WriteAndBroadcast_100_Subs(b *testing.B) {
 			defer wg.Done()
 			for reader.Read() != nil {
 				// drain the reader
+				continue
 			}
 		}(r)
 	}
@@ -41,7 +42,7 @@ func BenchmarkRingBuffer_WriteAndBroadcast_100_Subs(b *testing.B) {
 	for b.Loop() {
 		rb.Write(frame)
 	}
-	
+
 	b.StopTimer()
 	rb.Close()
 	wg.Wait()
