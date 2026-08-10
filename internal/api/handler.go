@@ -117,35 +117,41 @@ func (h *Handler) StreamLogs(c *gin.Context) {
 	}
 }
 
-// GetCameras возвращает список доступных камер и их статус.
+// CameraInfo описывает текущее состояние камеры и статистику для API.
+type CameraInfo struct {
+	ID             string                 `json:"id"`
+	URL            string                 `json:"url"`
+	Connected      bool                   `json:"connected"`
+	Record         bool                   `json:"record"`
+	RetentionDays  int                    `json:"retentionDays"`
+	Tags           []string               `json:"tags"`
+	FolderID       string                 `json:"folderId"`
+	Comment        string                 `json:"comment"`
+	SimPhone       string                 `json:"simPhone"`
+	SimICCID       string                 `json:"simICCID"`
+	TrafficLimit   uint64                 `json:"trafficLimit"`
+	TrafficUsed    uint64                 `json:"trafficUsed"`
+	Uptime         uint64                 `json:"uptime"`
+	BytesReceived  uint64                 `json:"bytesReceived"`
+	BytesSent      uint64                 `json:"bytesSent"`
+	Frames         uint64                 `json:"frames"`
+	KeyFrames      uint64                 `json:"keyFrames"`
+	Codec          string                 `json:"codec"`
+	LazyHLS        bool                   `json:"lazyHLS"`
+	Disabled       bool                   `json:"disabled"`
+	DisableReason  string                 `json:"disableReason"`
+	DisableHistory []config.DisableRecord `json:"disableHistory"`
+	RecordHistory  []config.DisableRecord `json:"recordHistory"`
+}
+
+// @Summary Get all cameras
+// @Description Returns a list of all registered cameras along with their real-time statistics
+// @Tags cameras
+// @Produce json
+// @Success 200 {array} CameraInfo
+// @Router /api/cameras [get]
 func (h *Handler) GetCameras(c *gin.Context) {
 	streams := h.manager.GetStreams()
-	
-	type CameraInfo struct {
-		ID            string   `json:"id"`
-		URL           string   `json:"url"`
-		Connected     bool     `json:"connected"`
-		Record        bool     `json:"record"`
-		RetentionDays int      `json:"retentionDays"`
-		Tags          []string `json:"tags"`
-		FolderID      string   `json:"folderId"`
-		Comment       string   `json:"comment"`
-		SimPhone      string   `json:"simPhone"`
-		SimICCID      string   `json:"simICCID"`
-		TrafficLimit  uint64   `json:"trafficLimit"`
-		TrafficUsed   uint64   `json:"trafficUsed"`
-		Uptime        uint64   `json:"uptime"`
-		BytesReceived uint64   `json:"bytesReceived"`
-		BytesSent     uint64   `json:"bytesSent"`
-		Frames        uint64   `json:"frames"`
-		KeyFrames     uint64   `json:"keyFrames"`
-		Codec         string   `json:"codec"`
-		LazyHLS       bool     `json:"lazyHLS"`
-		Disabled      bool                   `json:"disabled"`
-		DisableReason string                 `json:"disableReason"`
-		DisableHistory []config.DisableRecord `json:"disableHistory"`
-		RecordHistory  []config.DisableRecord `json:"recordHistory"`
-	}
 
 	result := make([]CameraInfo, 0)
 	cams, err := h.store.ListCameras()
@@ -207,7 +213,16 @@ func (h *Handler) GetCameras(c *gin.Context) {
 
 
 
-// AddCamera добавляет новую камеру
+// @Summary Add a new camera
+// @Description Dynamically registers a new camera and starts its stream if not disabled
+// @Tags cameras
+// @Accept json
+// @Produce json
+// @Param camera body config.CameraConfig true "Camera Configuration"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/cameras [post]
 func (h *Handler) AddCamera(c *gin.Context) {
 	var cam config.CameraConfig
 	if err := c.ShouldBindJSON(&cam); err != nil {
@@ -231,7 +246,14 @@ func (h *Handler) AddCamera(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-// DeleteCamera удаляет камеру
+// @Summary Delete a camera
+// @Description Stops the stream and completely removes the camera configuration
+// @Tags cameras
+// @Produce json
+// @Param id path string true "Camera ID"
+// @Success 200 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/cameras/{id} [delete]
 func (h *Handler) DeleteCamera(c *gin.Context) {
 	id := c.Param("id")
 
@@ -246,7 +268,17 @@ func (h *Handler) DeleteCamera(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-// EditCamera изменяет параметры существующей камеры
+// @Summary Edit a camera
+// @Description Updates camera settings dynamically without full restart
+// @Tags cameras
+// @Accept json
+// @Produce json
+// @Param id path string true "Camera ID"
+// @Param camera body config.CameraConfig true "Updated Camera Configuration"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/cameras/{id} [put]
 func (h *Handler) EditCamera(c *gin.Context) {
 	id := c.Param("id")
 	var req config.CameraConfig

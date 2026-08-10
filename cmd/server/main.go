@@ -17,6 +17,12 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/engine"
 )
 
+// @title RUSEON Core API
+// @version 1.0
+// @description REST API for managing RUSEON video streaming server.
+// @host localhost:8080
+// @BasePath /
+
 func main() {
 	// 1. Загрузка конфигурации
 	cfg, err := config.Load("config.yaml")

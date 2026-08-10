@@ -15,6 +15,10 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+	_ "github.com/RUSEGAL/ruseon-core/docs"
+
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
@@ -103,6 +107,9 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool) *gin.Engin
 
 	// Метрики Prometheus
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// Swagger Docs
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// API с авторизацией
 	api := r.Group("/api")
