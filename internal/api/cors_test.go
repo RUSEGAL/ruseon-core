@@ -49,10 +49,8 @@ func TestRouterCORS(t *testing.T) {
 				if w.Header().Get("Vary") != "Origin" {
 					t.Errorf("expected Vary: Origin")
 				}
-			} else {
-				if originHeader != "" {
-					t.Errorf("expected no Allow-Origin header, got %q", originHeader)
-				}
+			} else if originHeader != "" {
+				t.Errorf("expected no Allow-Origin header, got %q", originHeader)
 			}
 		})
 	}
