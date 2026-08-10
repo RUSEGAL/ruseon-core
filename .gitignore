@@ -52,7 +52,7 @@ ehthumbs.db
 Thumbs.db
 
 # Documentation & Prompts
-/docs/
+engineering/
 promt.md
 transformation/
 .agents/
