@@ -126,17 +126,11 @@ func TestServer_StreamFrames(t *testing.T) {
 	if !exists {
 		t.Fatal("stream not created")
 	}
-
 	// Готовим тестовый кадр (RingBuffer)
 	rb := st.GetRingBuffer()
 	rb.SetParams([]byte{0x01}, []byte{0x02}, []byte{0x03})
-	rb.Write(&buffer.Frame{
-		IsKeyFrame: true,
-		Timestamp:  0,
-		NALUs:      [][]byte{{0x05, 0x06}},
-	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	mockSrv := &mockStreamFramesServer{
@@ -144,17 +138,47 @@ func TestServer_StreamFrames(t *testing.T) {
 		req: &pb.StreamRequest{CameraId: "cam_yolo"},
 	}
 
-	// StreamFrames блокируется пока не прервется контекст
-	err := srv.StreamFrames(mockSrv.req, mockSrv)
-	if err != nil {
-		t.Fatalf("StreamFrames failed: %v", err)
+	done := make(chan struct{})
+	go func() {
+		// StreamFrames блокируется пока не прервется контекст
+		err := srv.StreamFrames(mockSrv.req, mockSrv)
+		if err != nil {
+			t.Errorf("StreamFrames failed: %v", err)
+		}
+		close(done)
+	}()
+
+	// Пишем первый кадр
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: true,
+		Timestamp:  0,
+		NALUs:      [][]byte{{0x05, 0x06}},
+	})
+
+	// Даем время на обработку
+	time.Sleep(50 * time.Millisecond)
+
+	// Отменяем контекст, чтобы выйти из цикла в StreamFrames
+	cancel()
+
+	// Пишем второй кадр, чтобы разблокировать ожидающий reader.Read()
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: false,
+		Timestamp:  0,
+		NALUs:      [][]byte{{0x00}},
+	})
+
+	select {
+	case <-done:
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout waiting for StreamFrames to exit")
 	}
 
 	if len(mockSrv.resp) == 0 {
 		t.Fatal("expected to receive frames, got 0")
 	}
 
-	// Проверяем формат ответа
+	// Проверяем формат первого ответа
 	resp := mockSrv.resp[0]
 	if resp.Codec != "H265" { // т.к. vps заполнен {0x01}
 		t.Fatalf("expected H265, got %v", resp.Codec)
