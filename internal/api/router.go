@@ -92,25 +92,30 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool, corsOrigin
 
 	// CORS Middleware
 	r.Use(func(c *gin.Context) {
+		if len(corsOrigins) == 0 {
+			// CORS disabled
+			c.Next()
+			return
+		}
+
 		origin := c.Request.Header.Get("Origin")
-		allowOrigin := "*"
-		
-		if len(corsOrigins) > 0 {
-			allowOrigin = ""
+		if origin != "" {
+			allowed := false
 			for _, o := range corsOrigins {
-				if o == origin {
-					allowOrigin = origin
+				if o == origin || o == "*" {
+					allowed = true
 					break
 				}
 			}
-		}
 
-		if allowOrigin != "" {
-			c.Writer.Header().Set("Access-Control-Allow-Origin", allowOrigin)
+			if allowed {
+				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+				c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
+				c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+				c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+				c.Writer.Header().Add("Vary", "Origin")
+			}
 		}
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)

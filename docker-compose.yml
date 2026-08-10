@@ -1,20 +1,20 @@
 version: '3.8'
 
 services:
-  reastream:
+  ruseon-core:
     build: .
-    container_name: reastream
+    container_name: ruseon-core
     restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
-      - reastream_data:/app/data
-      - reastream_recordings:/app/recordings
-      - reastream_backups:/app/backups
+      - ruseon_core_data:/app/data
+      - ruseon_core_recordings:/app/recordings
+      - ruseon_core_backups:/app/backups
     environment:
       - TZ=UTC
 
 volumes:
-  reastream_data:
-  reastream_recordings:
-  reastream_backups:
+  ruseon_core_data:
+  ruseon_core_recordings:
+  ruseon_core_backups:

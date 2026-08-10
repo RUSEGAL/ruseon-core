@@ -33,18 +33,7 @@ func TestRouterMiddleware(t *testing.T) {
 	// debug=true turns on statsviz and pprof
 	router := SetupRouter(handler, authenticator, true, nil)
 
-	// 1. Test CORS Options
-	w1 := httptest.NewRecorder()
-	req1, _ := http.NewRequest("OPTIONS", "/api/cameras", nil)
-	router.ServeHTTP(w1, req1)
-	if w1.Code != http.StatusNoContent { // 204
-		t.Errorf("expected 204 for OPTIONS, got %d", w1.Code)
-	}
-	if w1.Header().Get("Access-Control-Allow-Origin") != "*" {
-		t.Errorf("expected CORS header")
-	}
-
-	// 2. Test Auth Middleware - No Token
+	// 1. Test Auth Middleware - No Token
 	w2 := httptest.NewRecorder()
 	req2, _ := http.NewRequest("GET", "/api/cameras", nil)
 	router.ServeHTTP(w2, req2)

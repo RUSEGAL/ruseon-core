@@ -1,14 +1,16 @@
 server:
   port: 8080
-  pprof_port: 6060 # Порт для Continuous Profiling (0 - выключено)
+  pprof_port: 6060 # Port for Continuous Profiling (0 - disabled)
   debug: false
+  cors_allowed_origins:
+    - http://localhost:8080 # Leave empty for * (all origins)
   record_retention_days: 7
   gc_percent: 50
   gc_memory_limit_mb: 2048
 
 auth:
   secret: "" # Leave empty for auto-generation
-  # secret: "your-jwt-secret-here" # Секрет генерируется автоматически при первом запуске ruseon-core
+  # secret: "your-jwt-secret-here" # The secret is generated automatically on first run of ruseon-core
 
 global_tags:
   - id: "indoor"

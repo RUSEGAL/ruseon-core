@@ -12,15 +12,15 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o reastream ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o ruseon-core ./cmd/server
 
 # Stage 3: Final Image
 FROM alpine:3.19
 RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
-COPY --from=backend-builder /app/reastream /app/reastream
+COPY --from=backend-builder /app/ruseon-core /app/ruseon-core
 COPY --from=frontend-builder /app/web/dist /app/web/dist
 RUN mkdir -p /app/data /app/recordings /app/backups
 EXPOSE 8080
 VOLUME ["/app/data", "/app/recordings", "/app/backups"]
-CMD ["/app/reastream"]
+CMD ["/app/ruseon-core"]
