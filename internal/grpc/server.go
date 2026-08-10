@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 
+	"github.com/RUSEGAL/ruseon-core/internal/mqtt"
 	"github.com/RUSEGAL/ruseon-core/internal/stream"
 	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
 )
@@ -17,13 +18,15 @@ type Server struct {
 	pb.UnimplementedFrameServiceServer
 	manager *stream.Manager
 	grpcSrv *grpc.Server
+	mqttPub *mqtt.Publisher
 }
 
 // NewServer создает новый экземпляр gRPC сервера.
-func NewServer(manager *stream.Manager) *Server {
+func NewServer(manager *stream.Manager, mqttPub *mqtt.Publisher) *Server {
 	return &Server{
 		manager: manager,
 		grpcSrv: grpc.NewServer(),
+		mqttPub: mqttPub,
 	}
 }
 
@@ -140,5 +143,10 @@ func (s *Server) PushMetadata(srv pb.FrameService_PushMetadataServer) error {
 		}
 
 		st.GetMetadataBroadcaster().Broadcast(req)
+
+		// Отправляем в глобальную MQTT очередь (lock-free), если MQTT включен
+		if s.mqttPub != nil {
+			s.mqttPub.Push(req)
+		}
 	}
 }

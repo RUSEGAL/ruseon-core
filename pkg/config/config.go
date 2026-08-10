@@ -36,9 +36,19 @@ type WebhookConfig struct {
 	Secret string   `yaml:"secret,omitempty" json:"secret"`
 }
 
+// MQTTConfig описывает настройки подключения к MQTT брокеру.
+type MQTTConfig struct {
+	Enabled  bool   `yaml:"enabled" json:"enabled"`
+	Broker   string `yaml:"broker" json:"broker"` // e.g. tcp://localhost:1883
+	Username string `yaml:"username,omitempty" json:"username"`
+	Password string `yaml:"password,omitempty" json:"password"`
+	Topic    string `yaml:"topic" json:"topic"` // e.g. ruseon/metadata
+}
+
 // EventsConfig содержит все настройки системы событий.
 type EventsConfig struct {
 	Webhooks []WebhookConfig `yaml:"webhooks,omitempty" json:"webhooks"`
+	MQTT     MQTTConfig      `yaml:"mqtt,omitempty" json:"mqtt"`
 }
 
 // TagConfig описывает пользовательскую метку (тег)

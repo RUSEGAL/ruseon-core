@@ -43,7 +43,7 @@ func (m *mockPushMetadataServer) SetTrailer(metadata.MD) { }
 
 func TestServer_PushMetadata(t *testing.T) {
 	manager := stream.NewManager()
-	srv := NewServer(manager)
+	srv := NewServer(manager, nil)
 
 	// Добавляем тестовый стрим
 	manager.AddStream("cam_test", "rtsp://test", false, true, "tcp")

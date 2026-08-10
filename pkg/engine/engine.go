@@ -14,6 +14,7 @@ import (
 	"github.com/RUSEGAL/ruseon-core/internal/api"
 	"github.com/RUSEGAL/ruseon-core/internal/backup"
 	"github.com/RUSEGAL/ruseon-core/internal/grpc"
+	"github.com/RUSEGAL/ruseon-core/internal/mqtt"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/internal/recorder"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
@@ -44,8 +45,16 @@ func Run(cfg *config.Config) {
 	// 4. Инициализация StreamManager
 	manager := stream.NewManager()
 	
+	// Инициализация MQTT Publisher
+	mqttPub, err := mqtt.NewPublisher(cfg.Events.MQTT)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to start MQTT Publisher")
+	} else if mqttPub != nil {
+		defer mqttPub.Close()
+	}
+
 	// Запуск gRPC Frame Extractor API
-	grpcServer := grpc.NewServer(manager)
+	grpcServer := grpc.NewServer(manager, mqttPub)
 	go func() {
 		// Порт можно вынести в конфиг позже, пока 50051 по умолчанию
 		if err := grpcServer.Start("50051"); err != nil {
