@@ -5,7 +5,7 @@
 <h1 align="center">RUSEON Core</h1>
 
 <p align="center">
-  <strong>Edge Video Infrastructure & AI Data Pipeline</strong><br>
+  <strong>Video Data Infrastructure & AI Pipeline</strong><br>
   <em>Cloud-Native, High-Performance Video Data Platform</em>
 </p>
 
@@ -43,7 +43,7 @@ Rather than trying to do everything (like AI inference or GPU transcoding) insid
 * ⏪ **Advanced Timeshift Pipeline**: Real-time HLS playback of historical data, with seamless export capabilities for AI training datasets.
 * 🗄 **Embedded NoSQL Engine**: Powered by BadgerDB (with background Value Log GC) for sub-millisecond configuration states and metrics, delivering high IOPS without external dependencies.
 * 🎨 **Modern Observability UI**: Includes a React 19 (TypeScript) Edge Dashboard with JWT auth, real-time SSE telemetry, and rich timeline visualization.
-* 🧪 **Enterprise Reliability**: Codebase protected by automated k6 performance CI pipelines and Testcontainers-based E2E tests for absolute regression prevention.
+* 🧪 **Enterprise Reliability**: Codebase protected by automated k6 performance CI pipelines, continuous profiling (pprof), and chaos engineering tests for robust regression testing.
 
 ---
 
@@ -143,10 +143,10 @@ Even under the *Thundering Herd* problem (when thousands of users simultaneously
 
 | Operation | Time | Throughput | Description |
 | :--- | :--- | :--- | :--- |
-| `GetPlaylist` | **~1.1 µs** | ~1,000,000 req/sec | Generating an M3U8 manifest |
-| `GetSegment (1 MB)` | **~113 µs** | **~8.7 GB/s** | Retrieving a TS segment (1 MB) from the pool |
+| `GetPlaylist` | **~333 ns** | ~3,000,000 req/sec | Generating an M3U8 manifest |
+| `GetSegment (1 MB)` | **~87 µs** | **~11.4 GB/s** | Retrieving a TS segment (1 MB) from the pool |
 
-> **Bottom line:** Your server won't crash during massive traffic spikes. A single CPU core can handle segment delivery at speeds of nearly 9 Gigabytes per second.
+> **Bottom line:** Architected to mitigate the Thundering Herd problem during traffic spikes. A single CPU core can handle segment delivery at speeds of nearly 11 Gigabytes per second.
 
 ### 3. High-Speed Archive (fMP4 Recorder)
 Packaging video streams into fragmented MP4 (fMP4) format for writing to persistent storage.
@@ -155,7 +155,7 @@ Packaging video streams into fragmented MP4 (fMP4) format for writing to persist
 | :--- | :--- | :--- |
 | `Write GOP (1 sec video)` | **~1.58 ms** | Packaging 25 frames (1 sec. of video) and flushing to disk |
 
-> **Bottom line:** A single CPU core can continuously archive **~630 concurrent video streams**. The performance of RUSEON Core is strictly bottlenecked by the I/O throughput of your disks and network, not the CPU!
+> **Bottom line:** Benchmark result: fMP4 packaging of a 1-second GOP took ~1.58 ms on a single core, corresponding to a theoretical CPU capacity of **~630 streams** under the tested synthetic workload. The real-world performance is strictly bottlenecked by the I/O throughput of your disks and network, not the CPU!
 
 ### 4. End-to-End HLS Load Testing (Thundering Herd) 🌩️
 We performed an End-to-End load test on Live HLS delivery using Grafana's `k6`. The goal was to simulate 1000 simultaneous viewers tuning into a single live broadcast (camera) to validate the Muxer's Zero-Copy caching architecture.
@@ -169,7 +169,7 @@ We performed an End-to-End load test on Live HLS delivery using Grafana's `k6`. 
 | **Latency (avg)** | **3.13 ms** | Average time to serve a video segment to a viewer |
 | **Latency p(95)** | **6.13 ms** | 95% of all viewers received segments in under 6 milliseconds |
 
-> **Bottom line:** The architecture is designed to mitigate the thundering herd problem and demonstrated highly stable behavior under our benchmark scenarios. RUSEON Core effortlessly saturated local 10G interfaces while keeping response latencies under 6 milliseconds for thousands of concurrent TCP connections.
+> **Bottom line:** The architecture demonstrated highly stable behavior under our benchmark scenarios. RUSEON Core effectively utilized local 10G interfaces while keeping response latencies under 6 milliseconds for thousands of concurrent TCP connections.
 
 ![k6 HLS Stress Test Results](assets/k6-test.png)
 
