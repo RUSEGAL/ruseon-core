@@ -28,7 +28,7 @@ cameras:
     comment: "РџР°СЂРєРѕРІРєР°"
     transport: "tcp"
 
-# Система событий (рассылка Webhooks)
+#   ( Webhooks)
 # events:
 #   webhooks:
 #     - url: "https://my-vms.com/api/webhook"

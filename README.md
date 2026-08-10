@@ -62,32 +62,50 @@ RUSEON Core acts as the critical bridge between edge hardware and your AI / Clou
 ```mermaid
 graph LR
   subgraph Edge [Edge Devices / Cameras]
-    Cam1[RTSP Stream]
-    Cam2[RTSP Stream]
+    Cam[RTSP Streams]
   end
 
   subgraph Engine [RUSEON Core]
+    API[REST / SSE API]
+    gRPC[gRPC API]
     Demux[Zero-Copy Demuxer]
-    Pool[Memory Pool]
-    HLS[Edge HLS Muxer]
-    Rec[fMP4 Storage Engine]
+    Pool[RingBuffer / Pool]
+    HLS[HLS Muxer + WebVTT]
+    RTC[WebRTC WHEP + DataChannel]
+    Rec[fMP4 Storage 'Direct I/O']
     DB[(BadgerDB)]
   end
 
   subgraph Cloud [Cloud & AI Infrastructure]
-    Browser[Observability Dashboard]
-    Player[Analytics Node]
-    AI[AI / ML Pipeline]
+    Dashboard[React Dashboard]
+    Player[Video Clients]
+    AI[AI / CV Models]
   end
 
-  Cam1 & Cam2 -->|H.264/H.265| Demux
+  %% Ingest Pipeline
+  Cam -->|H.264 / HEVC| Demux
   Demux --> Pool
+  
+  %% Delivery Pipeline
   Pool --> HLS
+  Pool --> RTC
   Pool --> Rec
-  DB -.->|State & Config| Demux
-  HLS -->|Live Feed| Player
+  
+  %% State Management
+  DB -.->|Config & State| API
+  API -.-> Demux
+  
+  %% AI Metadata Loop (New Feature!)
+  AI -->|Push Bounding Boxes| gRPC
+  gRPC -->|Inject Metadata| Pool
+  
+  %% Outputs
+  HLS -->|M3U8 / TS| Player
+  RTC -->|Sub-second Latency| Player
   Rec -->|Dataset Export| AI
-  Browser <-->|REST & SSE Telemetry| Demux
+  
+  %% Observability
+  Dashboard <-->|Metrics & Config| API
 ```
 
 ---
@@ -171,10 +189,12 @@ The fastest way to deploy RUSEON Core is using our official multi-arch Docker im
 
 ```bash
 docker run -d \
-  -p 8080:8080 \
+  --network host \
   -v ruseon-data:/data \
   --name ruseon-core \
   ghcr.io/RUSEGAL/ruseon-core:latest
+# Note: --network host is required for WebRTC UDP routing.
+# Alternatively, expose -p 8080:8080 and your configured ICE UDP port.
 ```
 
 The Enterprise Edge Dashboard will be available at `http://localhost:8080`.
@@ -195,7 +215,7 @@ cd web && npm install && npm run build && cd ..
 go mod tidy
 go run ./cmd/server
 ```
-*(Default Credentials: admin / admin)*
+*(Default Credentials: admin / password123)*
 
 ---
 

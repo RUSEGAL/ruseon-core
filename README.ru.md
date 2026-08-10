@@ -60,33 +60,51 @@ RUSEON Core выступает в роли критически важного �
 
 ```mermaid
 graph LR
-  subgraph Edge [Оборудование / Камеры]
-    Cam1[RTSP Поток]
-    Cam2[RTSP Поток]
+  subgraph Edge [Edge Devices / Cameras]
+    Cam[RTSP Streams]
   end
 
   subgraph Engine [RUSEON Core]
-    Demux[Zero-Copy Демультиплексор]
-    Pool[Пул памяти]
-    HLS[Edge HLS Мультиплексор]
-    Rec[fMP4 Подсистема записи]
+    API[REST / SSE API]
+    gRPC[gRPC API]
+    Demux[Zero-Copy Demuxer]
+    Pool[RingBuffer / Pool]
+    HLS[HLS Muxer + WebVTT]
+    RTC[WebRTC WHEP + DataChannel]
+    Rec[fMP4 Storage 'Direct I/O']
     DB[(BadgerDB)]
   end
 
-  subgraph Cloud [Облако и Инфраструктура ИИ]
-    Browser[Дашборд мониторинга]
-    Player[Узел аналитики]
-    AI[ИИ / ML Конвейер]
+  subgraph Cloud [Cloud & AI Infrastructure]
+    Dashboard[React Dashboard]
+    Player[Video Clients]
+    AI[AI / CV Models]
   end
 
-  Cam1 & Cam2 -->|H.264/H.265| Demux
+  %% Ingest Pipeline
+  Cam -->|H.264 / HEVC| Demux
   Demux --> Pool
+  
+  %% Delivery Pipeline
   Pool --> HLS
+  Pool --> RTC
   Pool --> Rec
-  DB -.->|Состояние и Конфиг| Demux
-  HLS -->|Live Поток| Player
-  Rec -->|Экспорт Датасетов| AI
-  Browser <-->|REST и SSE Телеметрия| Demux
+  
+  %% State Management
+  DB -.->|Config & State| API
+  API -.-> Demux
+  
+  %% AI Metadata Loop (New Feature!)
+  AI -->|Push Bounding Boxes| gRPC
+  gRPC -->|Inject Metadata| Pool
+  
+  %% Outputs
+  HLS -->|M3U8 / TS| Player
+  RTC -->|Sub-second Latency| Player
+  Rec -->|Dataset Export| AI
+  
+  %% Observability
+  Dashboard <-->|Metrics & Config| API
 ```
 
 ---
@@ -170,10 +188,12 @@ RUSEON Core спроектирован для максимальной эффе�
 
 ```bash
 docker run -d \
-  -p 8080:8080 \
+  --network host \
   -v ruseon-data:/data \
   --name ruseon-core \
   ghcr.io/ruseon/ruseon-core:latest
+# Примечание: --network host обязателен для корректной маршрутизации WebRTC по UDP.
+# В противном случае пробросьте -p 8080:8080 и ваш настроенный ICE UDP порт.
 ```
 
 Корпоративный Edge-дашборд будет доступен по адресу `http://localhost:8080`.
@@ -194,7 +214,7 @@ cd web && npm install && npm run build && cd ..
 go mod tidy
 go run ./cmd/server
 ```
-*(Учетные данные по умолчанию: admin / admin)*
+*(Учетные данные по умолчанию: admin / password123)*
 
 ---
 
