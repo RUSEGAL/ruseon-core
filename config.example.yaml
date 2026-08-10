@@ -7,8 +7,7 @@ server:
   gc_memory_limit_mb: 2048
 
 auth:
-  username: "admin"
-  password: "password123"
+  secret: "" # Leave empty for auto-generation
   # secret: "your-jwt-secret-here" # Секрет генерируется автоматически при первом запуске ruseon-core
 
 global_tags:

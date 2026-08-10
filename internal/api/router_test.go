@@ -24,8 +24,6 @@ func TestRouterMiddleware(t *testing.T) {
 	defer store.Close()
 
 	cfg := &config.Config{}
-	cfg.Auth.Username = "admin"
-	cfg.Auth.Password = "password"
 	cfg.Auth.Secret = "secret"
 
 	manager := stream.NewManager()

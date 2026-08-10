@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/RUSEGAL/ruseon-core/pkg/auth"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
@@ -24,8 +25,6 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *Handler, registry.StateStore) 
 	store, _ := storage.NewStorage(filepath.Join(tempDir, "db"))
 	
 	cfg := &config.Config{}
-	cfg.Auth.Username = "admin"
-	cfg.Auth.Password = "password"
 	cfg.Auth.Secret = "secret"
 	
 	manager := stream.NewManager()
@@ -59,9 +58,12 @@ func TestLogin(t *testing.T) {
 	
 	// В тестах логина нам нужно использовать SetupRouter, чтобы был корректный роутинг с auth.Login
 	cfg := &config.Config{}
-	cfg.Auth.Username = "admin"
-	cfg.Auth.Password = "password"
 	cfg.Auth.Secret = "secret"
+	
+	registry.CurrentStateStore = store
+	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	_ = store.SaveUser("admin", string(hash))
+
 	authenticator := auth.NewLocalAuthenticator(cfg)
 	
 	router.POST("/login", authenticator.Login)

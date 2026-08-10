@@ -126,7 +126,7 @@ RUSEON Core is designed for maximum efficiency. At its core lies a **Zero-Copy**
 **🖥 Test Environment:**
 * **CPU:** AMD Ryzen 5 5600X (All benchmarks below were run on a **single** core)
 * **OS / Arch:** Windows / amd64
-* **Runtime:** Go 1.23+
+* **Runtime:** Go 1.26+
 
 ### 1. Frame Broadcasting (Zero-Copy RingBuffer)
 The core receives a video frame (H.264/H.265) and instantly broadcasts it to subscribers (HLS Muxer, Recorder, and AI Agents) without copying data in memory.

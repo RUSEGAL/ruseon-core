@@ -465,6 +465,17 @@ func (h *Handler) PostWHEP(c *gin.Context) {
 	c.String(http.StatusCreated, answerSDP)
 }
 
+// GetStreamToken возвращает короткоживущий токен для HLS и WebRTC.
+func (h *Handler) GetStreamToken(c *gin.Context) {
+	id := c.Param("id")
+	token, err := registry.CurrentAuthenticator.GenerateStreamToken(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate stream token"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"stream_token": token})
+}
+
 // GetServerStats   
 func (h *Handler) GetServerStats(c *gin.Context) {
 	var m runtime.MemStats

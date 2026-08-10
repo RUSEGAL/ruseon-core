@@ -27,6 +27,10 @@ type StateStore interface {
 	DeleteFolder(id string) error
 	ListFolders() ([]config.FolderConfig, error)
 
+	SaveUser(username, passwordHash string) error
+	GetUser(username string) (string, error)
+	HasUsers() (bool, error)
+
 	MigrateFromConfig(cfg *config.Config) error
 	ExportJSON() ([]byte, error)
 	ImportJSON(data []byte) error
@@ -38,6 +42,8 @@ type StateStore interface {
 type Authenticator interface {
 	Login(c *gin.Context)
 	Middleware() gin.HandlerFunc
+	StreamMiddleware() gin.HandlerFunc
+	GenerateStreamToken(cameraID string) (string, error)
 }
 
 // WriteSeekCloser combines io.Writer, io.Seeker and io.Closer

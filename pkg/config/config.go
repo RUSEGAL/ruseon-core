@@ -20,9 +20,7 @@ type Config struct {
 	} `yaml:"server"`
 
 	Auth struct {
-		Username string `yaml:"username"`
-		Password string `yaml:"password"`
-		Secret   string `yaml:"secret,omitempty"` // Секретный ключ для JWT
+		Secret string `yaml:"secret,omitempty"` // Секретный ключ для JWT
 	} `yaml:"auth"`
 
 	GlobalTags []TagConfig    `yaml:"global_tags,omitempty"`

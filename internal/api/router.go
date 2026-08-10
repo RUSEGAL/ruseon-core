@@ -122,6 +122,7 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool) *gin.Engin
 	api.DELETE("/cameras/:id", h.DeleteCamera)
 	api.GET("/cameras/:id/archive", h.GetCameraArchive)
 	api.GET("/cameras/:id/export", h.ExportCameraArchive)
+	api.GET("/cameras/:id/stream-token", h.GetStreamToken)
 	api.GET("/stats", h.GetServerStats)
 	api.GET("/logs/stream", h.StreamLogs)
 	
@@ -140,12 +141,12 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool) *gin.Engin
 	api.DELETE("/folders/:id", h.DeleteFolder)
 
 	// Опциональная авторизация для видео-потоков
-	authMiddleware := auth.Middleware()
+	streamMiddleware := auth.StreamMiddleware()
 	streamAuth := func(c *gin.Context) {
 		id := c.Param("id")
 		cam, err := registry.CurrentStateStore.GetCamera(id)
 		if err == nil && cam != nil && cam.TokenAuth {
-			authMiddleware(c)
+			streamMiddleware(c)
 		} else {
 			c.Next()
 		}

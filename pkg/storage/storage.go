@@ -20,6 +20,7 @@ const (
 	PrefixCamera = "camera:"
 	PrefixTag    = "tag:"
 	PrefixFolder = "folder:"
+	PrefixUser   = "user:"
 )
 
 // Storage обертка над BadgerDB
@@ -332,6 +333,50 @@ func (s *Storage) ListFolders() ([]config.FolderConfig, error) {
 	})
 
 	return folders, err
+}
+
+// SaveUser сохраняет хэш пароля пользователя.
+func (s *Storage) SaveUser(username, passwordHash string) error {
+	key := []byte(PrefixUser + username)
+	return s.db.Update(func(txn *badger.Txn) error {
+		return txn.Set(key, []byte(passwordHash))
+	})
+}
+
+// GetUser возвращает хэш пароля пользователя по имени.
+func (s *Storage) GetUser(username string) (string, error) {
+	key := []byte(PrefixUser + username)
+	var hash string
+	err := s.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err != nil {
+			return err
+		}
+		return item.Value(func(val []byte) error {
+			hash = string(val)
+			return nil
+		})
+	})
+	if err != nil {
+		return "", err
+	}
+	return hash, nil
+}
+
+// HasUsers возвращает true, если в БД есть хотя бы один пользователь.
+func (s *Storage) HasUsers() (bool, error) {
+	hasUsers := false
+	err := s.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+		prefix := []byte(PrefixUser)
+		it.Seek(prefix)
+		if it.ValidForPrefix(prefix) {
+			hasUsers = true
+		}
+		return nil
+	})
+	return hasUsers, err
 }
 
 

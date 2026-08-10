@@ -15,8 +15,7 @@ func TestLoadAndSaveConfig(t *testing.T) {
 server:
   port: 8080
 auth:
-  username: "admin"
-  password: "password"
+  secret: "test_secret"
 `
 	err := os.WriteFile(configPath, []byte(initialYaml), 0644)
 	if err != nil {
@@ -31,9 +30,6 @@ auth:
 
 	if cfg.Server.Port != 8080 {
 		t.Errorf("expected port 8080, got %d", cfg.Server.Port)
-	}
-	if cfg.Auth.Username != "admin" {
-		t.Errorf("expected username admin, got %s", cfg.Auth.Username)
 	}
 	if cfg.Auth.Secret == "" {
 		t.Errorf("Load() should generate JWT secret if missing")

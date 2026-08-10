@@ -33,7 +33,7 @@ func main() {
 
 	// 2. Инициализация логгера
 	logger.Init(cfg.Server.Debug)
-	log.Info().Msg("Starting REA Stream Engine...")
+	log.Info().Msg("Starting RUSEON Core...")
 
 	// 2.1 Тюнинг Garbage Collector (Этап 23.1)
 	if cfg.Server.GCPercent > 0 {
