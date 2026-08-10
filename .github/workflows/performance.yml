@@ -23,6 +23,7 @@ jobs:
 
       - name: Start RUSEON Server in Background
         run: |
+          cp config.example.yaml config.yaml
           go build -o server ./cmd/server
           ./server &
           sleep 3 # Wait for server to start
