@@ -46,7 +46,9 @@ jobs:
           args: -exclude-dir=pkg/grpc/pb -exclude=G104,G115,G122,G301,G304 ./...
 
       - name: Build Backend (Go)
-        run: CGO_ENABLED=0 go build -v ./cmd/server
+        run: |
+          CGO_ENABLED=0 go build -v ./cmd/server
+          CGO_ENABLED=0 go build -v ./cmd/ruseon-cli
 
       - name: Run Tests with Race Detector and Coverage
         run: go test -v -race -coverprofile=coverage.out ./...

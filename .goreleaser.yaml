@@ -21,6 +21,18 @@ builds:
     goarch:
       - amd64
       - arm64
+  - id: ruseon-cli
+    main: ./cmd/ruseon-cli
+    binary: ruseon-cli
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
 
 archives:
   - format: tar.gz
