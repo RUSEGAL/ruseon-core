@@ -13,7 +13,70 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 )
 
-var apiURL string
+var (
+	apiURL   string
+	apiUser  string
+	apiPass  string
+	apiToken string
+)
+
+// login fetches a JWT token if username/password are provided
+func login() error {
+	if apiUser == "" || apiPass == "" {
+		return nil // No auth provided, try without (or might fail with 401)
+	}
+
+	creds := map[string]string{
+		"username": apiUser,
+		"password": apiPass,
+	}
+	b, _ := json.Marshal(creds)
+
+	resp, err := http.Post(fmt.Sprintf("%s/login", apiURL), "application/json", bytes.NewReader(b))
+	if err != nil {
+		return fmt.Errorf("login failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("login failed with status: %d", resp.StatusCode)
+	}
+
+	var result map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return fmt.Errorf("failed to parse login response: %w", err)
+	}
+
+	if token, ok := result["token"]; ok {
+		apiToken = token
+		return nil
+	}
+	return fmt.Errorf("no token in login response")
+}
+
+// doRequest helper to add auth headers and execute request
+func doRequest(method, endpoint string, body []byte) (*http.Response, error) {
+	if apiToken == "" && apiUser != "" {
+		if err := login(); err != nil {
+			return nil, err
+		}
+	}
+
+	req, err := http.NewRequest(method, fmt.Sprintf("%s/%s", apiURL, endpoint), bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	if apiToken != "" {
+		req.Header.Set("Authorization", "Bearer "+apiToken)
+	}
+
+	return http.DefaultClient.Do(req)
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "ruseon-cli",
@@ -25,7 +88,7 @@ var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Get server status and metrics",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		resp, err := http.Get(fmt.Sprintf("%s/stats", apiURL))
+		resp, err := doRequest(http.MethodGet, "stats", nil)
 		if err != nil {
 			return fmt.Errorf("failed to connect to server: %w", err)
 		}
@@ -59,7 +122,7 @@ var listCamerasCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all cameras",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		resp, err := http.Get(fmt.Sprintf("%s/cameras", apiURL))
+		resp, err := doRequest(http.MethodGet, "cameras", nil)
 		if err != nil {
 			return fmt.Errorf("failed to connect to server: %w", err)
 		}
@@ -127,7 +190,7 @@ var addCameraCmd = &cobra.Command{
 			return err
 		}
 
-		resp, err := http.Post(fmt.Sprintf("%s/cameras", apiURL), "application/json", bytes.NewReader(b))
+		resp, err := doRequest(http.MethodPost, "cameras", b)
 		if err != nil {
 			return fmt.Errorf("failed to connect to server: %w", err)
 		}
@@ -151,12 +214,7 @@ var deleteCameraCmd = &cobra.Command{
 			return fmt.Errorf("--id is required")
 		}
 
-		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/cameras/%s", apiURL, camID), nil)
-		if err != nil {
-			return err
-		}
-
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := doRequest(http.MethodDelete, fmt.Sprintf("cameras/%s", camID), nil)
 		if err != nil {
 			return fmt.Errorf("failed to connect to server: %w", err)
 		}
@@ -173,7 +231,13 @@ var deleteCameraCmd = &cobra.Command{
 }
 
 func init() {
+	// ENV defaults
+	defaultUser := os.Getenv("RUSEON_USER")
+	defaultPass := os.Getenv("RUSEON_PASS")
+
 	rootCmd.PersistentFlags().StringVar(&apiURL, "api", "http://127.0.0.1:8080/api", "API URL of the RUSEON server")
+	rootCmd.PersistentFlags().StringVarP(&apiUser, "user", "u", defaultUser, "Username for authentication")
+	rootCmd.PersistentFlags().StringVarP(&apiPass, "pass", "p", defaultPass, "Password for authentication")
 	
 	rootCmd.AddCommand(statusCmd)
 	
