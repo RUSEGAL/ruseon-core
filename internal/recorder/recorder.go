@@ -92,14 +92,17 @@ func (r *Recorder) run() {
 	}
 
 	for {
-		if r.ctx.Err() != nil {
-			break
+		var frame *buffer.Frame
+		select {
+		case <-r.ctx.Done():
+			goto ExitLoop
+		case f, ok := <-reader.C:
+			if !ok {
+				goto ExitLoop
+			}
+			frame = f
 		}
 
-		frame := reader.Read()
-		if frame == nil {
-			break
-		}
 		rawPts := int64(frame.Timestamp * 90000 / time.Second)
 
 		// Ротация файла каждый час. Проверяем перед обработкой I-кадра.
@@ -246,6 +249,7 @@ func (r *Recorder) run() {
 			partStartBaseTime = uint64(currentPts) //nolint:gosec
 		}
 	}
+ExitLoop:
 
 	if file != nil {
 		// Дописываем последний сэмпл при остановке
