@@ -66,19 +66,24 @@ graph LR
   end
 
   subgraph Engine [RUSEON Core]
-    API[REST / SSE API]
-    gRPC[gRPC API]
+    API[Live REST / SSE API]
+    gRPC[gRPC AI Receiver]
     Demux[Zero-Copy Demuxer]
     Pool[RingBuffer / Pool]
+    Meta[Metadata Bus]
     HLS[HLS Muxer + WebVTT]
     RTC[WebRTC WHEP + DataChannel]
     Rec[fMP4 Storage 'Direct I/O']
-    DB[(BadgerDB)]
+    Storage[(Video Archive / BlobStore)]
+    MQTT[MQTT Publisher]
+    DB[(BadgerDB Control Plane)]
   end
 
-  subgraph Cloud [Cloud & AI Infrastructure]
+  subgraph Clients [Clients & Ecosystem]
     Dashboard[React Dashboard]
+    CLI[ruseon-cli / Swagger]
     Player[Video Clients]
+    IoT[IoT Broker / Home Assistant]
     AI[AI / CV Models]
   end
 
@@ -94,15 +99,21 @@ graph LR
   %% State Management
   DB -.->|Config & State| API
   API -.-> Demux
+  API <--> CLI
   
-  %% AI Metadata Loop (New Feature!)
+  %% AI Metadata Loop
   AI -->|Push Bounding Boxes| gRPC
-  gRPC -->|Inject Metadata| Pool
+  gRPC -->|Metadata| Meta[Metadata Bus]
+  Meta --> HLS
+  Meta --> RTC
+  Meta --> MQTT
   
   %% Outputs
   HLS -->|M3U8 / TS| Player
   RTC -->|Sub-second Latency| Player
-  Rec -->|Dataset Export| AI
+  Rec -->|fMP4 Archive| Storage
+  Storage -->|Dataset Export| AI
+  MQTT -->|JSON Telemetry| IoT
   
   %% Observability
   Dashboard <-->|Metrics & Config| API
@@ -141,7 +152,7 @@ docker run -d \
 # В противном случае пробросьте -p 8080:8080 и ваш настроенный ICE UDP порт.
 ```
 
-Корпоративный Edge-дашборд будет доступен по адресу `http://localhost:8080`.
+RUSEON Edge-дашборд будет доступен по адресу `http://localhost:8080`.
 
 ### Сборка из исходников
 

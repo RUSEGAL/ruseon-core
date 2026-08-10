@@ -73,9 +73,11 @@ graph LR
     gRPC[gRPC AI Receiver]
     Demux[Zero-Copy Demuxer]
     Pool[RingBuffer / Pool]
+    Meta[Metadata Bus]
     HLS[HLS Muxer + WebVTT]
     RTC[WebRTC WHEP + DataChannel]
     Rec[fMP4 Storage 'Direct I/O']
+    Storage[(Video Archive / BlobStore)]
     MQTT[MQTT Publisher]
     DB[(BadgerDB Control Plane)]
   end
@@ -96,7 +98,6 @@ graph LR
   Pool --> HLS
   Pool --> RTC
   Pool --> Rec
-  Pool --> MQTT
   
   %% State Management
   DB -.->|Config & State| API
@@ -105,12 +106,16 @@ graph LR
   
   %% AI Metadata Loop
   AI -->|Push Bounding Boxes| gRPC
-  gRPC -->|Inject Metadata| Pool
+  gRPC -->|Metadata| Meta[Metadata Bus]
+  Meta --> HLS
+  Meta --> RTC
+  Meta --> MQTT
   
   %% Outputs
   HLS -->|M3U8 / TS| Player
   RTC -->|Sub-second Latency| Player
-  Rec -->|Dataset Export| AI
+  Rec -->|fMP4 Archive| Storage
+  Storage -->|Dataset Export| AI
   MQTT -->|JSON Telemetry| IoT
   
   %% Observability
@@ -123,7 +128,7 @@ graph LR
 
 RUSEON Core is designed for maximum efficiency. At its core lies a routing engine that provides **zero-copy / low-copy frame distribution with allocation minimization on the hot path**.
 
-The architecture demonstrated highly stable behavior under our benchmark scenarios. RUSEON Core effectively utilized local 10G interfaces achieving **~8.8 Gbit/s end-to-end** throughput for HLS delivery.
+In our benchmark environment, RUSEON Core sustained ~8.8 Gbit/s of end-to-end HLS delivery throughput on a 10G network interface.
 
 For full automated benchmark results, stress tests, and chaos engineering reports, please refer to our single source of truth:
 👉 **[benchmarks/RESULTS.md](benchmarks/RESULTS.md)**
@@ -150,7 +155,7 @@ docker run -d \
 # Alternatively, expose -p 8080:8080 and your configured ICE UDP port.
 ```
 
-The Enterprise Edge Dashboard will be available at `http://localhost:8080`.
+The RUSEON Edge Dashboard will be available at `http://localhost:8080`.
 
 ### Build from Source
 
@@ -223,7 +228,7 @@ RUSEON is built on an Open Core model. Start for free with the Community Edition
 | **Max Cameras per Node** | Unlimited (Hardware limit) | Unlimited | Unlimited |
 | **Advanced IAM & RBAC** | ❌ Basic Auth | ✅ Role-based Access | ✅ Role-based Access |
 | **SSO (Active Directory, OIDC, SAML)** | ❌ No | ❌ No | ✅ **Yes** |
-| **Infinite Cloud Archiving (S3 / Minio)**| ❌ No | ❌ No | ✅ **Yes** |
+| **Scalable Cloud Archiving (S3 / MinIO)**| ❌ No | ❌ No | ✅ **Yes** |
 | **Clustering & High Availability** | ❌ Single Node | ⚠️ Basic Sync | 🚧 **Planned (Roadmap)** |
 | **Hardware / GPU Transcoding** | ❌ No | 🚧 Planned | 🚧 **Planned (Roadmap)** |
 | **Support SLA** | 🌐 Community (GitHub) | 📧 Email Support | 🚀 **24/7 Dedicated SLA** |
