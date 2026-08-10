@@ -1,6 +1,7 @@
 package buffer
 
 import (
+	"sync"
 	"testing"
 )
 
@@ -21,14 +22,16 @@ func BenchmarkRingBuffer_WriteAndBroadcast_100_Subs(b *testing.B) {
 	defer rb.Close()
 	frame := &Frame{IsKeyFrame: true, NALUs: [][]byte{make([]byte, 1024)}}
 
+	var wg sync.WaitGroup
 	// Subscribe 100 readers
 	for i := 0; i < 100; i++ {
 		r := rb.Subscribe()
 		defer r.Close()
+		wg.Add(1)
 		go func(reader *Reader) {
+			defer wg.Done()
 			for reader.Read() != nil {
 				// drain the reader
-				continue
 			}
 		}(r)
 	}
@@ -38,4 +41,8 @@ func BenchmarkRingBuffer_WriteAndBroadcast_100_Subs(b *testing.B) {
 	for b.Loop() {
 		rb.Write(frame)
 	}
+	
+	b.StopTimer()
+	rb.Close()
+	wg.Wait()
 }
