@@ -1,0 +1,33 @@
+name: Performance CI/CD (k6)
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+jobs:
+  k6-load-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Start RUSEON Server in Background
+        run: |
+          go build -o server ./cmd/server
+          ./server &
+          sleep 3 # Wait for server to start
+
+      - name: Run k6 Load Test
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: tests/performance/k6_load.js
+
+      - name: Stop RUSEON Server
+        run: pkill -f server || true

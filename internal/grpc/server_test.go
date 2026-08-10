@@ -8,6 +8,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/RUSEGAL/ruseon-core/internal/buffer"
 	"github.com/RUSEGAL/ruseon-core/internal/stream"
 	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
 	"google.golang.org/grpc/metadata"
@@ -93,5 +94,80 @@ func TestServer_PushMetadata(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for broadcasted metadata")
+	}
+}
+
+type mockStreamFramesServer struct {
+	grpc.ServerStream
+	ctx  context.Context
+	req  *pb.StreamRequest
+	resp []*pb.FrameResponse
+}
+
+func (m *mockStreamFramesServer) Send(resp *pb.FrameResponse) error {
+	m.resp = append(m.resp, resp)
+	return nil
+}
+
+func (m *mockStreamFramesServer) Context() context.Context {
+	if m.ctx == nil {
+		return context.Background()
+	}
+	return m.ctx
+}
+
+func TestServer_StreamFrames(t *testing.T) {
+	manager := stream.NewManager()
+	srv := NewServer(manager, nil)
+
+	// Добавляем тестовый стрим
+	manager.AddStream("cam_yolo", "rtsp://yolo", false, true, "tcp")
+	st, exists := manager.GetStream("cam_yolo")
+	if !exists {
+		t.Fatal("stream not created")
+	}
+
+	// Готовим тестовый кадр (RingBuffer)
+	rb := st.GetRingBuffer()
+	rb.SetParams([]byte{0x01}, []byte{0x02}, []byte{0x03})
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: true,
+		Timestamp:  0,
+		NALUs:      [][]byte{{0x05, 0x06}},
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	mockSrv := &mockStreamFramesServer{
+		ctx: ctx,
+		req: &pb.StreamRequest{CameraId: "cam_yolo"},
+	}
+
+	// StreamFrames блокируется пока не прервется контекст
+	err := srv.StreamFrames(mockSrv.req, mockSrv)
+	if err != nil {
+		t.Fatalf("StreamFrames failed: %v", err)
+	}
+
+	if len(mockSrv.resp) == 0 {
+		t.Fatal("expected to receive frames, got 0")
+	}
+
+	// Проверяем формат ответа
+	resp := mockSrv.resp[0]
+	if resp.Codec != "H265" { // т.к. vps заполнен {0x01}
+		t.Fatalf("expected H265, got %v", resp.Codec)
+	}
+	if !resp.IsKeyframe {
+		t.Fatalf("expected keyframe")
+	}
+
+	// Payload должен содержать Annex B префиксы:
+	// VPS, SPS, PPS, NALU
+	// 0,0,0,1,0x01 + 0,0,0,1,0x02 + 0,0,0,1,0x03 + 0,0,0,1,0x05,0x06
+	expectedLen := 4 + 1 + 4 + 1 + 4 + 1 + 4 + 2
+	if len(resp.Payload) != expectedLen {
+		t.Fatalf("expected payload len %d, got %d", expectedLen, len(resp.Payload))
 	}
 }
