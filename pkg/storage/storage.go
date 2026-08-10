@@ -11,6 +11,8 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/samber/ro"
+	rocron "github.com/samber/ro/plugins/cron"
 )
 
 const (
@@ -43,28 +45,42 @@ func NewStorage(dir string) (*Storage, error) {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	// Запускаем периодический Garbage Collection для BadgerDB (каждую ночь в 03:00)
+	sub := rocron.Schedule("0 3 * * *").Subscribe(ro.NewObserver(
+		func(_ time.Time) {
+			// Лимит на работу GC - 30 минут, чтобы не создавать нагрузку днем
+			gcCtx, gcCancel := context.WithTimeout(context.Background(), 30*time.Minute)
+			defer gcCancel()
 
-	// Запускаем периодический Garbage Collection для BadgerDB (раз в час)
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Error().Interface("panic", r).Msg("Recovered from panic in BadgerDB GC")
-			}
-		}()
-		ticker := time.NewTicker(1 * time.Hour)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				for err := db.RunValueLogGC(0.5); err == nil; err = db.RunValueLogGC(0.5) {
-					log.Debug().Msg("BadgerDB Garbage Collection executed")
+			log.Info().Msg("Starting nightly BadgerDB Garbage Collection")
+			for {
+				select {
+				case <-gcCtx.Done():
+					log.Info().Msg("Nightly BadgerDB GC time limit reached or stopped")
+					return
+				default:
+					err := db.RunValueLogGC(0.5)
+					if err != nil {
+						if err != badger.ErrNoRewrite {
+							log.Error().Err(err).Msg("BadgerDB GC error")
+						} else {
+							log.Debug().Msg("BadgerDB GC finished (no rewrite needed)")
+						}
+						return
+					}
+					log.Debug().Msg("BadgerDB Garbage Collection executed step")
 				}
 			}
-		}
-	}()
+		},
+		func(err error) {
+			log.Error().Err(err).Msg("BadgerDB GC cron error")
+		},
+		func() {},
+	))
+
+	cancel := func() {
+		sub.Unsubscribe()
+	}
 
 	return &Storage{db: db, cancel: cancel}, nil
 }
