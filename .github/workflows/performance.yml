@@ -37,9 +37,9 @@ jobs:
       - name: Parse k6 metrics
         id: metrics
         run: |
-          LATENCY_RAW=$(jq '.metrics.http_req_duration.values["p(95)"] // 0' summary.json)
-          SUCCESS_RAW=$(jq '100 - ((.metrics.http_req_failed.values.rate // 0) * 100)' summary.json)
-          VUS_RAW=$(jq '.metrics.vus.values.max // 0' summary.json)
+          LATENCY_RAW=$(jq '.metrics.http_req_duration["p(95)"] // 0' summary.json)
+          SUCCESS_RAW=$(jq '100 - ((.metrics.http_req_failed.value // 0) * 100)' summary.json)
+          VUS_RAW=$(jq '.metrics.vus.max // 0' summary.json)
           
           if (( $(echo "$LATENCY_RAW < 1" | bc -l) )); then
             LATENCY="$(echo "$LATENCY_RAW * 1000" | bc | cut -d. -f1)µs"
