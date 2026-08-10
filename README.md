@@ -38,9 +38,12 @@ Rather than trying to do everything (like AI inference or GPU transcoding) insid
 * 🧠 **Zero-Transcoding AI Metadata**: Direct injection of AI metadata (Bounding Boxes, labels) into video streams via **HLS WebVTT** and **WebRTC DataChannels**. Displays AI results on the client side with 100% CPU savings (no re-encoding required).
 * 💾 **Smart I/O Archiver**: High-performance continuous fMP4 archiving utilizing advanced Linux kernel mechanisms (`FADV_DONTNEED`, sliding window `sync_file_range`). Protects the OS Page Cache from being flushed by gigabytes of video data, ensuring stable RAM and preventing I/O stalls.
 * 🛡 **Cloud-Native Architecture & Security**: Built-in Thundering Herd protection, strict OOM management to handle thousands of concurrent streams, and API defenses against Path Traversal vulnerabilities (verified via CodeQL).
+* 🔌 **Live Configuration API & CLI**: Add or remove cameras dynamically via REST API (Swagger included) or the `ruseon-cli` tool without restarting the daemon.
+* 🌐 **IoT MQTT Gateway**: Built-in asynchronous MQTT publisher that dispatches AI metadata directly to home automation or industrial IoT buses (e.g., Home Assistant, Node-RED).
 * ⏪ **Advanced Timeshift Pipeline**: Real-time HLS playback of historical data, with seamless export capabilities for AI training datasets.
-* 🗄 **Embedded NoSQL Engine**: Powered by BadgerDB for sub-millisecond configuration states and metrics, delivering high IOPS without external dependencies.
+* 🗄 **Embedded NoSQL Engine**: Powered by BadgerDB (with background Value Log GC) for sub-millisecond configuration states and metrics, delivering high IOPS without external dependencies.
 * 🎨 **Modern Observability UI**: Includes a React 19 (TypeScript) Edge Dashboard with JWT auth, real-time SSE telemetry, and rich timeline visualization.
+* 🧪 **Enterprise Reliability**: Codebase protected by automated k6 performance CI pipelines and Testcontainers-based E2E tests for absolute regression prevention.
 
 ---
 
@@ -66,19 +69,22 @@ graph LR
   end
 
   subgraph Engine [RUSEON Core]
-    API[REST / SSE API]
-    gRPC[gRPC API]
+    API[Live REST / SSE API]
+    gRPC[gRPC AI Receiver]
     Demux[Zero-Copy Demuxer]
     Pool[RingBuffer / Pool]
     HLS[HLS Muxer + WebVTT]
     RTC[WebRTC WHEP + DataChannel]
     Rec[fMP4 Storage 'Direct I/O']
-    DB[(BadgerDB)]
+    MQTT[MQTT Publisher]
+    DB[(BadgerDB State & Video)]
   end
 
-  subgraph Cloud [Cloud & AI Infrastructure]
+  subgraph Clients [Clients & Ecosystem]
     Dashboard[React Dashboard]
+    CLI[ruseon-cli / Swagger]
     Player[Video Clients]
+    IoT[IoT Broker / Home Assistant]
     AI[AI / CV Models]
   end
 
@@ -90,12 +96,14 @@ graph LR
   Pool --> HLS
   Pool --> RTC
   Pool --> Rec
+  Pool --> MQTT
   
   %% State Management
   DB -.->|Config & State| API
   API -.-> Demux
+  API <--> CLI
   
-  %% AI Metadata Loop (New Feature!)
+  %% AI Metadata Loop
   AI -->|Push Bounding Boxes| gRPC
   gRPC -->|Inject Metadata| Pool
   
@@ -103,6 +111,7 @@ graph LR
   HLS -->|M3U8 / TS| Player
   RTC -->|Sub-second Latency| Player
   Rec -->|Dataset Export| AI
+  MQTT -->|JSON Telemetry| IoT
   
   %% Observability
   Dashboard <-->|Metrics & Config| API
@@ -219,9 +228,9 @@ go run ./cmd/server
 
 ---
 
-## ⚙️ Configuration
+## ⚙️ Configuration & Live API
 
-RUSEON Core requires a `config.yaml` file to run. By default, the engine will look for it in the current directory.
+RUSEON Core requires a `config.yaml` file for basic startup settings. However, unlike traditional servers, **cameras and streams are managed dynamically** via the Live REST API or the integrated CLI tool.
 
 You can copy the provided [`config.example.yaml`](config.example.yaml) to get started:
 
@@ -229,7 +238,7 @@ You can copy the provided [`config.example.yaml`](config.example.yaml) to get st
 cp config.example.yaml config.yaml
 ```
 
-**Example configuration:**
+**Base configuration (config.yaml):**
 ```yaml
 server:
   port: 8080
@@ -239,11 +248,23 @@ auth:
   username: "admin"
   password: "password123"
 
-cameras:
-  - id: "cam-01"
-    url: "rtsp://admin:admin@192.168.1.100/stream"
-    record: true
+mqtt:
+  enabled: true
+  broker: "tcp://localhost:1883"
+  client_id: "ruseon-core"
 ```
+
+### Managing Cameras dynamically (No Restart Required)
+Instead of hardcoding streams in a file, RUSEON persists its state securely in BadgerDB. Use the built-in CLI to add streams on the fly:
+
+```bash
+# Add a new camera to the cluster
+./ruseon-cli stream add cam-01 rtsp://admin:admin@192.168.1.100/stream --record
+
+# Check stream health and metrics
+./ruseon-cli stream list
+```
+*(Interactive API documentation is always available at `http://localhost:8080/swagger/index.html`)*
 
 ---
 

@@ -9,24 +9,22 @@
 - **База данных:** BadgerDB (LSM-tree, key-value), хранит настройки камер, теги, статистику.
 - **Главная фишка:** Zero-copy transmuxing. Потоки не перекодируются (отсутствует FFmpeg). H.264/H.265 NALU-юниты извлекаются из RTSP (через `gortsplib`) и напрямую упаковываются в TS (для HLS) или fMP4 (для архива) через кастомный `RingBuffer`.
 
-## Что уже сделано (До Этапа 34 включительно)
-- **Ядро:** Прием RTSP, RingBuffer, HLS Muxer, MP4 Recorder (с ротацией по дням). Оптимизирован I/O сброс через `sync_file_range` и `FADV_DONTNEED`.
-- **База данных:** Полностью интегрирована BadgerDB. Настройки `config.yaml` используются только для старта сервера (порты, секреты, GC). Все камеры и теги лежат в БД.
-- **UI/UX:** Написан огромный красивый дашборд (App.tsx разбит на компоненты в `web/src/components`). Реализована система тегов, поиск, фильтрация, JWT-авторизация, биллинг, лог-стриминг по SSE, детальная статистика HLS/RTSP.
-- **Архив (Timeshift):** Полностью рабочая система архива. HLS-сегменты генерятся из `.mp4` на лету (без транскодирования).
-- **WebRTC & AI Meta:** Внедрен WebRTC (WHEP) для ультра-низкой задержки. Реализован транзит AI-метаданных (Bounding Boxes) поверх WebRTC DataChannels и HLS WebVTT с отрисовкой на клиенте без перекодирования.
-- **Event Bus:** Добавлена шина Webhooks-событий с паттерном Drop-Newest и Circuit Breaker для рассылки `camera_offline` и других нотификаций без блокировки видео-пайплайна.
-- **Наблюдаемость (Metrics):** Внедрен эндпоинт `/metrics` Prometheus. Настроены Lock-Free счетчики на всех горячих участках кода без потери производительности (Zero-Cost).
+## Что уже сделано (Платформа RUSEON Core полностью готова)
+- **Ядро и Ingest:** Прием RTSP, RingBuffer, HLS Muxer, MP4 Recorder (с ротацией по дням). Оптимизирован I/O сброс через `sync_file_range` и `FADV_DONTNEED`.
+- **Конфигурация:** Полностью динамическое Live API на базе BadgerDB. Добавление камер без рестарта через Swagger или `ruseon-cli`. Реализован Value Log GC для защиты SSD от износа.
+- **WebRTC & AI Meta:** Внедрен WebRTC (WHEP) для ультра-низкой задержки. Реализован транзит AI-метаданных (Bounding Boxes) поверх WebRTC DataChannels и HLS WebVTT с отрисовкой на клиенте.
+- **Интеграция (IoT & Push):** Встроены Event Bus (Webhooks) и MQTT Publisher для экспорта аналитики во внешние системы (Home Assistant, Node-RED). Защита через MPSC Lock-Free кольцевые буферы.
+- **Безопасность и Тесты:** Token-Based Authentication для HLS, Fuzz-тесты кольцевого буфера, k6 нагрузочное тестирование и Testcontainers E2E тесты.
 
-## Что предстоит сделать (Post-MVP)
-Согласно `docs/ROADMAP.MD`, следующие задачи в очереди:
-1. **Этап 35: Token-Based Authentication для HLS** (Stateless проверка JWT-токенов в URL плейлистов `?token=...` на лету для защиты потоков от несанкционированного доступа).
-2. **Этап 36: Fuzzing-тесты для RingBuffer** (Chaos тестирование ядра: запуск 1000 конкурентных писателей и 10000 читателей для гарантии абсолютной потокобезопасности без дедлоков).
-3. **Защита от реверс-инжиниринга:** Интеграция обфускатора `Garble` + внедрение системы лицензирования с привязкой к Hardware ID.
-4. **Дополнительные модули:** Управление PTZ через ONVIF.
+## Что предстоит сделать (RUSEON Enterprise)
+Согласно `engineering/ROADMAP.MD`, базовое ядро завершено. Мы переходим к Enterprise-фичам:
+1. **Global High Availability (Clustering)** (Синхронизация стейта через Raft, автоматический Failover).
+2. **GPU Transcoding (NVENC)**.
+3. **S3 Cold Storage Tiering**.
 
 ## Структура проекта (Важное)
-- `cmd/server/main.go` — Точка входа, настройка GC, инициализация BadgerDB, запуск Gin.
+- `cmd/server/main.go` — Основной демон сервера (API, HLS, WebRTC, Ingest).
+- `cmd/ruseon-cli/main.go` — CLI инструмент (`spf13/cobra`) для управления сервером из консоли.
 - `internal/stream/` — Управление потоками (`stream.go`, `manager.go`), биллинг (`billing.go`), трекер HLS клиентов (`tracker.go`).
 - `internal/hls/muxer.go` — Упаковка NALU в TS-сегменты. Именно здесь предстоит делать Lazy Muxing.
 - `internal/archive/` — Запись MP4 (`recorder.go`), отдача HLS из архива (`hls.go`), экспорт MP4 (`export.go`).
