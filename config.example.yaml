@@ -1,5 +1,6 @@
 server:
   port: 8080
+  pprof_port: 6060 # Порт для Continuous Profiling (0 - выключено)
   debug: false
   record_retention_days: 7
   gc_percent: 50

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -112,6 +113,17 @@ func Run(cfg *config.Config) {
 			log.Fatal().Err(err).Msg("Server failed")
 		}
 	}()
+
+	// 7. Запуск pprof сервера (если включен)
+	if cfg.Server.PprofPort > 0 {
+		pprofAddr := fmt.Sprintf("localhost:%d", cfg.Server.PprofPort)
+		go func() {
+			log.Info().Str("addr", pprofAddr).Msg("Starting pprof profiling server")
+			if err := http.ListenAndServe(pprofAddr, nil); err != nil && err != http.ErrServerClosed {
+				log.Error().Err(err).Msg("pprof server failed")
+			}
+		}()
+	}
 
 	// Ожидание сигнала для завершения (Graceful Shutdown)
 	quit := make(chan os.Signal, 1)
