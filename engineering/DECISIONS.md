@@ -82,17 +82,17 @@
 
 
 
-## 10.  Push- (Event Bus)
+## 10. Event Bus / Webhooks
 
    (Webhooks)    ("camera_offline", "archive_segment_ready")      .    (,  HTTP ,   )      ,   Drop-Newest.  ,    ,     (Drop),   .      Circuit Breaker:     ,     .
 
 
 
-## 11.  (Prometheus Metrics)
+## 11. Prometheus Metrics
 
-****:      (Grafana)    ,    ,  DevOps    .
+**Контекст**: Для мониторинга системы в production (через Grafana) DevOps-инженерам требуются метрики производительности и состояния.
 
-****:    \/metrics\   \prometheus/client_golang\.   :    \Counter\  \Gauge\   ,       Lock-Free   (, \atomic.AddUint64\).          (,  NALU-)       (Zero-Cost Abstraction).
+**Решение**: Экспонируем эндпоинт `/metrics` с помощью `prometheus/client_golang`. Важное архитектурное решение: обновление всех `Counter` и `Gauge` метрик на "горячих" путях реализовано как Lock-Free операции (например, `atomic.AddUint64`). Это гарантирует, что сбор метрик (например, при обработке NALU-юнитов) практически не влияет на производительность ядра (Zero-Cost Abstraction).
 
 
 

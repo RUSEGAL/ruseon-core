@@ -35,7 +35,7 @@ Rather than trying to do everything (like AI inference or GPU transcoding) insid
 
 * ⚡ **Zero-Copy Transmuxing**: Ultra-low latency bridging from RTSP to HLS and WebRTC directly in RAM. Bypasses intermediate transcoding for maximum efficiency.
 * 🎥 **Ultra-Low Latency (WebRTC WHEP)**: Built-in WebRTC support for near-zero latency playback. Crucial for live PTZ camera control and real-time operator monitoring.
-* 🧠 **Zero-Transcoding AI Metadata**: Direct injection of AI metadata (Bounding Boxes, labels) into video streams via **HLS WebVTT** and **WebRTC DataChannels**. Displays AI results on the client side with 100% CPU savings (no re-encoding required).
+* 🧠 **Zero-Transcoding AI Metadata**: Direct injection of AI metadata (Bounding Boxes, labels) into video streams via **HLS WebVTT** and **WebRTC DataChannels**. Eliminates server-side video re-encoding for AI overlays, keeping AI metadata on a separate data plane. (no re-encoding required).
 * 💾 **Smart I/O Archiver**: High-performance continuous fMP4 archiving utilizing advanced Linux kernel mechanisms (`FADV_DONTNEED`, sliding window `sync_file_range`). Protects the OS Page Cache from being flushed by gigabytes of video data, ensuring stable RAM and preventing I/O stalls.
 * 🛡 **Cloud-Native Architecture & Security**: Built-in Thundering Herd protection, strict OOM management to handle thousands of concurrent streams, and API defenses against Path Traversal vulnerabilities (verified via CodeQL).
 * 🔌 **Live Configuration API & CLI**: Add or remove cameras dynamically via REST API (Swagger included) or the `ruseon-cli` tool without restarting the daemon.
@@ -77,7 +77,7 @@ graph LR
     RTC[WebRTC WHEP + DataChannel]
     Rec[fMP4 Storage 'Direct I/O']
     MQTT[MQTT Publisher]
-    DB[(BadgerDB State & Video)]
+    DB[(BadgerDB Control Plane)]
   end
 
   subgraph Clients [Clients & Ecosystem]

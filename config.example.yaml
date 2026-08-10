@@ -3,7 +3,7 @@ server:
   pprof_port: 6060 # Port for Continuous Profiling (0 - disabled)
   debug: false
   cors_allowed_origins:
-    - http://localhost:8080 # Leave empty for * (all origins)
+    - http://localhost:8080 # Leave empty to disable CORS
   record_retention_days: 7
   gc_percent: 50
   gc_memory_limit_mb: 2048
