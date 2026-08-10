@@ -53,6 +53,9 @@ jobs:
       - name: Run Tests with Race Detector and Coverage
         run: go test -v -race -coverprofile=coverage.out ./...
 
+      - name: Performance Validated (Run Benchmarks)
+        run: go test -run=^$ -bench="." -benchmem ./...
+
       - name: Print Coverage Summary
         run: go tool cover -func=coverage.out
 
