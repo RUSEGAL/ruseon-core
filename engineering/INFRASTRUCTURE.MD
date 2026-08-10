@@ -115,7 +115,10 @@
 ```bash
 
 
-mount -t nfs -o vers=4,tcp,rsize=1048576,wsize=1048576,noatime,async,soft,timeo=100,retrans=2 192.168.1.100:/path/to/archive /opt/gritprof/recordings
+mount -t nfs -o vers=4,tcp,rsize=1048576,wsize=1048576,noatime,async,soft,timeo=100,retrans=2 192.168.1.100:/path/to/archive /var/lib/ruseon/recordings
+
+> [!WARNING]
+> NFS mount options must be selected according to the failure semantics of the storage backend. The example below is a workload-specific configuration and must be validated under NAS failure/recovery scenarios.
 
 
 ```

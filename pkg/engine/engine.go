@@ -90,7 +90,7 @@ func Run(cfg *config.Config) {
 
 	// 5. Инициализация HTTP сервера (Gin)
 	handler := api.NewHandler(manager, cfg, registry.CurrentStateStore)
-	router := api.SetupRouter(handler, registry.CurrentAuthenticator, cfg.Server.Debug)
+	router := api.SetupRouter(handler, registry.CurrentAuthenticator, cfg.Server.Debug, cfg.Server.CORSAllowedOrigins)
 
 	// 6. Запуск сервера с Graceful Shutdown
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)

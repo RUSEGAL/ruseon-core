@@ -13,7 +13,7 @@ The numbers here reflect automated tests executed via `go test -bench` in a synt
 
 ## 1. Zero-Copy HLS Pipeline
 
-The core Zero-Copy pipeline distributes video streams without redundant memory allocations.
+The core pipeline provides zero-copy / low-copy frame distribution with allocation minimization on the hot path.
 
 ### `GetPlaylist` (M3U8 Manifest Generation)
 - **Time per request**: ~333 ns

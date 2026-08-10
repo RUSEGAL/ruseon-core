@@ -31,7 +31,7 @@ func TestRouterMiddleware(t *testing.T) {
 	authenticator := auth.NewLocalAuthenticator(cfg)
 
 	// debug=true turns on statsviz and pprof
-	router := SetupRouter(handler, authenticator, true)
+	router := SetupRouter(handler, authenticator, true, nil)
 
 	// 1. Test CORS Options
 	w1 := httptest.NewRecorder()
@@ -106,7 +106,7 @@ func TestRouterMetrics(t *testing.T) {
 	handler := NewHandler(manager, cfg, store)
 	authenticator := auth.NewLocalAuthenticator(cfg)
 
-	router := SetupRouter(handler, authenticator, false)
+	router := SetupRouter(handler, authenticator, false, nil)
 
 	// Test /metrics endpoint
 	w := httptest.NewRecorder()

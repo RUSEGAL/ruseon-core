@@ -16,7 +16,8 @@ type Config struct {
 		PprofPort           int  `yaml:"pprof_port"`            // Порт для профилирования (0 - выключено)
 		RecordRetentionDays int  `yaml:"record_retention_days"` // Количество дней для хранения записей (0 - бесконечно)
 		GCPercent           int  `yaml:"gc_percent"`            // Тюнинг GOGC (по умолчанию 50)
-		GCMemoryLimitMB     int  `yaml:"gc_memory_limit_mb"`    // Тюнинг GOMEMLIMIT (в мегабайтах)
+		GCMemoryLimitMB     int      `yaml:"gc_memory_limit_mb"`    // Тюнинг GOMEMLIMIT (в мегабайтах)
+		CORSAllowedOrigins  []string `yaml:"cors_allowed_origins" json:"corsAllowedOrigins"`
 	} `yaml:"server"`
 
 	Auth struct {

@@ -6,7 +6,7 @@ def main():
     parser = argparse.ArgumentParser(description="RUSEON Core: Camera Setup for Load Testing")
     parser.add_argument("--api", type=str, default="http://127.0.0.1:8080", help="URL сервера RUSEON Core")
     parser.add_argument("--user", type=str, default="admin", help="Логин")
-    parser.add_argument("--password", type=str, default="password123", help="Пароль")
+    parser.add_argument("--password", type=str, default="test-password", help="Пароль")
     parser.add_argument("--host", type=str, default="127.0.0.1:8554", help="RTSP Хост (например MediaMTX)")
     parser.add_argument("--streams", type=int, default=10, help="Количество добавляемых камер")
     

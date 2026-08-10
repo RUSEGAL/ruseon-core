@@ -32,7 +32,7 @@ func init() {
 }
 
 // SetupRouter инициализирует маршруты Gin.
-func SetupRouter(h *Handler, auth registry.Authenticator, debug bool) *gin.Engine {
+func SetupRouter(h *Handler, auth registry.Authenticator, debug bool, corsOrigins []string) *gin.Engine {
 	if !debug {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -92,9 +92,26 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool) *gin.Engin
 
 	// CORS Middleware
 	r.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := c.Request.Header.Get("Origin")
+		allowOrigin := "*"
+		
+		if len(corsOrigins) > 0 {
+			allowOrigin = ""
+			for _, o := range corsOrigins {
+				if o == origin {
+					allowOrigin = origin
+					break
+				}
+			}
+		}
+
+		if allowOrigin != "" {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", allowOrigin)
+		}
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return

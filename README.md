@@ -121,68 +121,12 @@ graph LR
 
 ## 📊 Performance
 
-RUSEON Core is designed for maximum efficiency. At its core lies a **Zero-Copy** router that ensures CPU and memory are spent only on useful work. The architecture completely avoids the Garbage Collector (GC) in the hot paths of video frame transmission.
+RUSEON Core is designed for maximum efficiency. At its core lies a routing engine that provides **zero-copy / low-copy frame distribution with allocation minimization on the hot path**.
 
-**🖥 Test Environment:**
-* **CPU:** AMD Ryzen 5 5600X (All benchmarks below were run on a **single** core)
-* **OS / Arch:** Windows / amd64
-* **Runtime:** Go 1.26+
+The architecture demonstrated highly stable behavior under our benchmark scenarios. RUSEON Core effectively utilized local 10G interfaces achieving **~8.8 Gbit/s end-to-end** throughput for HLS delivery.
 
-### 1. Frame Broadcasting (Zero-Copy RingBuffer)
-The core receives a video frame (H.264/H.265) and instantly broadcasts it to subscribers (HLS Muxer, Recorder, and AI Agents) without copying data in memory.
-
-| Operation | Time (ns/op) | Memory Allocations | Description |
-| :--- | :--- | :--- | :--- |
-| `Write` | **13.9 ns** | **0 B/op** (0 allocs) | Writing a frame to the buffer |
-| `Broadcast (100 subs)` | **10.8 µs** | **0 B/op** (0 allocs) | Broadcasting 1 frame to 100 subscribers simultaneously |
-
-> **Bottom line:** The engine can dispatch tens of thousands of frames per second on a single CPU core, **allocating absolutely zero new memory on the heap** (0 allocs/op).
-
-### 2. Edge HLS Delivery (Muxer)
-Even under the *Thundering Herd* problem (when thousands of users simultaneously connect to a live stream), RUSEON serves M3U8 playlists and TS segments directly from the memory cache.
-
-| Operation | Time | Throughput | Description |
-| :--- | :--- | :--- | :--- |
-| `GetPlaylist` | **~333 ns** | ~3,000,000 req/sec | Generating an M3U8 manifest |
-| `GetSegment (1 MB)` | **~87 µs** | **~11.4 GB/s** | Retrieving a TS segment (1 MB) from the pool |
-
-> **Bottom line:** Architected to mitigate the Thundering Herd problem during traffic spikes. A single CPU core can handle segment delivery at speeds of nearly 11 Gigabytes per second.
-
-### 3. High-Speed Archive (fMP4 Recorder)
-Packaging video streams into fragmented MP4 (fMP4) format for writing to persistent storage.
-
-| Operation | Time | Description |
-| :--- | :--- | :--- |
-| `Write GOP (1 sec video)` | **~1.58 ms** | Packaging 25 frames (1 sec. of video) and flushing to disk |
-
-> **Bottom line:** Benchmark result: fMP4 packaging of a 1-second GOP took ~1.58 ms on a single core, corresponding to a theoretical CPU capacity of **~630 streams** under the tested synthetic workload. The real-world performance is strictly bottlenecked by the I/O throughput of your disks and network, not the CPU!
-
-### 4. End-to-End HLS Load Testing (Thundering Herd) 🌩️
-We performed an End-to-End load test on Live HLS delivery using Grafana's `k6`. The goal was to simulate 1000 simultaneous viewers tuning into a single live broadcast (camera) to validate the Muxer's Zero-Copy caching architecture.
-
-**Test Conditions:** 1000 concurrent Virtual Users (`k6`), continuously downloading the `index.m3u8` playlist and new binary `.ts` segments over 70 seconds.
-
-| Metric | Result | Description |
-| :--- | :--- | :--- |
-| **Throughput** | **1.1 GB/s (8.8 Gbps)** | Served 81 Gigabytes of video data in ~70 seconds |
-| **Success Rate (HTTP 200)** | **100%** (60,822 requests) | Zero dropped connections (0% fail rate) |
-| **Latency (avg)** | **3.13 ms** | Average time to serve a video segment to a viewer |
-| **Latency p(95)** | **6.13 ms** | 95% of all viewers received segments in under 6 milliseconds |
-
-> **Bottom line:** The architecture demonstrated highly stable behavior under our benchmark scenarios. RUSEON Core effectively utilized local 10G interfaces while keeping response latencies under 6 milliseconds for thousands of concurrent TCP connections.
-
-![k6 HLS Stress Test Results](assets/k6-test.png)
-
-### 5. Ingest Resource Consumption (100 RTSP Streams) 🎥
-We also tested the engine's ability to simultaneously receive and process 100 RTSP streams (H.264/HEVC).
-
-Despite handling hundreds of megabytes of incoming traffic per second, thanks to Zero-Copy RTP parsing and no transcoding, the server consumes **just over 250 MB of RAM and ~1% of a standard desktop CPU**!
-
-![Dashboard with 100 cameras](assets/100-cameras.png)
-![Advanced memory and GC stats](assets/advanced-stats.png)
-![CPU and RAM consumption in Task Manager](assets/ram-cpu.png)
-
-The low Garbage Collector overhead (only 68 collections) proves the efficiency of the `sync.Pool` byte buffers and the RingBuffer architecture.
+For full automated benchmark results, stress tests, and chaos engineering reports, please refer to our single source of truth:
+👉 **[benchmarks/RESULTS.md](benchmarks/RESULTS.md)**
 
 ---
 
@@ -190,7 +134,7 @@ The low Garbage Collector overhead (only 68 collections) proves the efficiency o
 
 ### Prerequisites
 - [Docker](https://www.docker.com/) (Recommended for rapid deployment)
-- [Go](https://go.dev/) 1.23+ (For source builds)
+- [Go](https://go.dev/) 1.26+ (For source builds)
 
 ### Deploy via Docker (GHCR) 🐳
 
@@ -224,7 +168,7 @@ cd web && npm install && npm run build && cd ..
 go mod tidy
 go run ./cmd/server
 ```
-*(Default Credentials: admin / password123)*
+*(On first startup, RUSEON generates a random administrator password and prints it once to the server console.)*
 
 ---
 
@@ -246,7 +190,6 @@ server:
 
 auth:
   username: "admin"
-  password: "password123"
 
 mqtt:
   enabled: true
