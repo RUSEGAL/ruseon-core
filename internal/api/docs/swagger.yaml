@@ -1,0 +1,247 @@
+basePath: /
+definitions:
+  api.CameraInfo:
+    properties:
+      bytesReceived:
+        type: integer
+      bytesSent:
+        type: integer
+      codec:
+        type: string
+      comment:
+        type: string
+      connected:
+        type: boolean
+      disableHistory:
+        items:
+          $ref: '#/definitions/config.DisableRecord'
+        type: array
+      disableReason:
+        type: string
+      disabled:
+        type: boolean
+      folderId:
+        type: string
+      frames:
+        type: integer
+      id:
+        type: string
+      keyFrames:
+        type: integer
+      lazyHLS:
+        type: boolean
+      record:
+        type: boolean
+      recordHistory:
+        items:
+          $ref: '#/definitions/config.DisableRecord'
+        type: array
+      retentionDays:
+        type: integer
+      simICCID:
+        type: string
+      simPhone:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      trafficLimit:
+        type: integer
+      trafficUsed:
+        type: integer
+      uptime:
+        type: integer
+      url:
+        type: string
+    type: object
+  config.CameraConfig:
+    properties:
+      comment:
+        type: string
+      disableHistory:
+        items:
+          $ref: '#/definitions/config.DisableRecord'
+        type: array
+      disableReason:
+        type: string
+      disabled:
+        description: Отключение
+        type: boolean
+      folderId:
+        type: string
+      id:
+        type: string
+      lastResetMonth:
+        description: Месяц последнего сброса (YYYY-MM)
+        type: string
+      lazyHLS:
+        type: boolean
+      record:
+        type: boolean
+      recordHistory:
+        items:
+          $ref: '#/definitions/config.DisableRecord'
+        type: array
+      retentionDays:
+        description: 0 означает использование глобального значения
+        type: integer
+      simICCID:
+        type: string
+      simPhone:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      tokenAuth:
+        type: boolean
+      trafficLimit:
+        description: Биллинг и трафик
+        type: integer
+      trafficUsed:
+        description: Использовано в байтах
+        type: integer
+      transport:
+        description: '"tcp", "udp", или "auto"'
+        type: string
+      url:
+        type: string
+    type: object
+  config.DisableRecord:
+    properties:
+      action:
+        description: '"disable" или "enable"'
+        type: string
+      reason:
+        type: string
+      timestamp:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: REST API for managing RUSEON video streaming server.
+  title: RUSEON Core API
+  version: "1.0"
+paths:
+  /api/cameras:
+    get:
+      description: Returns a list of all registered cameras along with their real-time
+        statistics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.CameraInfo'
+            type: array
+      summary: Get all cameras
+      tags:
+      - cameras
+    post:
+      consumes:
+      - application/json
+      description: Dynamically registers a new camera and starts its stream if not
+        disabled
+      parameters:
+      - description: Camera Configuration
+        in: body
+        name: camera
+        required: true
+        schema:
+          $ref: '#/definitions/config.CameraConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Add a new camera
+      tags:
+      - cameras
+  /api/cameras/{id}:
+    delete:
+      description: Stops the stream and completely removes the camera configuration
+      parameters:
+      - description: Camera ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete a camera
+      tags:
+      - cameras
+    put:
+      consumes:
+      - application/json
+      description: Updates camera settings dynamically without full restart
+      parameters:
+      - description: Camera ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated Camera Configuration
+        in: body
+        name: camera
+        required: true
+        schema:
+          $ref: '#/definitions/config.CameraConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Edit a camera
+      tags:
+      - cameras
+swagger: "2.0"

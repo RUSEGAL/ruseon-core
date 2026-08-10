@@ -1,0 +1,367 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "REST API for managing RUSEON video streaming server.",
+        "title": "RUSEON Core API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/api/cameras": {
+            "get": {
+                "description": "Returns a list of all registered cameras along with their real-time statistics",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cameras"
+                ],
+                "summary": "Get all cameras",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.CameraInfo"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Dynamically registers a new camera and starts its stream if not disabled",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cameras"
+                ],
+                "summary": "Add a new camera",
+                "parameters": [
+                    {
+                        "description": "Camera Configuration",
+                        "name": "camera",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.CameraConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/cameras/{id}": {
+            "put": {
+                "description": "Updates camera settings dynamically without full restart",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cameras"
+                ],
+                "summary": "Edit a camera",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Camera ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated Camera Configuration",
+                        "name": "camera",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/config.CameraConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Stops the stream and completely removes the camera configuration",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "cameras"
+                ],
+                "summary": "Delete a camera",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Camera ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "api.CameraInfo": {
+            "type": "object",
+            "properties": {
+                "bytesReceived": {
+                    "type": "integer"
+                },
+                "bytesSent": {
+                    "type": "integer"
+                },
+                "codec": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "connected": {
+                    "type": "boolean"
+                },
+                "disableHistory": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/config.DisableRecord"
+                    }
+                },
+                "disableReason": {
+                    "type": "string"
+                },
+                "disabled": {
+                    "type": "boolean"
+                },
+                "folderId": {
+                    "type": "string"
+                },
+                "frames": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "keyFrames": {
+                    "type": "integer"
+                },
+                "lazyHLS": {
+                    "type": "boolean"
+                },
+                "record": {
+                    "type": "boolean"
+                },
+                "recordHistory": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/config.DisableRecord"
+                    }
+                },
+                "retentionDays": {
+                    "type": "integer"
+                },
+                "simICCID": {
+                    "type": "string"
+                },
+                "simPhone": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "trafficLimit": {
+                    "type": "integer"
+                },
+                "trafficUsed": {
+                    "type": "integer"
+                },
+                "uptime": {
+                    "type": "integer"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "config.CameraConfig": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "disableHistory": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/config.DisableRecord"
+                    }
+                },
+                "disableReason": {
+                    "type": "string"
+                },
+                "disabled": {
+                    "description": "Отключение",
+                    "type": "boolean"
+                },
+                "folderId": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "lastResetMonth": {
+                    "description": "Месяц последнего сброса (YYYY-MM)",
+                    "type": "string"
+                },
+                "lazyHLS": {
+                    "type": "boolean"
+                },
+                "record": {
+                    "type": "boolean"
+                },
+                "recordHistory": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/config.DisableRecord"
+                    }
+                },
+                "retentionDays": {
+                    "description": "0 означает использование глобального значения",
+                    "type": "integer"
+                },
+                "simICCID": {
+                    "type": "string"
+                },
+                "simPhone": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "tokenAuth": {
+                    "type": "boolean"
+                },
+                "trafficLimit": {
+                    "description": "Биллинг и трафик",
+                    "type": "integer"
+                },
+                "trafficUsed": {
+                    "description": "Использовано в байтах",
+                    "type": "integer"
+                },
+                "transport": {
+                    "description": "\"tcp\", \"udp\", или \"auto\"",
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "config.DisableRecord": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "description": "\"disable\" или \"enable\"",
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}
