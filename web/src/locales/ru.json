@@ -17,7 +17,8 @@
     "title": "RUSEON Core",
     "placeholder": "Пароль...",
     "button": "Войти",
-    "error": "Неверный пароль"
+    "error": "Неверный пароль",
+    "subtitle": "Введите пароль для доступа к системе"
   },
   "dashboard": {
     "systemInfo": "Системная информация",

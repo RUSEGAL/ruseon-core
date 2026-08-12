@@ -17,7 +17,8 @@
     "title": "RUSEON Core",
     "placeholder": "Password...",
     "button": "Login",
-    "error": "Invalid password"
+    "error": "Invalid password",
+    "subtitle": "Enter your password to access the system"
   },
   "dashboard": {
     "systemInfo": "System Information",
