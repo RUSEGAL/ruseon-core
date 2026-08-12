@@ -42,18 +42,20 @@ This **zero-allocation approach** ensures minimal CPU usage and massive scalabil
 RUSEON uses a highly efficient Ring Buffer architecture. Video frames ingested via RTSP are stored once and referenced by all outbound streams (HLS, WebRTC) and the recording module, avoiding redundant memory copying.
 
 ```mermaid
-graph TD
-    A[IP Camera (RTSP)] -->|TCP/UDP| B(RUSEON Core)
-    B --> C[RingBuffer]
-    C --> D[HLS Muxer]
-    C --> E[WebRTC/WHEP]
-    C --> F[fMP4 Recorder]
-    C --> G[AI Pipeline]
-    
-    D --> H[Browsers/Players]
-    E --> I[Low-Latency Clients]
-    F --> J[Disk Archive]
-    G --> K[gRPC / Webhooks]
+flowchart TD
+    CAMERA["IP Camera<br/>RTSP"] -->|TCP / UDP| CORE["RUSEON Core"]
+
+    CORE --> RING["Ring Buffer"]
+
+    RING --> HLS["HLS Muxer"]
+    RING --> WEBRTC["WebRTC / WHEP"]
+    RING --> RECORDER["fMP4 Recorder"]
+    RING --> AI["AI Pipeline"]
+
+    HLS --> BROWSER["Browsers / Players"]
+    WEBRTC --> CLIENTS["Low-Latency Clients"]
+    RECORDER --> ARCHIVE["Disk Archive"]
+    AI --> API["gRPC / Webhooks"]
 ```
 
 [**Explore System Design**](https://docs.ruseon.tech/architecture/system)
