@@ -5,8 +5,8 @@
 <h1 align="center">RUSEON Core</h1>
 
 <p align="center">
-  <strong>Video Data Infrastructure & AI Pipeline</strong><br>
-  <em>Cloud-Native, High-Performance Video Data Platform</em>
+  <strong>High-Performance Video Data Infrastructure</strong><br>
+  <em>RTSP → HLS/WebRTC/Archive without transcoding</em>
 </p>
 
 <p align="center">
@@ -14,10 +14,6 @@
   <a href="https://goreportcard.com/report/github.com/RUSEGAL/ruseon-core"><img src="https://goreportcard.com/badge/github.com/RUSEGAL/ruseon-core?style=flat-square" alt="Go Report Card"></a>
   <a href="https://github.com/RUSEGAL/ruseon-core/releases/latest"><img src="https://img.shields.io/github/v/release/RUSEGAL/ruseon-core?style=flat-square" alt="Latest Release"></a>
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License">
-  <br>
-  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/RUSEGAL/9c2397c2c47671c0e65d91e39e91a7a3/raw/latency-badge.json" alt="Latency p(95)">
-  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/RUSEGAL/9c2397c2c47671c0e65d91e39e91a7a3/raw/success-badge.json" alt="Success Rate">
-  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/RUSEGAL/9c2397c2c47671c0e65d91e39e91a7a3/raw/vus-badge.json" alt="Simultaneous Viewers">
 </p>
 
 <p align="center">
@@ -26,227 +22,102 @@
 
 <hr>
 
-<p align="center">
-  <em>Most open-source video servers solve streaming.<br>RUSEON solves the entire video data lifecycle.<br>Ingest. Route. Record. Analyze. Export.<br>One engine.</em>
-</p>
+**RUSEON Core** is a high-performance video data infrastructure platform tailored for IP cameras. Operating entirely on the principle of **transmuxing** rather than transcoding, RUSEON Core repackages video data (H.264/H.265) into formats like HLS or WebRTC directly in RAM. 
 
-**RUSEON Core** is an open-source Edge Video Infrastructure Platform engineered in Go. Designed for cloud-native and edge environments, it provides zero-copy RTSP-to-HLS/WebRTC transmuxing, fMP4 archiving, and an API foundation for AI video analytics.
-
-Rather than trying to do everything (like AI inference or GPU transcoding) inside a single monolith, RUSEON focuses purely on moving and storing video bytes efficiently. It is designed to act as the central routing and storage engine, while heavy analytical tasks (like YOLO or Face Recognition) can run as separate downstream modules (e.g., `ruseon-yolo`, `ruseon-lpr`).
+This **zero-allocation approach** ensures minimal CPU usage and massive scalability, making it the ideal edge bridge between CCTV hardware and your AI or Cloud workloads.
 
 ## 🚀 Key Features
 
-* ⚡ **Zero-Copy Transmuxing**: Ultra-low latency bridging from RTSP to HLS and WebRTC directly in RAM. Bypasses intermediate transcoding for maximum efficiency.
-* 🎥 **Ultra-Low Latency (WebRTC WHEP)**: Built-in WebRTC support for near-zero latency playback. Crucial for live PTZ camera control and real-time operator monitoring.
-* 🧠 **Zero-Transcoding AI Metadata**: Direct injection of AI metadata (Bounding Boxes, labels) into video streams via **HLS WebVTT** and **WebRTC DataChannels**. Eliminates server-side video re-encoding for AI overlays, keeping AI metadata on a separate data plane. (no re-encoding required).
-* 💾 **Smart I/O Archiver**: High-performance continuous fMP4 archiving utilizing advanced Linux kernel mechanisms (`FADV_DONTNEED`, sliding window `sync_file_range`). Protects the OS Page Cache from being flushed by gigabytes of video data, ensuring stable RAM and preventing I/O stalls.
-* 🛡 **Cloud-Native Architecture & Security**: Built-in Thundering Herd protection, strict OOM management to handle thousands of concurrent streams, and API defenses against Path Traversal vulnerabilities (verified via CodeQL).
-* 🔌 **Live Configuration API & CLI**: Add or remove cameras dynamically via REST API (Swagger included) or the `ruseon-cli` tool without restarting the daemon.
-* 🌐 **IoT MQTT Gateway**: Built-in asynchronous MQTT publisher that dispatches AI metadata directly to home automation or industrial IoT buses (e.g., Home Assistant, Node-RED).
-* ⏪ **Advanced Timeshift Pipeline**: Real-time HLS playback of historical data, with seamless export capabilities for AI training datasets.
-* 🗄 **Embedded NoSQL Engine**: Powered by BadgerDB (with background Value Log GC) for sub-millisecond configuration states and metrics, delivering high IOPS without external dependencies.
-* 🎨 **Modern Observability UI**: Includes a React 19 (TypeScript) Edge Dashboard with JWT auth, real-time SSE telemetry, and rich timeline visualization.
-* 🧪 **Enterprise Reliability**: Codebase protected by automated k6 performance CI pipelines, continuous profiling (pprof), and chaos engineering tests for robust regression testing.
+- **Zero-Allocation Transmuxing**: RTSP to HLS and WebRTC without transcoding, directly in RAM for extreme performance.
+- **Smart Archive**: Crash-resilient fMP4 recording with advanced Linux kernel I/O optimizations (`sync_file_range`, `FADV_DONTNEED`).
+- **AI Metadata Pipeline**: Direct gRPC ingestion of AI insights (like bounding boxes), delivered via WebRTC DataChannel and HLS WebVTT with zero CPU burn.
+- **WebRTC/WHEP**: Sub-second latency live streaming powered by Pion WebRTC.
+- **Event-Driven & IoT**: Webhooks with circuit breaker and MQTT with a lock-free buffer for reliable integration.
+- **Production-Ready**: Prometheus metrics, structured JSON logging, chaos-tested, and built-in `pprof`.
 
----
+[**Read more about Features**](https://docs.ruseon.tech/guide/features)
 
-## ⚔️ Comparison & Philosophy
+## 🏗 Architecture & Data Flow
 
-RUSEON Core has a different philosophy compared to other popular tools in the video ecosystem. Rather than directly competing, it serves a completely different architectural purpose:
-
-- **MediaMTX**: A fantastic **Media Router**. It focuses on broad protocol translation (RTSP, WebRTC, RTMP, SRT). RUSEON, on the other hand, focuses on the **Video Data Lifecycle** (archiving, timeshift, AI dataset export).
-- **FFmpeg**: The ultimate **Media Toolkit**. It is exceptional for processing video, but requires complex scripting to run as a reliable, API-driven daemon.
-- **Flussonic**: A comprehensive **IPTV Platform** tailored for telecom and broadcasting networks.
-- **RUSEON Core**: An **Edge Video Infrastructure**. Built specifically to ingest CCTV streams, persist them to disk, and efficiently deliver them to human operators and AI pipelines.
-
----
-
-## 🏗 Architecture & AI Data Pipeline
-
-RUSEON Core acts as the critical bridge between edge hardware and your AI / Cloud workloads.
+RUSEON uses a highly efficient Ring Buffer architecture. Video frames ingested via RTSP are stored once and referenced by all outbound streams (HLS, WebRTC) and the recording module, avoiding redundant memory copying.
 
 ```mermaid
-graph LR
-  subgraph Edge [Edge Devices / Cameras]
-    Cam[RTSP Streams]
-  end
-
-  subgraph Engine [RUSEON Core]
-    API[Live REST / SSE API]
-    gRPC[gRPC AI Receiver]
-    Demux[Zero-Copy Demuxer]
-    Pool[RingBuffer / Pool]
-    Meta[Metadata Bus]
-    HLS[HLS Muxer + WebVTT]
-    RTC[WebRTC WHEP + DataChannel]
-    Rec[fMP4 Storage 'Direct I/O']
-    Storage[(Video Archive / BlobStore)]
-    MQTT[MQTT Publisher]
-    DB[(BadgerDB Control Plane)]
-  end
-
-  subgraph Clients [Clients & Ecosystem]
-    Dashboard[React Dashboard]
-    CLI[ruseon-cli / Swagger]
-    Player[Video Clients]
-    IoT[IoT Broker / Home Assistant]
-    AI[AI / CV Models]
-  end
-
-  %% Ingest Pipeline
-  Cam -->|H.264 / HEVC| Demux
-  Demux --> Pool
-  
-  %% Delivery Pipeline
-  Pool --> HLS
-  Pool --> RTC
-  Pool --> Rec
-  
-  %% State Management
-  DB -.->|Config & State| API
-  API -.-> Demux
-  API <--> CLI
-  
-  %% AI Metadata Loop
-  AI -->|Push Bounding Boxes| gRPC
-  gRPC -->|Metadata| Meta[Metadata Bus]
-  Meta --> HLS
-  Meta --> RTC
-  Meta --> MQTT
-  
-  %% Outputs
-  HLS -->|M3U8 / TS| Player
-  RTC -->|Sub-second Latency| Player
-  Rec -->|fMP4 Archive| Storage
-  Storage -->|Dataset Export| AI
-  MQTT -->|JSON Telemetry| IoT
-  
-  %% Observability
-  Dashboard <-->|Metrics & Config| API
+graph TD
+    A[IP Camera (RTSP)] -->|TCP/UDP| B(RUSEON Core)
+    B --> C[RingBuffer]
+    C --> D[HLS Muxer]
+    C --> E[WebRTC/WHEP]
+    C --> F[fMP4 Recorder]
+    C --> G[AI Pipeline]
+    
+    D --> H[Browsers/Players]
+    E --> I[Low-Latency Clients]
+    F --> J[Disk Archive]
+    G --> K[gRPC / Webhooks]
 ```
 
----
-
-## 📊 Performance
-
-RUSEON Core is designed for maximum efficiency. At its core lies a routing engine that provides **zero-copy / low-copy frame distribution with allocation minimization on the hot path**.
-
-In our benchmark environment, RUSEON Core sustained ~8.8 Gbit/s of end-to-end HLS delivery throughput on a 10G network interface.
-
-For full automated benchmark results, stress tests, and chaos engineering reports, please refer to our single source of truth:
-👉 **[benchmarks/RESULTS.md](benchmarks/RESULTS.md)**
-
----
+[**Explore System Design**](https://docs.ruseon.tech/architecture/system)
 
 ## 🏎 Quick Start
 
-### Prerequisites
-- [Docker](https://www.docker.com/) (Recommended for rapid deployment)
-- [Go](https://go.dev/) 1.26+ (For source builds)
-
-### Deploy via Docker (GHCR) 🐳
-
-The fastest way to deploy RUSEON Core is using our official multi-arch Docker image:
+### 1. Launch via Docker
+The fastest way to deploy RUSEON Core is using our official Docker image. On the first run, the system will generate an admin password and print it to the console.
 
 ```bash
-docker run -d \
-  --network host \
-  -v ruseon-data:/data \
-  --name ruseon-core \
-  ghcr.io/RUSEGAL/ruseon-core:latest
-# Note: --network host is required for WebRTC UDP routing.
-# Alternatively, expose -p 8080:8080 and your configured ICE UDP port.
+docker run -p 8080:8080 -v data:/app/data -v recordings:/app/recordings ghcr.io/rusegal/ruseon-core:latest
 ```
+*(Copy the generated admin password from the terminal logs!)*
 
-The RUSEON Edge Dashboard will be available at `http://localhost:8080`.
+### 2. Access the Dashboard
+Open your browser and navigate to [http://localhost:8080](http://localhost:8080). Log in with username `admin` and the generated password.
 
-### Build from Source
-
-For developers and contributors:
-
+### 3. Add a Camera via API
+You can easily manage streams dynamically via the REST API without restarting the server:
 ```bash
-# 1. Clone the repository
-git clone https://github.com/RUSEGAL/ruseon-core.git
-cd ruseon-core
-
-# 2. Build the Edge Dashboard (React)
-cd web && npm install && npm run build && cd ..
-
-# 3. Start the Core Engine
-go mod tidy
-go run ./cmd/server
-```
-*(On first startup, RUSEON generates a random administrator password and prints it once to the server console.)*
-
----
-
-## ⚙️ Configuration & Live API
-
-RUSEON Core requires a `config.yaml` file for basic startup settings. However, unlike traditional servers, **cameras and streams are managed dynamically** via the Live REST API or the integrated CLI tool.
-
-You can copy the provided [`config.example.yaml`](config.example.yaml) to get started:
-
-```bash
-cp config.example.yaml config.yaml
+curl -X POST http://localhost:8080/api/cameras \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN' \
+  -d '{"id":"cam1","url":"rtsp://user:pass@192.168.1.100:554/stream","record":true}'
 ```
 
-**Base configuration (config.yaml):**
-```yaml
-server:
-  port: 8080
-  record_retention_days: 7
+[**Read the full Quick Start Guide**](https://docs.ruseon.tech/guide/quick-start)
 
-auth:
-  username: "admin"
+## 📊 Performance
 
-mqtt:
-  enabled: true
-  broker: "tcp://localhost:1883"
-  client_id: "ruseon-core"
-```
+RUSEON Core is designed for maximum throughput and low latency. Real-world performance is typically bound by Network I/O and Disk IOPS. CPU is rarely the bottleneck due to efficient Go concurrency and zero-allocation memory management.
 
-### Managing Cameras dynamically (No Restart Required)
-Instead of hardcoding streams in a file, RUSEON persists its state securely in BadgerDB. Use the built-in CLI to add streams on the fly:
+[**View Performance Benchmarks**](https://docs.ruseon.tech/performance/benchmarks)
 
-```bash
-# Add a new camera to the cluster
-./ruseon-cli stream add cam-01 rtsp://admin:admin@192.168.1.100/stream --record
+## 📖 Documentation
 
-# Check stream health and metrics
-./ruseon-cli stream list
-```
-*(Interactive API documentation is always available at `http://localhost:8080/swagger/index.html`)*
+The official VitePress documentation is the single source of truth for RUSEON Core:
 
----
+- **[Getting Started](https://docs.ruseon.tech/guide/introduction)**
+- **[Configuration](https://docs.ruseon.tech/reference/configuration)**
+- **[Architecture](https://docs.ruseon.tech/architecture/overview)**
+- **[Streaming](https://docs.ruseon.tech/streaming/overview)**
+- **[Archive & Recording](https://docs.ruseon.tech/archive/overview)**
+- **[API Reference](https://docs.ruseon.tech/api/overview)**
+- **[Deployment](https://docs.ruseon.tech/deployment/overview)**
+- **[Troubleshooting](https://docs.ruseon.tech/troubleshooting/overview)**
+
+## ⚙️ Deployment & Configuration
+
+RUSEON Core supports Docker, Docker Compose, and bare-metal binary deployments. Configuration can be managed via `config.yaml` for startup parameters, while cameras and streams are managed dynamically via the embedded BadgerDB and exposed via REST API.
+
+[**Read Deployment Guide**](https://docs.ruseon.tech/deployment/overview)
+
+## ⚠️ Known Limitations
+
+RUSEON Core is purpose-built for efficient video routing and archiving. It operates entirely on transmuxing, which means **it does not transcode video**. If your cameras output formats that browsers do not natively support (e.g., H.265 in some environments), you may encounter playback issues unless handled client-side or transcoded externally.
+
+[**See all Known Limitations**](https://docs.ruseon.tech/reference/known-limitations)
 
 ## 💎 Choose Your RUSEON Edition
 
-RUSEON is built on an Open Core model. Start for free with the Community Edition, and upgrade to Pro or Enterprise when your video infrastructure scales and requires advanced B2B features.
+RUSEON is built on an Open Core model. Start for free with the Community Edition, and upgrade to Pro or Enterprise when your video infrastructure scales and requires advanced B2B features like SSO, Scalable Cloud Archiving (S3), and High Availability Clustering.
 
-| Feature / Capability | 🟢 **Core (Community)** | 🔵 **Pro** | 🟣 **Enterprise** |
-| :--- | :---: | :---: | :---: |
-| **Zero-Copy Routing (RTSP/HLS)** | ✅ Yes | ✅ Yes | ✅ Yes |
-| **React Edge Dashboard** | ✅ Yes | ✅ Yes | ✅ Yes |
-| **fMP4 Archiving (Local)** | ✅ Yes | ✅ Yes | ✅ Yes |
-| **Max Cameras per Node** | Unlimited (Hardware limit) | Unlimited | Unlimited |
-| **Advanced IAM & RBAC** | ❌ Basic Auth | ✅ Role-based Access | ✅ Role-based Access |
-| **SSO (Active Directory, OIDC, SAML)** | ❌ No | ❌ No | ✅ **Yes** |
-| **Scalable Cloud Archiving (S3 / MinIO)**| ❌ No | ❌ No | ✅ **Yes** |
-| **Clustering & High Availability** | ❌ Single Node | ⚠️ Basic Sync | 🚧 **Planned (Roadmap)** |
-| **Hardware / GPU Transcoding** | ❌ No | 🚧 Planned | 🚧 **Planned (Roadmap)** |
-| **Support SLA** | 🌐 Community (GitHub) | 📧 Email Support | 🚀 **24/7 Dedicated SLA** |
-| **License / Pricing** | **Free (MIT)** | **Pay per Camera** | **Custom Enterprise** |
-
-> **Ready to scale?** [Contact our Sales Team](mailto:rusegal.dev@yahoo.com) to request a trial key for **RUSEON Enterprise** and unlock SSO, S3 storage, and Clustering.
-
----
-## 🤝 Contributing
-
-We believe in the power of open-source and welcome contributions from the community. 
-Whether it's a bug report, new feature, or documentation improvement, please see our [Contributing Guidelines](CONTRIBUTING.md) to get started.
-
-Please ensure your commits follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.
+> **Ready to scale?** Contact our Sales Team: [rusegal.dev@yahoo.com](mailto:rusegal.dev@yahoo.com)
 
 ## 📄 License
 
-RUSEON Core (Community Edition) is distributed under the [MIT License](LICENSE). 
+RUSEON Core (Community Edition) is distributed under the [MIT License](LICENSE).
