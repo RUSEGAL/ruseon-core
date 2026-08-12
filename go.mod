@@ -6,7 +6,7 @@ require (
 	github.com/arl/statsviz v0.8.1
 	github.com/bluenviron/gortsplib/v4 v4.12.2
 	github.com/bluenviron/mediacommon v1.13.3
-	github.com/dgraph-io/badger/v4 v4.9.5
+	github.com/dgraph-io/badger/v4 v4.9.6
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/gin-contrib/pprof v1.5.4
 	github.com/gin-gonic/gin v1.12.0
