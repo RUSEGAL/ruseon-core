@@ -10,7 +10,7 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/gin-contrib/pprof v1.5.4
 	github.com/gin-gonic/gin v1.12.0
-	github.com/go-co-op/gocron/v2 v2.21.2
+	github.com/go-co-op/gocron/v2 v2.22.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/pion/rtp v1.10.5
 	github.com/pion/webrtc/v4 v4.2.18
