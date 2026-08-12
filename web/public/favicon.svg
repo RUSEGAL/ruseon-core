@@ -1,25 +1,58 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
   <defs>
-    <linearGradient id="reaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#818cf8;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#4338ca;stop-opacity:1" />
+    <!-- Cyan/Blue Tech Gradient -->
+    <linearGradient id="cyan_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F2FE"/>
+      <stop offset="100%" stop-color="#4FACFE"/>
+    </linearGradient>
+
+    <linearGradient id="accent_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#0066FF"/>
     </linearGradient>
   </defs>
-  <!-- Outer ring / Engine -->
-  <path 
-    d="M50 10 a40 40 0 1 0 0 80 a40 40 0 1 0 0 -80" 
-    fill="none" 
-    stroke="url(#reaGrad)" 
-    stroke-width="6" 
-    stroke-dasharray="60 15" 
-    stroke-linecap="round" 
-  />
-  
-  <!-- Streams bursting inward from the left -->
-  <path d="M10 50 L35 50" fill="none" stroke="url(#reaGrad)" stroke-width="6" stroke-linecap="round" />
-  <path d="M18 35 Q 28 35 38 42" fill="none" stroke="#818cf8" stroke-width="5" stroke-linecap="round" />
-  <path d="M18 65 Q 28 65 38 58" fill="none" stroke="#818cf8" stroke-width="5" stroke-linecap="round" />
 
-  <!-- Inner Play -->
-  <polygon points="45,30 75,50 45,70" fill="url(#reaGrad)" />
+  <!-- Main Icon Mark -->
+  <g transform="translate(256, 256)">
+    <!-- Outer Glow Hexagon -->
+    <polygon points="0,-130 112,-65 112,65 0,130 -112,65 -112,-65" 
+             fill="none" stroke="url(#cyan_grad)" stroke-width="2" opacity="0.25" />
+
+    <!-- Outer Hexagon Frame (Edge Node) -->
+    <polygon points="0,-120 104,-60 104,60 0,120 -104,60 -104,-60" 
+             fill="#0F172A" stroke="url(#cyan_grad)" stroke-width="6" stroke-linejoin="round" />
+
+    <!-- Corner Edge Node Pins -->
+    <circle cx="0" cy="-120" r="5" fill="#00F2FE"/>
+    <circle cx="104" cy="-60" r="5" fill="#00F2FE"/>
+    <circle cx="104" cy="60" r="5" fill="#00F2FE"/>
+    <circle cx="0" cy="120" r="5" fill="#00F2FE"/>
+    <circle cx="-104" cy="60" r="5" fill="#00F2FE"/>
+    <circle cx="-104" cy="-60" r="5" fill="#00F2FE"/>
+
+    <!-- Tech Network Pulse Lines -->
+    <line x1="-104" y1="-60" x2="-45" y2="-25" stroke="url(#accent_grad)" stroke-width="2" opacity="0.4" stroke-dasharray="4,4"/>
+    <line x1="104" y1="-60" x2="45" y2="-25" stroke="url(#accent_grad)" stroke-width="2" opacity="0.4" stroke-dasharray="4,4"/>
+    <line x1="0" y1="-120" x2="0" y2="-55" stroke="url(#accent_grad)" stroke-width="2" opacity="0.4" stroke-dasharray="4,4"/>
+
+    <!-- Concentric High-Tech Data Orbits -->
+    <circle cx="0" cy="0" r="75" fill="none" stroke="url(#accent_grad)" stroke-width="2" stroke-dasharray="10, 14, 25, 8" opacity="0.8"/>
+    <circle cx="0" cy="0" r="60" fill="none" stroke="#00F2FE" stroke-width="3" stroke-dasharray="40, 20, 60, 15" opacity="0.6"/>
+
+    <!-- Perfectly Centered Play Triangle -->
+    <g transform="translate(0, 0)">
+      <polygon points="-16,-32 32,0 -16,32" fill="url(#cyan_grad)" opacity="0.25" />
+      <polygon points="-12,-25 24,0 -12,25" fill="url(#cyan_grad)" />
+      <polygon points="-6,-14 12,0 -6,14" fill="#0F172A" />
+    </g>
+
+    <!-- Signal & Storage Status Indicators (fMP4 / BadgerDB Nodes) -->
+    <circle cx="-60" cy="45" r="5" fill="#00F2FE"/>
+    <circle cx="0" cy="72" r="6" fill="#00E5FF"/>
+    <circle cx="60" cy="45" r="5" fill="#4FACFE"/>
+
+    <line x1="-60" y1="45" x2="-35" y2="28" stroke="#00F2FE" stroke-width="2" opacity="0.5"/>
+    <line x1="0" y1="72" x2="0" y2="40" stroke="#00E5FF" stroke-width="2" opacity="0.5"/>
+    <line x1="60" y1="45" x2="35" y2="28" stroke="#4FACFE" stroke-width="2" opacity="0.5"/>
+  </g>
 </svg>
