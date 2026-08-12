@@ -12,12 +12,6 @@ definitions:
         type: string
       connected:
         type: boolean
-      disableHistory:
-        items:
-          $ref: '#/definitions/config.DisableRecord'
-        type: array
-      disableReason:
-        type: string
       disabled:
         type: boolean
       folderId:
@@ -32,24 +26,14 @@ definitions:
         type: boolean
       record:
         type: boolean
-      recordHistory:
-        items:
-          $ref: '#/definitions/config.DisableRecord'
-        type: array
       retentionDays:
         type: integer
-      simICCID:
-        type: string
-      simPhone:
-        type: string
       tags:
         items:
           type: string
         type: array
-      trafficLimit:
-        type: integer
-      trafficUsed:
-        type: integer
+      tokenAuth:
+        type: boolean
       uptime:
         type: integer
       url:
@@ -59,76 +43,87 @@ definitions:
     properties:
       comment:
         type: string
-      disableHistory:
-        items:
-          $ref: '#/definitions/config.DisableRecord'
-        type: array
-      disableReason:
-        type: string
       disabled:
-        description: Отключение
+        description: Disable stream
         type: boolean
       folderId:
         type: string
       id:
         type: string
-      lastResetMonth:
-        description: Месяц последнего сброса (YYYY-MM)
-        type: string
       lazyHLS:
         type: boolean
       record:
         type: boolean
-      recordHistory:
-        items:
-          $ref: '#/definitions/config.DisableRecord'
-        type: array
       retentionDays:
-        description: 0 означает использование глобального значения
+        description: 0 means use global default
         type: integer
-      simICCID:
-        type: string
-      simPhone:
-        type: string
       tags:
         items:
           type: string
         type: array
       tokenAuth:
         type: boolean
-      trafficLimit:
-        description: Биллинг и трафик
-        type: integer
-      trafficUsed:
-        description: Использовано в байтах
-        type: integer
       transport:
-        description: '"tcp", "udp", или "auto"'
+        description: '"tcp", "udp", or "auto"'
         type: string
       url:
         type: string
     type: object
-  config.DisableRecord:
+  config.Tag:
     properties:
-      action:
-        description: '"disable" или "enable"'
+      id:
         type: string
-      reason:
+      color:
         type: string
-      timestamp:
+      name:
+        type: string
+    type: object
+  config.Folder:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      parentId:
         type: string
     type: object
 host: localhost:8080
 info:
-  contact: {}
-  description: REST API for managing RUSEON video streaming server.
+  description: REST API for managing RUSEON Core video streaming server.
   title: RUSEON Core API
   version: "1.0"
 paths:
+  /api/login:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      parameters:
+      - in: body
+        name: credentials
+        required: true
+        schema:
+          type: object
+          properties:
+            username:
+              type: string
+            password:
+              type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+            properties:
+              token:
+                type: string
+      summary: Login to get JWT token
+      tags:
+      - auth
   /api/cameras:
     get:
-      description: Returns a list of all registered cameras along with their real-time
-        statistics
+      description: Returns a list of all registered cameras along with their real-time statistics
       produces:
       - application/json
       responses:
@@ -144,8 +139,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Dynamically registers a new camera and starts its stream if not
-        disabled
+      description: Dynamically registers a new camera and starts its stream if not disabled
       parameters:
       - description: Camera Configuration
         in: body
@@ -158,22 +152,6 @@ paths:
       responses:
         "200":
           description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
       summary: Add a new camera
       tags:
       - cameras
@@ -191,16 +169,6 @@ paths:
       responses:
         "200":
           description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
       summary: Delete a camera
       tags:
       - cameras
@@ -225,23 +193,218 @@ paths:
       responses:
         "200":
           description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
       summary: Edit a camera
       tags:
       - cameras
+  /api/cameras/{id}/archive:
+    get:
+      description: Retrieve archive recordings for a specific camera in a given time range
+      parameters:
+      - description: Camera ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Start Unix Timestamp (seconds)
+        in: query
+        name: start
+        required: true
+        type: integer
+      - description: End Unix Timestamp (seconds)
+        in: query
+        name: end
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Get archive timeline
+      tags:
+      - archive
+  /api/cameras/{id}/export:
+    get:
+      description: Export an MP4 chunk of the archive
+      parameters:
+      - description: Camera ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Start Unix Timestamp (seconds)
+        in: query
+        name: start
+        required: true
+        type: integer
+      - description: End Unix Timestamp (seconds)
+        in: query
+        name: end
+        required: true
+        type: integer
+      produces:
+      - video/mp4
+      responses:
+        "200":
+          description: OK
+      summary: Export MP4 video
+      tags:
+      - archive
+  /api/stats:
+    get:
+      description: Get global server statistics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Server stats
+      tags:
+      - system
+  /system/backup/export:
+    get:
+      description: Download full configuration backup (BadgerDB) as JSON
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Export Backup
+      tags:
+      - system
+  /system/backup/import:
+    post:
+      consumes:
+      - application/json
+      description: Upload full configuration JSON to replace current state
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Import Backup
+      tags:
+      - system
+  /api/tags:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/config.Tag'
+            type: array
+      summary: Get tags
+      tags:
+      - tags
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - in: body
+        name: tag
+        required: true
+        schema:
+          $ref: '#/definitions/config.Tag'
+      responses:
+        "200":
+          description: OK
+      summary: Create tag
+      tags:
+      - tags
+  /api/tags/{id}:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      - in: body
+        name: tag
+        required: true
+        schema:
+          $ref: '#/definitions/config.Tag'
+      responses:
+        "200":
+          description: OK
+      summary: Update tag
+      tags:
+      - tags
+    delete:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+      summary: Delete tag
+      tags:
+      - tags
+  /api/folders:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/config.Folder'
+            type: array
+      summary: Get folders
+      tags:
+      - folders
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - in: body
+        name: folder
+        required: true
+        schema:
+          $ref: '#/definitions/config.Folder'
+      responses:
+        "200":
+          description: OK
+      summary: Create folder
+      tags:
+      - folders
+  /api/folders/{id}:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      - in: body
+        name: folder
+        required: true
+        schema:
+          $ref: '#/definitions/config.Folder'
+      responses:
+        "200":
+          description: OK
+      summary: Update folder
+      tags:
+      - folders
+    delete:
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+      summary: Delete folder
+      tags:
+      - folders
 swagger: "2.0"
