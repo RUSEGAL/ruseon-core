@@ -38,7 +38,7 @@ func TestRecorder_DiskFreeze_Chaos(t *testing.T) {
 	// Внедряем хаос: создание файла "виснет" на 3 секунды
 	registry.RegisterBlobStore(&ChaosBlobStore{freezeDuration: 3 * time.Second})
 
-	rec := NewRecorder("chaos-stream", rb, "test_records")
+	rec := NewRecorder("chaos-stream", rb, "test_records", nil)
 	defer rec.Stop()
 
 	// Эмулируем получение параметров

@@ -20,7 +20,7 @@ func TestRecorder_Lifecycle(t *testing.T) {
 	pps := []byte{0x68, 0xce, 0x38, 0x80}
 	rb.SetParams(nil, sps, pps)
 
-	r := NewRecorder("cam1", rb, tempDir)
+	r := NewRecorder("cam1", rb, tempDir, nil)
 	if r == nil {
 		t.Fatalf("expected non-nil recorder")
 	}
