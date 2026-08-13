@@ -41,13 +41,16 @@ type Stream struct {
 	mp4Recorder *recorder.Recorder
 
 	// Статистика
-	connected         atomic.Bool
+	state             atomic.Value
 	connectedAt       atomic.Int64
 	bytesReceived     atomic.Uint64
 	bytesSent         atomic.Uint64
 	framesReceived    atomic.Uint64
 	keyFramesReceived atomic.Uint64
 	reconnects        atomic.Uint64
+	lastFrameTime     atomic.Int64
+	lastKeyTime       atomic.Int64
+	lastError         atomic.Value
 
 	rtspClient *rtsp.Client
 	rtspMu     sync.Mutex
@@ -69,6 +72,8 @@ func NewStream(id, url string, record bool, lazyHLS bool, transport string) *Str
 		metaBroadcaster: NewMetadataBroadcaster(),
 		lazyHLS:    lazyHLS,
 	}
+	s.state.Store(models.StateConnecting)
+	s.lastError.Store("")
 
 	if !lazyHLS {
 		sub := s.metaBroadcaster.Subscribe()
@@ -114,12 +119,20 @@ func (s *Stream) run() {
 			s.bytesReceived.Add(uint64(size)) //nolint:gosec
 			metrics.NetworkReceiveBytesTotal.Add(float64(size))
 			
-			if s.connected.CompareAndSwap(false, true) {
-				s.connectedAt.Store(time.Now().Unix())
-				metrics.ActiveStreams.Inc()
-				log.Info().Str("id", s.ID).Msg("RTSP connected and receiving frames")
-				if registry.CurrentEventBus != nil {
-					registry.CurrentEventBus.Publish("camera_connected", s.ID, nil)
+			s.lastFrameTime.Store(time.Now().Unix())
+			
+			oldState, _ := s.state.Load().(models.CameraState)
+			if oldState != models.StateOnline {
+				// Prevent multiple concurrent 'camera_online' events by using CompareAndSwap
+				if s.state.CompareAndSwap(oldState, models.StateOnline) {
+					s.lastError.Store("")
+					s.reconnects.Store(0) // Reset reconnect backoff
+					s.connectedAt.Store(time.Now().Unix())
+					metrics.ActiveStreams.Inc()
+					log.Info().Str("id", s.ID).Msg("RTSP connected and receiving frames")
+					if registry.CurrentEventBus != nil {
+						registry.CurrentEventBus.Publish("camera_online", s.ID, nil)
+					}
 				}
 			}
 			
@@ -128,6 +141,7 @@ func (s *Stream) run() {
 			if isKeyFrame {
 				metrics.KeyFramesTotal.Inc()
 				s.keyFramesReceived.Add(1)
+				s.lastKeyTime.Store(time.Now().Unix())
 			}
 
 			// Оборачиваем в Frame и пишем в Ring Buffer
@@ -142,14 +156,15 @@ func (s *Stream) run() {
 			log.Info().Str("id", s.ID).Msg("Received codec parameters")
 		})
 
-		wasConnected := s.connected.Swap(false)
-		if wasConnected {
+		oldState, _ := s.state.Load().(models.CameraState)
+		if s.state.CompareAndSwap(oldState, models.StateOffline) && oldState == models.StateOnline {
 			metrics.ActiveStreams.Dec()
 		}
 		
 		errMsg := ""
 		if err != nil {
 			errMsg = err.Error()
+			s.lastError.Store(errMsg)
 		}
 		if registry.CurrentEventBus != nil {
 			registry.CurrentEventBus.Publish("camera_offline", s.ID, map[string]string{"error": errMsg})
@@ -162,9 +177,25 @@ func (s *Stream) run() {
 			break
 		}
 
-		log.Warn().Err(err).Str("id", s.ID).Msg("RTSP connection lost, reconnecting in 5s...")
+		recs := s.reconnects.Load()
+		if recs > 6 {
+			recs = 6 // Cap at 64s before bitshift to prevent int overflow
+		}
+		backoffSec := int(1 << recs)
+		
+		if backoffSec > 60 {
+			backoffSec = 60
+		}
+		if backoffSec < 1 {
+			backoffSec = 1
+		}
+		// Add some jitter (e.g. 0 to 500ms)
+		jitter := time.Duration(time.Now().UnixNano()%500) * time.Millisecond
+		reconnectDelay := time.Duration(backoffSec)*time.Second + jitter
 
-		timer := time.NewTimer(5 * time.Second)
+		log.Warn().Err(err).Str("id", s.ID).Dur("delay", reconnectDelay).Msg("RTSP connection lost, reconnecting...")
+
+		timer := time.NewTimer(reconnectDelay)
 		select {
 		case <-timer.C:
 		case <-s.ctx.Done():
@@ -262,7 +293,14 @@ func (s *Stream) AddBytesSent(n uint64) {
 // GetStats возвращает текущую статистику потока.
 func (s *Stream) GetStats() models.CameraStats {
 	var uptime int64
-	if s.connected.Load() {
+	var st models.CameraState
+	if val, ok := s.state.Load().(models.CameraState); ok {
+		st = val
+	} else {
+		st = models.StateOffline
+	}
+
+	if st == models.StateOnline {
 		at := s.connectedAt.Load()
 		if at > 0 {
 			uptime = int64(time.Since(time.Unix(at, 0)).Seconds())
@@ -279,8 +317,13 @@ func (s *Stream) GetStats() models.CameraStats {
 		}
 	}
 
+	lastErrStr := ""
+	if val, ok := s.lastError.Load().(string); ok {
+		lastErrStr = val
+	}
+
 	return models.CameraStats{
-		Connected:     s.connected.Load(),
+		State:         st,
 		BytesReceived: s.bytesReceived.Load(),
 		BytesSent:     s.bytesSent.Load(),
 		Uptime:        uptime,
@@ -288,5 +331,9 @@ func (s *Stream) GetStats() models.CameraStats {
 		KeyFrames:     s.keyFramesReceived.Load(),
 		Reconnects:    s.reconnects.Load(),
 		Codec:         codec,
+		LastFrameTime: s.lastFrameTime.Load(),
+		LastKeyTime:   s.lastKeyTime.Load(),
+		LastError:     lastErrStr,
+		Bitrate:       0, // We can compute bitrate below if we want, or in a separate task.
 	}
 }

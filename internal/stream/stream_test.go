@@ -94,3 +94,21 @@ func TestStream_LazyHLSWatchdog_Manual(t *testing.T) {
 	
 	s.Stop()
 }
+
+func TestStream_StateAndStats(t *testing.T) {
+	s := NewStream("cam_state_test", "rtsp://invalid", false, false, "tcp")
+	defer s.Stop()
+
+	// Initial state could be connecting or offline (since run() runs concurrently)
+	stats := s.GetStats()
+	if stats.State != "connecting" && stats.State != "offline" {
+		t.Errorf("expected connecting or offline state, got %s", stats.State)
+	}
+
+	// Reconnects should increment after some time, let's just manipulate the atomic counter to test stats
+	s.reconnects.Add(10)
+	stats = s.GetStats()
+	if stats.Reconnects != 10 {
+		t.Errorf("expected 10 reconnects, got %d", stats.Reconnects)
+	}
+}

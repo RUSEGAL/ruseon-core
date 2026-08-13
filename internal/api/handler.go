@@ -11,12 +11,13 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/RUSEGAL/ruseon-core/internal/archive"
+	"github.com/RUSEGAL/ruseon-core/internal/models"
+	"github.com/RUSEGAL/ruseon-core/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/internal/webrtc"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/logger"
 	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
-	"github.com/RUSEGAL/ruseon-core/internal/stream"
-	"github.com/RUSEGAL/ruseon-core/internal/webrtc"
 	"strconv"
 	"strings"
 )
@@ -121,7 +122,7 @@ func (h *Handler) StreamLogs(c *gin.Context) {
 type CameraInfo struct {
 	ID             string                 `json:"id"`
 	URL            string                 `json:"url"`
-	Connected      bool                   `json:"connected"`
+	State          models.CameraState     `json:"state"`
 	Record         bool                   `json:"record"`
 	RetentionDays  int                    `json:"retentionDays"`
 	Tags           []string               `json:"tags"`
@@ -137,6 +138,11 @@ type CameraInfo struct {
 	Frames         uint64                 `json:"frames"`
 	KeyFrames      uint64                 `json:"keyFrames"`
 	Codec          string                 `json:"codec"`
+	LastFrameTime  int64                  `json:"lastFrameTime"`
+	LastKeyTime    int64                  `json:"lastKeyTime"`
+	LastError      string                 `json:"lastError"`
+	Reconnects     uint64                 `json:"reconnects"`
+	Bitrate        float64                `json:"bitrate"`
 	LazyHLS        bool                   `json:"lazyHLS"`
 	TokenAuth      bool                   `json:"tokenAuth"`
 	Disabled       bool                   `json:"disabled"`
@@ -153,39 +159,46 @@ type CameraInfo struct {
 // @Router /api/cameras [get]
 func (h *Handler) GetCameras(c *gin.Context) {
 	streams := h.manager.GetStreams()
+	streamMap := make(map[string]*stream.Stream, len(streams))
+	for _, st := range streams {
+		streamMap[st.ID] = st
+	}
 
 	result := make([]CameraInfo, 0)
 	cams, err := h.store.ListCameras()
 	if err != nil {
 		cams = []config.CameraConfig{}
 	}
+	
 	for _, cam := range cams {
-		var stats *stream.Stream
-		for _, st := range streams {
-			if st.ID == cam.ID {
-				stats = st
-				break
-			}
-		}
+		stats := streamMap[cam.ID]
 
-		connected := false
-		var uptime, bytesReceived, bytesSent, frames, keyFrames uint64
+		var state models.CameraState = models.StateOffline
+		var uptime, bytesReceived, bytesSent, frames, keyFrames, reconnects uint64
+		var lastFrameTime, lastKeyTime int64
+		var bitrate float64
+		var lastError string
 		codec := "-"
 		if stats != nil {
 			s := stats.GetStats()
-			connected = s.Connected
+			state = s.State
 			uptime = uint64(s.Uptime) //nolint:gosec
 			bytesReceived = s.BytesReceived
 			bytesSent = s.BytesSent
 			frames = s.Frames
 			keyFrames = s.KeyFrames
 			codec = s.Codec
+			lastFrameTime = s.LastFrameTime
+			lastKeyTime = s.LastKeyTime
+			lastError = s.LastError
+			reconnects = s.Reconnects
+			bitrate = s.Bitrate
 		}
 
 		result = append(result, CameraInfo{
 			ID:            cam.ID,
 			URL:           cam.URL,
-			Connected:     connected,
+			State:         state,
 			Record:        cam.Record,
 			RetentionDays: cam.RetentionDays,
 			Tags:          cam.Tags,
@@ -205,6 +218,11 @@ func (h *Handler) GetCameras(c *gin.Context) {
 			Frames:        frames,
 			KeyFrames:     keyFrames,
 			Codec:         codec,
+			LastFrameTime: lastFrameTime,
+			LastKeyTime:   lastKeyTime,
+			LastError:     lastError,
+			Reconnects:    reconnects,
+			Bitrate:       bitrate,
 			LazyHLS:       cam.LazyHLS,
 			TokenAuth:     cam.TokenAuth,
 		})
@@ -456,7 +474,7 @@ func (h *Handler) PostWHEP(c *gin.Context) {
 	}
 	offerSDP := string(body)
 
-	whepHandler := webrtc.NewWHEPHandler(id, st.GetRingBuffer(), st.GetMetadataBroadcaster())
+	whepHandler := webrtc.NewWHEPHandler(id, st.GetRingBuffer(), st.GetMetadataBroadcaster(), h.cfg)
 	answerSDP, err := whepHandler.HandleOffer(c.Request.Context(), offerSDP)
 	if err != nil {
 		log.Error().Err(err).Str("stream", id).Msg("WHEP HandleOffer failed")
@@ -495,7 +513,7 @@ func (h *Handler) GetServerStats(c *gin.Context) {
 		totalBytes += stats.BytesReceived
 		totalBytesSent += stats.BytesSent
 		totalFrames += stats.Frames
-		if stats.Connected {
+		if stats.State == models.StateOnline {
 			onlineCameras++
 		}
 	}

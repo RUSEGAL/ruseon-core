@@ -96,8 +96,8 @@ export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails, globalTag
                   </>
                 ) : (
                   <>
-                    <div className={`status-indicator ${cam.connected ? 'online' : 'offline'}`}></div>
-                    <span style={{ fontWeight: 600 }}>{cam.connected ? t('cameras.status.online') : t('cameras.status.offline')}</span>
+                    <div className={`status-indicator ${cam.state === 'online' ? 'online' : 'offline'}`}></div>
+                    <span style={{ fontWeight: 600 }}>{cam.state === 'online' ? t('cameras.status.online') : t('cameras.status.offline')}</span>
                   </>
                 )}
               </div>
@@ -148,7 +148,7 @@ export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails, globalTag
             )}
             
             <div className="video-container" style={{ marginTop: 'auto', cursor: 'pointer', borderRadius: '8px', overflow: 'hidden' }} onClick={() => onOpenDetails(cam)}>
-              {cam.connected && !cam.disabled ? (
+              {cam.state === 'online' && !cam.disabled ? (
                 <VideoPlayer streamId={cam.id} />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', color: 'var(--text-muted)' }}>

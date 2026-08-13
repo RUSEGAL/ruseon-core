@@ -7,6 +7,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/RUSEGAL/ruseon-core/internal/mqtt"
 	"github.com/RUSEGAL/ruseon-core/internal/stream"
@@ -22,22 +23,31 @@ type Server struct {
 }
 
 // NewServer создает новый экземпляр gRPC сервера.
-func NewServer(manager *stream.Manager, mqttPub *mqtt.Publisher) *Server {
+func NewServer(manager *stream.Manager, mqttPub *mqtt.Publisher, certFile, keyFile string) *Server {
+	var opts []grpc.ServerOption
+	if certFile != "" && keyFile != "" {
+		creds, err := credentials.NewServerTLSFromFile(certFile, keyFile)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to load gRPC TLS credentials")
+		}
+		opts = append(opts, grpc.Creds(creds))
+	}
+
 	return &Server{
 		manager: manager,
-		grpcSrv: grpc.NewServer(),
+		grpcSrv: grpc.NewServer(opts...),
 		mqttPub: mqttPub,
 	}
 }
 
-// Start запускает gRPC сервер на указанном порту.
-func (s *Server) Start(port string) error {
-	lis, err := net.Listen("tcp", ":"+port)
+// Start запускает gRPC сервер на указанном адресе (напр. ":50051").
+func (s *Server) Start(addr string) error {
+	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
 	pb.RegisterFrameServiceServer(s.grpcSrv, s)
-	log.Info().Str("port", port).Msg("Starting gRPC Frame Extractor API")
+	log.Info().Str("addr", addr).Msg("Starting gRPC Frame Extractor API")
 	return s.grpcSrv.Serve(lis)
 }
 

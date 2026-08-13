@@ -142,7 +142,7 @@ var listCamerasCmd = &cobra.Command{
 		
 		for _, cam := range cameras {
 			status := "OFFLINE"
-			if connected, ok := cam["connected"].(bool); ok && connected {
+			if state, ok := cam["state"].(string); ok && state == "online" {
 				status = "ONLINE"
 			}
 			if disabled, ok := cam["disabled"].(bool); ok && disabled {

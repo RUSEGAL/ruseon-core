@@ -18,6 +18,20 @@ type Config struct {
 		GCPercent           int  `yaml:"gc_percent"`            // Тюнинг GOGC (по умолчанию 50)
 		GCMemoryLimitMB     int      `yaml:"gc_memory_limit_mb"`    // Тюнинг GOMEMLIMIT (в мегабайтах)
 		CORSAllowedOrigins  []string `yaml:"cors_allowed_origins" json:"corsAllowedOrigins"`
+		GRPC                struct {
+			Address string `yaml:"address" json:"address"`
+			Port    int    `yaml:"port" json:"port"`
+		} `yaml:"grpc" json:"grpc"`
+		TLS struct {
+			CertFile string `yaml:"cert_file" json:"certFile"`
+			KeyFile  string `yaml:"key_file" json:"keyFile"`
+		} `yaml:"tls" json:"tls"`
+		WebRTC struct {
+			ICEServers         []string `yaml:"ice_servers" json:"iceServers"`
+			ICETransportPolicy string   `yaml:"ice_transport_policy" json:"iceTransportPolicy"`
+			TURNUsername       string   `yaml:"turn_username" json:"turnUsername"`
+			TURNPassword       string   `yaml:"turn_password" json:"turnPassword"`
+		} `yaml:"webrtc" json:"webrtc"`
 	} `yaml:"server"`
 
 	Auth struct {
@@ -124,6 +138,11 @@ func Load(path string) (*Config, error) {
 	// Устанавливаем дефолты для GC (если не заданы)
 	if cfg.Server.GCPercent == 0 {
 		cfg.Server.GCPercent = 50
+	}
+
+	// Устанавливаем дефолты для gRPC
+	if cfg.Server.GRPC.Port == 0 {
+		cfg.Server.GRPC.Port = 50051
 	}
 
 	return &cfg, nil

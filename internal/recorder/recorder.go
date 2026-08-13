@@ -122,6 +122,9 @@ func (r *Recorder) run() {
 				}
 				if err := part.Marshal(file); err != nil {
 					metrics.ArchiveErrorsTotal.Inc()
+					if registry.CurrentEventBus != nil {
+						registry.CurrentEventBus.Publish("recording_failed", r.streamID, map[string]string{"error": err.Error(), "file": currentFilename})
+					}
 				}
 			}
 
@@ -161,6 +164,9 @@ func (r *Recorder) run() {
 			if err != nil {
 				metrics.ArchiveErrorsTotal.Inc()
 				log.Error().Err(err).Msg("Failed to create record file")
+				if registry.CurrentEventBus != nil {
+					registry.CurrentEventBus.Publish("recording_failed", r.streamID, map[string]string{"error": err.Error(), "file": currentFilename})
+				}
 				time.Sleep(1 * time.Second)
 				continue
 			}
@@ -185,6 +191,9 @@ func (r *Recorder) run() {
 			}
 			if err := init.Marshal(file); err != nil {
 				log.Error().Err(err).Msg("Failed to write fMP4 init")
+				if registry.CurrentEventBus != nil {
+					registry.CurrentEventBus.Publish("recording_failed", r.streamID, map[string]string{"error": err.Error(), "file": currentFilename})
+				}
 				closeAndRename()
 				continue
 			}

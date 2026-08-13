@@ -205,8 +205,8 @@ export default function App() {
 
   const filteredCameras = useMemo(() => {
     let result = cameras.filter(c => {
-      if (filterStatus === 'online' && !c.connected) return false;
-      if (filterStatus === 'offline' && c.connected) return false;
+      if (filterStatus === 'online' && c.state !== 'online') return false;
+      if (filterStatus === 'offline' && c.state === 'online') return false;
 
       if (filterRecord === 'recording' && !c.record) return false;
       if (filterRecord === 'not_recording' && c.record) return false;
@@ -235,7 +235,7 @@ export default function App() {
       if (sortBy === 'id') return a.id.localeCompare(b.id);
       if (sortBy === 'uptime') return b.uptime - a.uptime;
       if (sortBy === 'traffic') return (b.trafficUsed || 0) - (a.trafficUsed || 0);
-      if (sortBy === 'status') return (b.connected ? 1 : 0) - (a.connected ? 1 : 0);
+      if (sortBy === 'status') return (b.state === 'online' ? 1 : 0) - (a.state === 'online' ? 1 : 0);
       return 0;
     });
 

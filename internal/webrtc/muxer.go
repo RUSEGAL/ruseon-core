@@ -13,6 +13,7 @@ import (
 
 	"github.com/RUSEGAL/ruseon-core/internal/buffer"
 	"github.com/RUSEGAL/ruseon-core/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
 )
 
@@ -21,13 +22,15 @@ type WHEPHandler struct {
 	streamID string
 	rb       *buffer.RingBuffer
 	mb       *stream.MetadataBroadcaster
+	cfg      *config.Config
 }
 
-func NewWHEPHandler(streamID string, rb *buffer.RingBuffer, mb *stream.MetadataBroadcaster) *WHEPHandler {
+func NewWHEPHandler(streamID string, rb *buffer.RingBuffer, mb *stream.MetadataBroadcaster, cfg *config.Config) *WHEPHandler {
 	return &WHEPHandler{
 		streamID: streamID,
 		rb:       rb,
 		mb:       mb,
+		cfg:      cfg,
 	}
 }
 
@@ -45,10 +48,23 @@ func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, e
 
 	api := webrtc.NewAPI(webrtc.WithMediaEngine(m))
 
+	var iceServers []webrtc.ICEServer
+	if len(h.cfg.Server.WebRTC.ICEServers) > 0 {
+		iceServers = append(iceServers, webrtc.ICEServer{
+			URLs:       h.cfg.Server.WebRTC.ICEServers,
+			Username:   h.cfg.Server.WebRTC.TURNUsername,
+			Credential: h.cfg.Server.WebRTC.TURNPassword,
+		})
+	}
+
+	iceTransportPolicy := webrtc.ICETransportPolicyAll
+	if h.cfg.Server.WebRTC.ICETransportPolicy == "relay" {
+		iceTransportPolicy = webrtc.ICETransportPolicyRelay
+	}
+
 	config := webrtc.Configuration{
-		ICEServers: []webrtc.ICEServer{
-			{URLs: []string{"stun:stun.l.google.com:19302"}},
-		},
+		ICEServers:         iceServers,
+		ICETransportPolicy: iceTransportPolicy,
 	}
 
 	pc, err := api.NewPeerConnection(config)

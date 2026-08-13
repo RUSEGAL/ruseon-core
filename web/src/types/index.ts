@@ -1,7 +1,7 @@
 export interface CameraInfo {
   id: string;
   url: string;
-  connected: boolean;
+  state: 'connecting' | 'online' | 'degraded' | 'offline' | 'disabled';
   record?: boolean;
   retentionDays?: number;
   tags?: string[];
@@ -16,9 +16,13 @@ export interface CameraInfo {
   bytesSent: number;
   frames: number;
   keyFrames: number;
-  reconnects: number;
   codec: string;
-  lazyHLS: boolean;
+  lastFrameTime?: number;
+  lastKeyTime?: number;
+  lastError?: string;
+  reconnects?: number;
+  bitrate?: number;
+  lazyHLS?: boolean;
   tokenAuth?: boolean;
   transport?: string;
   disabled: boolean;

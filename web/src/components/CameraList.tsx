@@ -71,7 +71,7 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
         <div key={cam.id} className="camera-list-item glass" onClick={() => onOpenDetails(cam)}>
           <div className="camera-list-info" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center', alignItems: 'flex-start' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div className={`status-indicator ${cam.connected && !cam.disabled ? 'online' : 'offline'}`} style={{ backgroundColor: cam.disabled ? 'var(--danger)' : undefined }}></div>
+              <div className={`status-indicator ${cam.state === 'online' && !cam.disabled ? 'online' : 'offline'}`} style={{ backgroundColor: cam.disabled ? 'var(--danger)' : undefined }}></div>
               <div style={{ fontWeight: 600, fontSize: '1.1rem', textTransform: 'uppercase' }}>{cam.id}</div>
               
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: '4px' }}>
@@ -80,7 +80,7 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
                     {t('cameras.status.disabled')}: {cam.disableReason}
                   </span>
                 )}
-                {!cam.disabled && !cam.connected && (
+                {!cam.disabled && cam.state !== 'online' && (
                   <span className="status-badge error">{t('cameras.status.offline')}</span>
                 )}
                 {cam.record && (
@@ -118,7 +118,7 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
           <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flex: 2, justifyContent: 'flex-end' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('dashboard.uptime')}</div>
-              <div style={{ fontWeight: 600 }}>{cam.connected ? formatUptime(cam.uptime) : '-'}</div>
+              <div style={{ fontWeight: 600 }}>{cam.state === 'online' ? formatUptime(cam.uptime) : '-'}</div>
             </div>
             <div style={{ minWidth: '120px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
@@ -137,10 +137,10 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('cameras.codec')}</div>
-              <div style={{ fontWeight: 600 }}>{cam.codec || '-'} / {cam.connected ? `${fpsMap[cam.id]?.toFixed(1) || 0}` : '-'}</div>
+              <div style={{ fontWeight: 600 }}>{cam.codec || '-'} / {cam.state === 'online' ? `${fpsMap[cam.id]?.toFixed(1) || 0}` : '-'}</div>
             </div>
             <div style={{ textAlign: 'right', minWidth: '100px' }}>
-              <div style={{ fontWeight: 600 }}>{cam.connected ? `${bitrates[cam.id]?.toFixed(2) || 0} kbps` : '-'}</div>
+              <div style={{ fontWeight: 600 }}>{cam.state === 'online' ? `${bitrates[cam.id]?.toFixed(2) || 0} kbps` : '-'}</div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatBytes(cam.bytesReceived)} {t('cameras.trafficTotal')}</div>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>

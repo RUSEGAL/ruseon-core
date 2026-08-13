@@ -55,10 +55,10 @@ func Run(cfg *config.Config) {
 	}
 
 	// Запуск gRPC Frame Extractor API
-	grpcServer := grpc.NewServer(manager, mqttPub)
+	grpcServer := grpc.NewServer(manager, mqttPub, cfg.Server.TLS.CertFile, cfg.Server.TLS.KeyFile)
 	go func() {
-		// Порт можно вынести в конфиг позже, пока 50051 по умолчанию
-		if err := grpcServer.Start("50051"); err != nil {
+		addr := fmt.Sprintf("%s:%d", cfg.Server.GRPC.Address, cfg.Server.GRPC.Port)
+		if err := grpcServer.Start(addr); err != nil {
 			log.Error().Err(err).Msg("gRPC server failed")
 		}
 	}()
@@ -109,7 +109,13 @@ func Run(cfg *config.Config) {
 			}
 		}()
 		log.Info().Str("addr", addr).Msg("Starting API server")
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		var err error
+		if cfg.Server.TLS.CertFile != "" && cfg.Server.TLS.KeyFile != "" {
+			err = srv.ListenAndServeTLS(cfg.Server.TLS.CertFile, cfg.Server.TLS.KeyFile)
+		} else {
+			err = srv.ListenAndServe()
+		}
+		if err != nil && err != http.ErrServerClosed {
 			log.Fatal().Err(err).Msg("Server failed")
 		}
 	}()

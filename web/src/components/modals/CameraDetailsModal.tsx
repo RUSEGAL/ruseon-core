@@ -23,7 +23,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
   const [showTelemetry, setShowTelemetry] = useState(false);
   const [activeTab, setActiveTab] = useState<'live' | 'webrtc' | 'archive'>('live');
   
-  const isOnline = detailsCam.connected && !detailsCam.disabled;
+  const isOnline = detailsCam.state === 'online' && !detailsCam.disabled;
   const trafficPercent = Math.min(100, ((detailsCam.trafficUsed || 0) / (detailsCam.trafficLimit || 200 * 1024 * 1024 * 1024)) * 100);
 
   return (
@@ -39,11 +39,11 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
             <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600 }}>{detailsCam.id.toUpperCase()}</h3>
             <span style={{
               padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600,
-              background: detailsCam.disabled ? 'rgba(239, 68, 68, 0.1)' : (detailsCam.connected ? 'rgba(16, 185, 129, 0.1)' : 'rgba(100, 116, 139, 0.1)'),
-              color: detailsCam.disabled ? 'var(--danger)' : (detailsCam.connected ? 'var(--success)' : 'var(--text-muted)'),
-              border: `1px solid ${detailsCam.disabled ? 'var(--danger)' : (detailsCam.connected ? 'var(--success)' : 'var(--text-muted)')}`
+              background: detailsCam.disabled ? 'rgba(239, 68, 68, 0.1)' : (detailsCam.state === 'online' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(100, 116, 139, 0.1)'),
+              color: detailsCam.disabled ? 'var(--danger)' : (detailsCam.state === 'online' ? 'var(--success)' : 'var(--text-muted)'),
+              border: `1px solid ${detailsCam.disabled ? 'var(--danger)' : (detailsCam.state === 'online' ? 'var(--success)' : 'var(--text-muted)')}`
             }}>
-              {detailsCam.disabled ? (detailsCam.disableReason ? `DISABLED: ${detailsCam.disableReason.toUpperCase()}` : 'DISABLED') : (detailsCam.connected ? 'ONLINE' : 'OFFLINE')}
+              {detailsCam.disabled ? (detailsCam.disableReason ? `DISABLED: ${detailsCam.disableReason.toUpperCase()}` : 'DISABLED') : (detailsCam.state === 'online' ? 'ONLINE' : 'OFFLINE')}
             </span>
             {detailsCam.record && <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>REC</span>}
           </div>
@@ -177,7 +177,7 @@ export function CameraDetailsModal({ detailsCam, bitrates, fpsMap, onClose, glob
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                           <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.reconnects')}</span>
-                          <span style={{ color: detailsCam.reconnects > 0 ? 'var(--danger)' : '#fff' }}>{detailsCam.reconnects || 0}</span>
+                          <span style={{ color: (detailsCam.reconnects || 0) > 0 ? 'var(--danger)' : '#fff' }}>{detailsCam.reconnects || 0}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                           <span style={{ color: 'var(--text-muted)' }}>{t('cameras.details.iFrames')}</span>
