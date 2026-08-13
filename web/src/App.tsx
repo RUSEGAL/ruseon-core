@@ -12,6 +12,7 @@ import { CameraDetailsModal } from './components/modals/CameraDetailsModal';
 import { ServerStatsModal } from './components/modals/ServerStatsModal';
 import { TagManagerModal } from './components/modals/TagManagerModal';
 import { LogsModal } from './components/modals/LogsModal';
+import { UserManagerModal } from './components/modals/UserManagerModal';
 import type { TagConfig, FolderConfig } from './types';
 import { useTranslation } from 'react-i18next';
 import { FolderManagerModal } from './components/modals/FolderManagerModal';
@@ -26,6 +27,7 @@ export default function App() {
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [showTagModal, setShowTagModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
+  const [showUserModal, setShowUserModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [camForm, setCamForm] = useState<CamFormState>({ id: '', url: '', record: false, lazyHLS: false, tokenAuth: false, transport: 'tcp', retentionDays: 0, tags: [], folderId: '', comment: '', simPhone: '', simICCID: '', disabled: false, disableReason: 'technical' });
   const [globalTags, setGlobalTags] = useState<TagConfig[]>([]);
@@ -242,6 +244,16 @@ export default function App() {
     return result;
   }, [cameras, searchQuery, sortBy, globalTags, filterStatus, filterRecord, filterTraffic]);
 
+  const userRole = useMemo(() => {
+    if (!token) return 'viewer';
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.role || 'viewer';
+    } catch {
+      return 'viewer';
+    }
+  }, [token]);
+
   if (!token) {
     return <Login onLogin={setToken} />;
   }
@@ -255,7 +267,9 @@ export default function App() {
         onOpenTags={() => setShowTagModal(true)}
         onOpenFolders={() => setShowFolderModal(true)}
         onOpenLogs={() => setShowLogsModal(true)}
-        onLogout={handleLogout} 
+        onOpenUsers={() => setShowUserModal(true)}
+        onLogout={handleLogout}
+        userRole={userRole}
       />
 
       <main className="main-content">
@@ -337,6 +351,7 @@ export default function App() {
             onOpenDetails={setDetailsCam} 
             globalTags={globalTags}
             folders={folders}
+            userRole={userRole}
           />
         ) : (
           <CameraList 
@@ -348,6 +363,7 @@ export default function App() {
             onOpenDetails={setDetailsCam} 
             globalTags={globalTags}
             folders={folders}
+            userRole={userRole}
           />
         )}
 
@@ -408,6 +424,10 @@ export default function App() {
 
         {showLogsModal && (
           <LogsModal onClose={() => setShowLogsModal(false)} />
+        )}
+
+        {showUserModal && (
+          <UserManagerModal token={token} onClose={() => setShowUserModal(false)} />
         )}
       </main>
     </>

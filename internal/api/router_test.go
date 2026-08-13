@@ -113,3 +113,50 @@ func TestRouterMetrics(t *testing.T) {
 	}
 }
 
+func TestRBAC(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tempDir := t.TempDir()
+	store, _ := storage.NewStorage(filepath.Join(tempDir, "db"))
+	defer store.Close()
+
+	cfg := &config.Config{}
+	cfg.Auth.Secret = "secret"
+	manager := stream.NewManager()
+	handler := NewHandler(manager, cfg, store)
+	authenticator := auth.NewLocalAuthenticator(cfg)
+
+	router := SetupRouter(handler, authenticator, false, nil)
+
+	getToken := func(role models.Role) string {
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"username": "test", "role": string(role)})
+		tokenString, _ := token.SignedString([]byte("secret"))
+		return tokenString
+	}
+
+	// 1. Viewer trying to POST /api/cameras (Should be 403 Forbidden)
+	w1 := httptest.NewRecorder()
+	req1, _ := http.NewRequest("POST", "/api/cameras", nil)
+	req1.Header.Set("Authorization", "Bearer "+getToken(models.RoleViewer))
+	router.ServeHTTP(w1, req1)
+	if w1.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for Viewer trying to write, got %d", w1.Code)
+	}
+
+	// 2. Operator trying to GET /api/system/backup/export (Should be 403 Forbidden)
+	w2 := httptest.NewRecorder()
+	req2, _ := http.NewRequest("GET", "/api/system/backup/export", nil)
+	req2.Header.Set("Authorization", "Bearer "+getToken(models.RoleOperator))
+	router.ServeHTTP(w2, req2)
+	if w2.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for Operator trying to backup, got %d", w2.Code)
+	}
+
+	// 3. Admin trying to GET /api/system/backup/export (Should NOT be 403)
+	w3 := httptest.NewRecorder()
+	req3, _ := http.NewRequest("GET", "/api/system/backup/export", nil)
+	req3.Header.Set("Authorization", "Bearer "+getToken(models.RoleAdmin))
+	router.ServeHTTP(w3, req3)
+	if w3.Code == http.StatusForbidden || w3.Code == http.StatusUnauthorized {
+		t.Errorf("expected Admin to pass RBAC, got %d", w3.Code)
+	}
+}

@@ -11,7 +11,8 @@
     "tags": "Tags",
     "logout": "Logout",
     "grid": "Grid",
-    "list": "List"
+    "list": "List",
+    "users": "Users"
   },
   "login": {
     "title": "RUSEON Core",
@@ -147,5 +148,29 @@
     "cancel": "Cancel",
     "noFolders": "No folders created yet.",
     "deleteConfirm": "Are you sure you want to delete this folder? It will be removed from all cameras."
+  },
+  "users": {
+    "title": "User Management",
+    "username": "Username",
+    "role": "Role",
+    "password": "Password",
+    "usernamePlaceholder": "Enter username...",
+    "passwordPlaceholder": "Enter password...",
+    "newPasswordPlaceholder": "New password (optional)",
+    "noUsers": "No users found.",
+    "deleteConfirm": "Are you sure you want to delete this user?",
+    "common": {
+      "add": "Create user",
+      "edit": "Edit user",
+      "delete": "Delete user",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "roles": {
+      "admin": "Admin",
+      "operator": "Operator",
+      "viewer": "Viewer",
+      "service": "Service"
+    }
   }
 }

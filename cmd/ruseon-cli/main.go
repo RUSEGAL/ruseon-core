@@ -252,6 +252,160 @@ func init() {
 	camerasCmd.AddCommand(deleteCameraCmd)
 
 	rootCmd.AddCommand(camerasCmd)
+
+	// Users commands
+	usersCmd := &cobra.Command{
+		Use:   "users",
+		Short: "Manage users",
+	}
+
+	listUsersCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List all users",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			resp, err := doRequest(http.MethodGet, "users", nil)
+			if err != nil {
+				return fmt.Errorf("failed to connect to server: %w", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				body, _ := io.ReadAll(resp.Body)
+				return fmt.Errorf("server returned status: %d: %s", resp.StatusCode, string(body))
+			}
+
+			var users []map[string]interface{}
+			if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
+				return err
+			}
+
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+			fmt.Fprintln(w, "USERNAME\tROLE")
+			for _, u := range users {
+				fmt.Fprintf(w, "%s\t%s\n", u["username"], u["role"])
+			}
+			return w.Flush()
+		},
+	}
+
+	var (
+		usrUsername string
+		usrPassword string
+		usrRole     string
+	)
+
+	addUserCmd := &cobra.Command{
+		Use:   "add",
+		Short: "Add a new user",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if usrUsername == "" || usrPassword == "" || usrRole == "" {
+				return fmt.Errorf("--username, --password and --role are required")
+			}
+
+			reqBody := map[string]string{
+				"username": usrUsername,
+				"password": usrPassword,
+				"role":     usrRole,
+			}
+
+			b, err := json.Marshal(reqBody)
+			if err != nil {
+				return err
+			}
+
+			resp, err := doRequest(http.MethodPost, "users", b)
+			if err != nil {
+				return fmt.Errorf("failed to connect to server: %w", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusCreated {
+				body, _ := io.ReadAll(resp.Body)
+				return fmt.Errorf("server error (%d): %s", resp.StatusCode, string(body))
+			}
+
+			fmt.Printf("User '%s' added successfully.\n", usrUsername)
+			return nil
+		},
+	}
+
+	editUserCmd := &cobra.Command{
+		Use:   "edit",
+		Short: "Edit a user",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if usrUsername == "" {
+				return fmt.Errorf("--username is required")
+			}
+
+			reqBody := make(map[string]string)
+			if usrPassword != "" {
+				reqBody["password"] = usrPassword
+			}
+			if usrRole != "" {
+				reqBody["role"] = usrRole
+			}
+
+			b, err := json.Marshal(reqBody)
+			if err != nil {
+				return err
+			}
+
+			resp, err := doRequest(http.MethodPut, fmt.Sprintf("users/%s", usrUsername), b)
+			if err != nil {
+				return fmt.Errorf("failed to connect to server: %w", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				body, _ := io.ReadAll(resp.Body)
+				return fmt.Errorf("server error (%d): %s", resp.StatusCode, string(body))
+			}
+
+			fmt.Printf("User '%s' edited successfully.\n", usrUsername)
+			return nil
+		},
+	}
+
+	deleteUserCmd := &cobra.Command{
+		Use:   "delete",
+		Short: "Delete a user",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if usrUsername == "" {
+				return fmt.Errorf("--username is required")
+			}
+
+			resp, err := doRequest(http.MethodDelete, fmt.Sprintf("users/%s", usrUsername), nil)
+			if err != nil {
+				return fmt.Errorf("failed to connect to server: %w", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				body, _ := io.ReadAll(resp.Body)
+				return fmt.Errorf("server error (%d): %s", resp.StatusCode, string(body))
+			}
+
+			fmt.Printf("User '%s' deleted successfully.\n", usrUsername)
+			return nil
+		},
+	}
+
+	usersCmd.AddCommand(listUsersCmd)
+	
+	addUserCmd.Flags().StringVar(&usrUsername, "username", "", "Username")
+	addUserCmd.Flags().StringVar(&usrPassword, "password", "", "Password")
+	addUserCmd.Flags().StringVar(&usrRole, "role", "", "Role (admin, operator, viewer, service)")
+	usersCmd.AddCommand(addUserCmd)
+
+	editUserCmd.Flags().StringVar(&usrUsername, "username", "", "Username to edit")
+	editUserCmd.Flags().StringVar(&usrPassword, "password", "", "New password")
+	editUserCmd.Flags().StringVar(&usrRole, "role", "", "New role")
+	usersCmd.AddCommand(editUserCmd)
+
+	deleteUserCmd.Flags().StringVar(&usrUsername, "username", "", "Username to delete")
+	usersCmd.AddCommand(deleteUserCmd)
+
+	rootCmd.AddCommand(usersCmd)
 }
 
 func main() {

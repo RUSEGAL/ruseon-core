@@ -167,6 +167,10 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool, corsOrigin
 	apiAdmin.POST("/folders", h.AddFolder)
 	apiAdmin.PUT("/folders/:id", h.EditFolder)
 	apiAdmin.DELETE("/folders/:id", h.DeleteFolder)
+	apiAdmin.GET("/users", h.GetUsers)
+	apiAdmin.POST("/users", h.AddUser)
+	apiAdmin.PUT("/users/:username", h.EditUser)
+	apiAdmin.DELETE("/users/:username", h.DeleteUser)
 
 	// Опциональная авторизация для видео-потоков
 	streamMiddleware := auth.StreamMiddleware()

@@ -3,6 +3,8 @@ package storage
 import (
 	"os"
 	"testing"
+
+	"github.com/RUSEGAL/ruseon-core/internal/models"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 )
 
@@ -175,7 +177,7 @@ func TestStorage_ExportImportJSON(t *testing.T) {
 	if len(cams) != 1 || cams[0].ID != "cam1" {
 		t.Errorf("expected cam1 to be imported, got %v", cams)
 	}
-	
+
 	tags, _ := store2.ListTags()
 	if len(tags) != 1 || tags[0].ID != "tag1" {
 		t.Errorf("expected tag1 to be imported, got %v", tags)
@@ -218,8 +220,8 @@ func TestStorage_FolderCRUD(t *testing.T) {
 	defer store.Close()
 
 	folder := &config.FolderConfig{
-		ID:       "folder1",
-		Name:     "Test Folder",
+		ID:   "folder1",
+		Name: "Test Folder",
 	}
 
 	if err := store.SaveFolder(folder); err != nil {
@@ -279,7 +281,7 @@ func TestStorage_MigrateFromConfig(t *testing.T) {
 	if len(tags) != 1 {
 		t.Fatalf("expected 1 tag after migration, got %d", len(tags))
 	}
-	
+
 	// Ensure subsequent migration doesn't run again if db is populated
 	cfg.Cameras = []config.CameraConfig{
 		{ID: "cam_migrate_3"},
@@ -290,5 +292,39 @@ func TestStorage_MigrateFromConfig(t *testing.T) {
 	cams, _ = store.ListCameras()
 	if len(cams) != 2 {
 		t.Fatalf("expected 2 cameras since migration should be skipped, got %d", len(cams))
+	}
+}
+
+func TestStorage_UserCRUD(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := NewStorage(tempDir)
+	if err != nil {
+		t.Fatalf("failed to create storage: %v", err)
+	}
+	defer store.Close()
+
+	user := &models.User{
+		Username:     "testuser",
+		PasswordHash: "testhash",
+		Role:         models.RoleOperator,
+	}
+
+	if err := store.SaveUser(user); err != nil {
+		t.Fatalf("failed to save user: %v", err)
+	}
+
+	fetchedUser, err := store.GetUser("testuser")
+	if err != nil {
+		t.Fatalf("failed to get user: %v", err)
+	}
+	if fetchedUser.Username != "testuser" || fetchedUser.Role != models.RoleOperator {
+		t.Errorf("fetched user mismatch: %+v", fetchedUser)
+	}
+
+	_, err = store.GetUser("nonexistent")
+	if err == nil {
+		t.Errorf("expected error for nonexistent user, got nil")
+	} else if err != ErrNotFound {
+		t.Errorf("expected ErrNotFound, got %v", err)
 	}
 }

@@ -13,9 +13,10 @@ interface CameraGridProps {
   onOpenDetails: (cam: CameraInfo) => void;
   globalTags: TagConfig[];
   folders: import('../types').FolderConfig[];
+  userRole: string;
 }
 
-export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails, globalTags, folders }: CameraGridProps) {
+export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails, globalTags, folders, userRole }: CameraGridProps) {
   const { t } = useTranslation();
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
 
@@ -76,12 +77,16 @@ export function CameraGrid({ cameras, onEdit, onDelete, onOpenDetails, globalTag
           <div className="camera-header">
             <h3 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>{cam.id}</h3>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn-icon" onClick={(e) => { e.stopPropagation(); onEdit(cam); }} title={t('cameras.edit')}>
-                <Edit2 size={16} />
-              </button>
-              <button className="btn-icon btn-danger" onClick={(e) => { e.stopPropagation(); onDelete(cam.id); }} title={t('cameras.delete')}>
-                <Trash2 size={16} />
-              </button>
+              {(userRole === 'admin' || userRole === 'operator') && (
+                <>
+                  <button className="btn-icon" onClick={(e) => { e.stopPropagation(); onEdit(cam); }} title={t('cameras.edit')}>
+                    <Edit2 size={16} />
+                  </button>
+                  <button className="btn-icon btn-danger" onClick={(e) => { e.stopPropagation(); onDelete(cam.id); }} title={t('cameras.delete')}>
+                    <Trash2 size={16} />
+                  </button>
+                </>
+              )}
             </div>
           </div>
           

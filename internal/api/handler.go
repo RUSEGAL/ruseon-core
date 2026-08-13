@@ -9,6 +9,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/crypto/bcrypt"
+
+	"strconv"
+	"strings"
 
 	"github.com/RUSEGAL/ruseon-core/internal/archive"
 	"github.com/RUSEGAL/ruseon-core/internal/models"
@@ -18,8 +22,6 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/logger"
 	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
-	"strconv"
-	"strings"
 )
 
 type ClientInfo struct {
@@ -169,7 +171,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 	if err != nil {
 		cams = []config.CameraConfig{}
 	}
-	
+
 	for _, cam := range cams {
 		stats := streamMap[cam.ID]
 
@@ -196,42 +198,40 @@ func (h *Handler) GetCameras(c *gin.Context) {
 		}
 
 		result = append(result, CameraInfo{
-			ID:            cam.ID,
-			URL:           cam.URL,
-			State:         state,
-			Record:        cam.Record,
-			RetentionDays: cam.RetentionDays,
-			Tags:          cam.Tags,
-			FolderID:      cam.FolderID,
-			Comment:       cam.Comment,
-			SimPhone:      cam.SimPhone,
-			SimICCID:      cam.SimICCID,
-			TrafficLimit:  cam.TrafficLimit,
-			TrafficUsed:   cam.TrafficUsed,
-			Disabled:      cam.Disabled,
-			DisableReason: cam.DisableReason,
+			ID:             cam.ID,
+			URL:            cam.URL,
+			State:          state,
+			Record:         cam.Record,
+			RetentionDays:  cam.RetentionDays,
+			Tags:           cam.Tags,
+			FolderID:       cam.FolderID,
+			Comment:        cam.Comment,
+			SimPhone:       cam.SimPhone,
+			SimICCID:       cam.SimICCID,
+			TrafficLimit:   cam.TrafficLimit,
+			TrafficUsed:    cam.TrafficUsed,
+			Disabled:       cam.Disabled,
+			DisableReason:  cam.DisableReason,
 			DisableHistory: cam.DisableHistory,
-			RecordHistory: cam.RecordHistory,
-			Uptime:        uptime,
-			BytesReceived: bytesReceived,
-			BytesSent:     bytesSent,
-			Frames:        frames,
-			KeyFrames:     keyFrames,
-			Codec:         codec,
-			LastFrameTime: lastFrameTime,
-			LastKeyTime:   lastKeyTime,
-			LastError:     lastError,
-			Reconnects:    reconnects,
-			Bitrate:       bitrate,
-			LazyHLS:       cam.LazyHLS,
-			TokenAuth:     cam.TokenAuth,
+			RecordHistory:  cam.RecordHistory,
+			Uptime:         uptime,
+			BytesReceived:  bytesReceived,
+			BytesSent:      bytesSent,
+			Frames:         frames,
+			KeyFrames:      keyFrames,
+			Codec:          codec,
+			LastFrameTime:  lastFrameTime,
+			LastKeyTime:    lastKeyTime,
+			LastError:      lastError,
+			Reconnects:     reconnects,
+			Bitrate:        bitrate,
+			LazyHLS:        cam.LazyHLS,
+			TokenAuth:      cam.TokenAuth,
 		})
 	}
 
 	c.JSON(http.StatusOK, result)
 }
-
-
 
 // @Summary Add a new camera
 // @Description Dynamically registers a new camera and starts its stream if not disabled
@@ -463,7 +463,7 @@ func (h *Handler) GetHLSSegment(c *gin.Context) {
 func (h *Handler) PostWHEP(c *gin.Context) {
 	id := c.Param("id")
 	h.tracker.Mark(c.ClientIP(), id)
-	
+
 	st, ok := h.manager.GetStream(id)
 	if !ok {
 		c.String(http.StatusNotFound, "Stream not found")
@@ -500,7 +500,7 @@ func (h *Handler) GetStreamToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"stream_token": token})
 }
 
-// GetServerStats   
+// GetServerStats
 func (h *Handler) GetServerStats(c *gin.Context) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -541,13 +541,13 @@ func (h *Handler) GetServerStats(c *gin.Context) {
 	activeClients := h.tracker.GetActiveClients(15 * time.Second)
 
 	c.JSON(http.StatusOK, gin.H{
-		"uptime":         int(time.Since(h.startTime).Seconds()),
-		"memoryUsed":     m.Alloc,
-		"sysMemory":      m.Sys,
-		"heapAlloc":      m.HeapAlloc,
-		"heapSys":        m.HeapSys,
-		"heapObjects":    m.HeapObjects,
-		"numGC":          m.NumGC,
+		"uptime":          int(time.Since(h.startTime).Seconds()),
+		"memoryUsed":      m.Alloc,
+		"sysMemory":       m.Sys,
+		"heapAlloc":       m.HeapAlloc,
+		"heapSys":         m.HeapSys,
+		"heapObjects":     m.HeapObjects,
+		"numGC":           m.NumGC,
 		"numCPU":          runtime.NumCPU(),
 		"goroutines":      runtime.NumGoroutine(),
 		"totalCameras":    len(cams),
@@ -593,7 +593,7 @@ func (h *Handler) EditTag(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
-	
+
 	t, err := h.store.GetTag(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Tag not found"})
@@ -618,7 +618,7 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete tag"})
 		return
 	}
-	
+
 	// Очищаем удаленный тег у всех камер
 	cams, _ := h.store.ListCameras()
 	for _, camMeta := range cams {
@@ -639,7 +639,7 @@ func (h *Handler) DeleteTag(c *gin.Context) {
 			return false
 		})
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
@@ -674,7 +674,7 @@ func (h *Handler) EditFolder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
-	
+
 	f, err := h.store.GetFolder(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Folder not found"})
@@ -698,7 +698,7 @@ func (h *Handler) DeleteFolder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete folder"})
 		return
 	}
-	
+
 	// Очищаем удаленную папку у всех камер
 	cams, _ := h.store.ListCameras()
 	for _, camMeta := range cams {
@@ -709,7 +709,7 @@ func (h *Handler) DeleteFolder(c *gin.Context) {
 			})
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
@@ -737,7 +737,7 @@ func (h *Handler) GetArchiveHLSPlaylist(c *gin.Context) {
 	metrics.HLSRequestsTotal.Inc()
 	id := c.Param("id")
 	filename := c.Query("file")
-	
+
 	if filename == "" {
 		c.String(http.StatusBadRequest, "file parameter is required")
 		return
@@ -767,7 +767,7 @@ func (h *Handler) ExportBackupJSON(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate backup: " + err.Error()})
 		return
 	}
-	
+
 	filename := fmt.Sprintf("config_backup_%s.json", time.Now().Format("2006-01-02_15-04-05"))
 	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
 	c.Data(http.StatusOK, "application/json", data)
@@ -780,31 +780,31 @@ func (h *Handler) ImportBackupJSON(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No backup file provided"})
 		return
 	}
-	
+
 	f, err := file.Open()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open uploaded file"})
 		return
 	}
 	defer f.Close()
-	
+
 	data := make([]byte, file.Size)
 	if _, err := f.Read(data); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file"})
 		return
 	}
-	
+
 	if err := h.store.ImportJSON(data); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to import backup: " + err.Error()})
 		return
 	}
-	
+
 	// Перезапускаем все потоки с новыми настройками
 	if err := h.manager.SyncWithStorage(h.store); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to sync streams: " + err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "Backup imported and streams restarted successfully."})
 }
 
@@ -871,18 +871,134 @@ func (h *Handler) ExportCameraArchive(c *gin.Context) {
 	log.Info().Str("audit", "true").Str("action", "archive_exported").Str("camera_id", id).Str("user", c.GetString("username")).Msg("Camera archive exported")
 
 	c.Writer.Header().Set("Content-Type", "video/mp4")
-	
+
 	downloadFilename := fmt.Sprintf("export_%s", filename)
 	if startSeqStr != "" && endSeqStr != "" {
 		baseName := strings.TrimSuffix(filename, ".mp4")
 		downloadFilename = fmt.Sprintf("export_%s_part_%s_to_%s.mp4", baseName, startSeqStr, endSeqStr)
 	}
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, downloadFilename))
-	
-	err := archive.ExportMP4("recordings", id, filename, startSeq, endSeq, c.Writer)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to export MP4")
-		// Заголовки уже могут быть отправлены, но мы логируем ошибку
+
+	if err := archive.ExportMP4("recordings", id, filename, startSeq, endSeq, c.Writer); err != nil {
+		log.Error().Err(err).Msg("Failed to export mp4")
 	}
 }
 
+// GetUsers возвращает список всех пользователей.
+func (h *Handler) GetUsers(c *gin.Context) {
+	if registry.CurrentStateStore == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Registry not initialized"})
+		return
+	}
+	users, err := registry.CurrentStateStore.ListUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	// Очищаем хэши паролей перед отправкой на фронт
+	for i := range users {
+		users[i].PasswordHash = ""
+	}
+	c.JSON(http.StatusOK, users)
+}
+
+// AddUser добавляет нового пользователя.
+func (h *Handler) AddUser(c *gin.Context) {
+	var input struct {
+		Username string      `json:"username"`
+		Password string      `json:"password"`
+		Role     models.Role `json:"role"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if input.Username == "" || input.Password == "" || input.Role == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username, password and role are required"})
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+
+	user := &models.User{
+		Username:     input.Username,
+		PasswordHash: string(hash),
+		Role:         input.Role,
+	}
+
+	if err := registry.CurrentStateStore.SaveUser(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	log.Info().Str("audit", "true").Str("action", "user_added").Str("target_username", user.Username).Str("user", c.GetString("username")).Msg("User added")
+	c.JSON(http.StatusCreated, user)
+}
+
+// EditUser обновляет пользователя (пароль и/или роль).
+func (h *Handler) EditUser(c *gin.Context) {
+	username := c.Param("username")
+
+	// Запрещаем изменять роль последнего/себя или хотя бы "admin" в простом виде?
+	// Пока оставим просто как есть.
+
+	var input struct {
+		Password string      `json:"password"`
+		Role     models.Role `json:"role"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := registry.CurrentStateStore.GetUser(username)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	if input.Password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+			return
+		}
+		user.PasswordHash = string(hash)
+	}
+
+	if input.Role != "" {
+		user.Role = input.Role
+	}
+
+	if err := registry.CurrentStateStore.SaveUser(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	log.Info().Str("audit", "true").Str("action", "user_edited").Str("target_username", user.Username).Str("user", c.GetString("username")).Msg("User edited")
+	c.JSON(http.StatusOK, user)
+}
+
+// DeleteUser удаляет пользователя.
+func (h *Handler) DeleteUser(c *gin.Context) {
+	username := c.Param("username")
+
+	if username == "admin" {
+		// Опциональная защита, чтобы случайно не удалить админа
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete default admin"})
+		return
+	}
+
+	if err := registry.CurrentStateStore.DeleteUser(username); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	log.Info().Str("audit", "true").Str("action", "user_deleted").Str("target_username", username).Str("user", c.GetString("username")).Msg("User deleted")
+	c.JSON(http.StatusOK, gin.H{"message": "User deleted"})
+}

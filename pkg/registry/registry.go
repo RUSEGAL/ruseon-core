@@ -30,6 +30,8 @@ type StateStore interface {
 
 	SaveUser(user *models.User) error
 	GetUser(username string) (*models.User, error)
+	ListUsers() ([]models.User, error)
+	DeleteUser(username string) error
 	HasUsers() (bool, error)
 
 	MigrateFromConfig(cfg *config.Config) error

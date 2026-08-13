@@ -153,8 +153,25 @@ func (a *LocalAuthenticator) Middleware() gin.HandlerFunc {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Stream tokens are not valid for API access"})
 				return
 			}
-			c.Set("username", claims["username"])
-			c.Set("role", claims["role"])
+			
+			username, _ := claims["username"].(string)
+			tokenRole, _ := claims["role"].(string)
+
+			// Revocation check: verify user still exists and role hasn't changed
+			if registry.CurrentStateStore != nil {
+				user, err := registry.CurrentStateStore.GetUser(username)
+				if err != nil || user == nil {
+					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User no longer exists"})
+					return
+				}
+				if string(user.Role) != tokenRole {
+					c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User role has changed, please login again"})
+					return
+				}
+			}
+
+			c.Set("username", username)
+			c.Set("role", tokenRole)
 		}
 
 		c.Next()

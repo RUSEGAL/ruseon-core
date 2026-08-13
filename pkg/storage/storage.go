@@ -373,6 +373,41 @@ func (s *Storage) GetUser(username string) (*models.User, error) {
 	return &user, nil
 }
 
+// ListUsers возвращает список всех пользователей.
+func (s *Storage) ListUsers() ([]models.User, error) {
+	var users []models.User
+	err := s.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+
+		prefix := []byte(PrefixUser)
+		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+			item := it.Item()
+			var user models.User
+			err := item.Value(func(val []byte) error {
+				return json.Unmarshal(val, &user)
+			})
+			if err != nil {
+				return err
+			}
+			users = append(users, user)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+// DeleteUser удаляет пользователя по имени.
+func (s *Storage) DeleteUser(username string) error {
+	key := []byte(PrefixUser + username)
+	return s.db.Update(func(txn *badger.Txn) error {
+		return txn.Delete(key)
+	})
+}
+
 // HasUsers возвращает true, если в БД есть хотя бы один пользователь.
 func (s *Storage) HasUsers() (bool, error) {
 	hasUsers := false

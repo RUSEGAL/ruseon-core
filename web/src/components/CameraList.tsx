@@ -14,9 +14,10 @@ interface CameraListProps {
   onOpenDetails: (cam: CameraInfo) => void;
   globalTags: TagConfig[];
   folders: import('../types').FolderConfig[];
+  userRole: string;
 }
 
-export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpenDetails, globalTags, folders }: CameraListProps) {
+export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpenDetails, globalTags, folders, userRole }: CameraListProps) {
   const { t } = useTranslation();
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
 
@@ -144,12 +145,16 @@ export function CameraList({ cameras, bitrates, fpsMap, onEdit, onDelete, onOpen
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatBytes(cam.bytesReceived)} {t('cameras.trafficTotal')}</div>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn-icon" onClick={(e) => { e.stopPropagation(); onEdit(cam); }} title={t('cameras.edit')}>
-                <Edit2 size={16} />
-              </button>
-              <button className="btn-icon btn-danger" onClick={(e) => { e.stopPropagation(); onDelete(cam.id); }} title={t('cameras.delete')}>
-                <Trash2 size={16} />
-              </button>
+              {(userRole === 'admin' || userRole === 'operator') && (
+                <>
+                  <button className="btn-icon" onClick={(e) => { e.stopPropagation(); onEdit(cam); }} title={t('cameras.edit')}>
+                    <Edit2 size={16} />
+                  </button>
+                  <button className="btn-icon btn-danger" onClick={(e) => { e.stopPropagation(); onDelete(cam.id); }} title={t('cameras.delete')}>
+                    <Trash2 size={16} />
+                  </button>
+                </>
+              )}
             </div>
             </div>
           </div>
