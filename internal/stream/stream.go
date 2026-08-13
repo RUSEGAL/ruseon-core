@@ -62,6 +62,9 @@ type Stream struct {
 	metricNetRxBytes prometheus.Counter
 	metricFramesRx   prometheus.Counter
 	metricKeyFrames  prometheus.Counter
+
+	currentBitrate atomic.Uint64
+	isDegraded     atomic.Bool
 }
 
 // NewStream создает и запускает поток.
@@ -93,12 +96,43 @@ func NewStream(id, url string, record bool, lazyHLS bool, transport string) *Str
 	}
 
 	if record {
-		s.mp4Recorder = recorder.NewRecorder(id, rb, "recordings")
+		s.mp4Recorder = recorder.NewRecorder(id, rb, "recordings", func(degraded bool) {
+			s.isDegraded.Store(degraded)
+		})
 	}
 
+	go s.bitrateTask()
 	go s.run()
 
 	return s
+}
+
+func (s *Stream) bitrateTask() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error().Interface("panic", r).Str("id", s.ID).Msg("Recovered from panic in Stream.bitrateTask")
+		}
+	}()
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	var lastBytes uint64
+	var lastTime time.Time = time.Now()
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case t := <-ticker.C:
+			currentBytes := s.bytesReceived.Load()
+			diff := currentBytes - lastBytes
+			dt := t.Sub(lastTime).Seconds()
+			if dt > 0 {
+				bps := float64(diff) * 8 / dt
+				s.currentBitrate.Store(uint64(bps))
+			}
+			lastBytes = currentBytes
+			lastTime = t
+		}
+	}
 }
 
 // run выполняет бесконечный цикл подключения с ретраями.
@@ -311,6 +345,9 @@ func (s *Stream) GetStats() models.CameraStats {
 	}
 
 	if st == models.StateOnline {
+		if s.isDegraded.Load() {
+			st = models.StateDegraded
+		}
 		at := s.connectedAt.Load()
 		if at > 0 {
 			uptime = int64(time.Since(time.Unix(at, 0)).Seconds())
@@ -344,6 +381,6 @@ func (s *Stream) GetStats() models.CameraStats {
 		LastFrameTime: s.lastFrameTime.Load(),
 		LastKeyTime:   s.lastKeyTime.Load(),
 		LastError:     lastErrStr,
-		Bitrate:       0, // We can compute bitrate below if we want, or in a separate task.
+		Bitrate:       float64(s.currentBitrate.Load()),
 	}
 }

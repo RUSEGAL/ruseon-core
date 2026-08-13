@@ -2,10 +2,12 @@ package recorder
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
@@ -19,13 +21,17 @@ func StartCleanupTask(ctx context.Context, recordDir string, cfg *config.Config,
 			}
 		}()
 		ticker := time.NewTicker(1 * time.Hour)
+		diskTicker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
+		defer diskTicker.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
 				cleanupOldFiles(recordDir, cfg, store)
+			case <-diskTicker.C:
+				checkDiskUsage(recordDir)
 			}
 		}
 	}()
@@ -87,6 +93,28 @@ func cleanupOldFiles(recordDir string, cfg *config.Config, store registry.StateS
 					}
 				}
 			}
+		}
+	}
+}
+
+func checkDiskUsage(dir string) {
+	// Получаем абсолютный путь для корректной проверки
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		absDir = dir
+	}
+	usage, err := disk.Usage(absDir)
+	if err != nil {
+		log.Warn().Err(err).Str("path", absDir).Msg("Failed to check disk usage")
+		return
+	}
+	if usage.UsedPercent > 90.0 {
+		log.Warn().Float64("used_percent", usage.UsedPercent).Msg("Storage warning: disk is almost full")
+		if registry.CurrentEventBus != nil {
+			registry.CurrentEventBus.Publish("storage_warning", "system", map[string]string{
+				"used_percent": fmt.Sprintf("%.2f", usage.UsedPercent),
+				"path":         absDir,
+			})
 		}
 	}
 }

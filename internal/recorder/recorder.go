@@ -22,11 +22,12 @@ type Recorder struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	recordDir  string
+	onDegraded func(bool)
 	wg         sync.WaitGroup
 }
 
 // NewRecorder создает и запускает архиватор для потока.
-func NewRecorder(streamID string, rb *buffer.RingBuffer, recordDir string) *Recorder {
+func NewRecorder(streamID string, rb *buffer.RingBuffer, recordDir string, onDegraded func(bool)) *Recorder {
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &Recorder{
 		streamID:   streamID,
@@ -34,6 +35,7 @@ func NewRecorder(streamID string, rb *buffer.RingBuffer, recordDir string) *Reco
 		ctx:        ctx,
 		cancel:     cancel,
 		recordDir:  recordDir,
+		onDegraded: onDegraded,
 	}
 
 	_ = registry.CurrentBlobStore.MkdirAll(recordDir)
@@ -125,6 +127,9 @@ func (r *Recorder) run() {
 					if registry.CurrentEventBus != nil {
 						registry.CurrentEventBus.Publish("recording_failed", r.streamID, map[string]string{"error": err.Error(), "file": currentFilename})
 					}
+					if r.onDegraded != nil {
+						r.onDegraded(true)
+					}
 				}
 			}
 
@@ -167,8 +172,15 @@ func (r *Recorder) run() {
 				if registry.CurrentEventBus != nil {
 					registry.CurrentEventBus.Publish("recording_failed", r.streamID, map[string]string{"error": err.Error(), "file": currentFilename})
 				}
+				if r.onDegraded != nil {
+					r.onDegraded(true)
+				}
 				time.Sleep(1 * time.Second)
 				continue
+			}
+
+			if r.onDegraded != nil {
+				r.onDegraded(false)
 			}
 
 			log.Info().Str("file", currentFilename).Msg("Started recording fMP4")
@@ -193,6 +205,9 @@ func (r *Recorder) run() {
 				log.Error().Err(err).Msg("Failed to write fMP4 init")
 				if registry.CurrentEventBus != nil {
 					registry.CurrentEventBus.Publish("recording_failed", r.streamID, map[string]string{"error": err.Error(), "file": currentFilename})
+				}
+				if r.onDegraded != nil {
+					r.onDegraded(true)
 				}
 				closeAndRename()
 				continue
@@ -234,6 +249,12 @@ func (r *Recorder) run() {
 			if err := part.Marshal(file); err != nil {
 				metrics.ArchiveErrorsTotal.WithLabelValues(r.streamID).Inc()
 				log.Error().Err(err).Msg("Failed to write fMP4 part")
+				if registry.CurrentEventBus != nil {
+					registry.CurrentEventBus.Publish("recording_failed", r.streamID, map[string]string{"error": err.Error(), "file": currentFilename})
+				}
+				if r.onDegraded != nil {
+					r.onDegraded(true)
+				}
 				closeAndRename()
 				pendingSample = nil
 				partSamples = partSamples[:0]
