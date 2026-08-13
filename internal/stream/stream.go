@@ -116,7 +116,7 @@ func (s *Stream) bitrateTask() {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	var lastBytes uint64
-	var lastTime time.Time = time.Now()
+	lastTime := time.Now()
 	for {
 		select {
 		case <-s.ctx.Done():
