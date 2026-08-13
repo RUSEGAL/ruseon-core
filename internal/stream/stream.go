@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"golang.org/x/sync/singleflight"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
 
 	"github.com/RUSEGAL/ruseon-core/internal/buffer"
@@ -56,12 +57,18 @@ type Stream struct {
 	rtspMu     sync.Mutex
 	
 	sfGroup    singleflight.Group
+
+	// Cached bound metrics for hot path
+	metricNetRxBytes prometheus.Counter
+	metricFramesRx   prometheus.Counter
+	metricKeyFrames  prometheus.Counter
 }
 
 // NewStream создает и запускает поток.
 func NewStream(id, url string, record bool, lazyHLS bool, transport string) *Stream {
 	ctx, cancel := context.WithCancel(context.Background())
 	rb := buffer.NewRingBuffer(100)
+	rb.SetCameraID(id)
 	s := &Stream{
 		ID:         id,
 		URL:        url,
@@ -71,6 +78,9 @@ func NewStream(id, url string, record bool, lazyHLS bool, transport string) *Str
 		ringBuffer: rb,
 		metaBroadcaster: NewMetadataBroadcaster(),
 		lazyHLS:    lazyHLS,
+		metricNetRxBytes: metrics.NetworkReceiveBytesTotal.WithLabelValues(id),
+		metricFramesRx:   metrics.FramesReceivedTotal.WithLabelValues(id),
+		metricKeyFrames:  metrics.KeyFramesTotal.WithLabelValues(id),
 	}
 	s.state.Store(models.StateConnecting)
 	s.lastError.Store("")
@@ -117,7 +127,7 @@ func (s *Stream) run() {
 				size += len(n)
 			}
 			s.bytesReceived.Add(uint64(size)) //nolint:gosec
-			metrics.NetworkReceiveBytesTotal.Add(float64(size))
+			s.metricNetRxBytes.Add(float64(size))
 			
 			s.lastFrameTime.Store(time.Now().Unix())
 			
@@ -128,7 +138,7 @@ func (s *Stream) run() {
 					s.lastError.Store("")
 					s.reconnects.Store(0) // Reset reconnect backoff
 					s.connectedAt.Store(time.Now().Unix())
-					metrics.ActiveStreams.Inc()
+					metrics.ActiveStreams.WithLabelValues(s.ID).Inc()
 					log.Info().Str("id", s.ID).Msg("RTSP connected and receiving frames")
 					if registry.CurrentEventBus != nil {
 						registry.CurrentEventBus.Publish("camera_online", s.ID, nil)
@@ -136,10 +146,10 @@ func (s *Stream) run() {
 				}
 			}
 			
-			metrics.FramesReceivedTotal.Inc()
+			s.metricFramesRx.Inc()
 			s.framesReceived.Add(1)
 			if isKeyFrame {
-				metrics.KeyFramesTotal.Inc()
+				s.metricKeyFrames.Inc()
 				s.keyFramesReceived.Add(1)
 				s.lastKeyTime.Store(time.Now().Unix())
 			}
@@ -158,7 +168,7 @@ func (s *Stream) run() {
 
 		oldState, _ := s.state.Load().(models.CameraState)
 		if s.state.CompareAndSwap(oldState, models.StateOffline) && oldState == models.StateOnline {
-			metrics.ActiveStreams.Dec()
+			metrics.ActiveStreams.WithLabelValues(s.ID).Dec()
 		}
 		
 		errMsg := ""
@@ -170,7 +180,7 @@ func (s *Stream) run() {
 			registry.CurrentEventBus.Publish("camera_offline", s.ID, map[string]string{"error": errMsg})
 		}
 		s.reconnects.Add(1)
-		metrics.StreamReconnectsTotal.Inc()
+		metrics.StreamReconnectsTotal.WithLabelValues(s.ID).Inc()
 
 		if s.ctx.Err() != nil {
 			log.Info().Str("id", s.ID).Msg("Stream stopped by context")

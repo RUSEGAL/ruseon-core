@@ -38,14 +38,14 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *Handler, registry.StateStore) 
 	return router, handler, store
 }
 
-func TestHealthCheck(t *testing.T) {
+func TestLivenessCheck(t *testing.T) {
 	router, handler, store := setupTestRouter(t)
 	defer store.Close()
 	
-	router.GET("/health", handler.HealthCheck)
+	router.GET("/livez", handler.LivenessCheck)
 	
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/health", nil)
+	req, _ := http.NewRequest("GET", "/livez", nil)
 	router.ServeHTTP(w, req)
 	
 	if w.Code != http.StatusOK {

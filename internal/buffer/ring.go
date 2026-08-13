@@ -4,6 +4,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
 )
 
@@ -14,6 +15,9 @@ type RingBuffer struct {
 	capacity int
 	head     uint64 
 	closed   bool
+
+	cameraID string
+	metricDrops prometheus.Counter
 
 	vps []byte
 	sps []byte
@@ -30,8 +34,16 @@ func NewRingBuffer(capacity int) *RingBuffer {
 		capacity: capacity,
 		frames:   make([]*Frame, capacity),
 		subs:     make(map[*Reader]struct{}),
+		cameraID: "unknown",
+		metricDrops: metrics.RingbufferDropsTotal.WithLabelValues("unknown"),
 	}
 	return rb
+}
+
+// SetCameraID sets the camera ID for metrics.
+func (rb *RingBuffer) SetCameraID(id string) {
+	rb.cameraID = id
+	rb.metricDrops = metrics.RingbufferDropsTotal.WithLabelValues(id)
 }
 
 // Write добавляет новый кадр в буфер и рассылает его подписчикам.
@@ -62,7 +74,7 @@ func (rb *RingBuffer) Write(f *Frame) {
 		default:
 			// Клиент тормозит, канал забит. Пропускаем кадр (Drop).
 			atomic.AddUint64(&sub.Drops, 1)
-			metrics.RingbufferDropsTotal.Inc()
+			rb.metricDrops.Inc()
 			sub.NeedsIFrame.Store(true) // Требуем I-Frame для возобновления
 		}
 	}

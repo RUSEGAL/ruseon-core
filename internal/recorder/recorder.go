@@ -63,7 +63,7 @@ func (r *Recorder) run() {
 			recordEndTime := time.Now()
 			finalFilename := filepath.Join(filepath.Dir(currentFilename), fmt.Sprintf("%s_to_%s.mp4", recordStartTime.Format("2006-01-02_15-04-05"), recordEndTime.Format("15-04-05")))
 			_ = registry.CurrentBlobStore.Rename(currentFilename, finalFilename)
-			metrics.ArchiveSegmentsWrittenTotal.Inc()
+			metrics.ArchiveSegmentsWrittenTotal.WithLabelValues(r.streamID).Inc()
 			if registry.CurrentEventBus != nil {
 				registry.CurrentEventBus.Publish("archive_segment_ready", r.streamID, map[string]string{"file": finalFilename})
 			}
@@ -121,7 +121,7 @@ func (r *Recorder) run() {
 					}},
 				}
 				if err := part.Marshal(file); err != nil {
-					metrics.ArchiveErrorsTotal.Inc()
+					metrics.ArchiveErrorsTotal.WithLabelValues(r.streamID).Inc()
 					if registry.CurrentEventBus != nil {
 						registry.CurrentEventBus.Publish("recording_failed", r.streamID, map[string]string{"error": err.Error(), "file": currentFilename})
 					}
@@ -133,7 +133,7 @@ func (r *Recorder) run() {
 			for _, s := range partSamples {
 				size += uint32(len(s.Payload)) //nolint:gosec
 			}
-			metrics.DiskWriteBytesTotal.Add(float64(size))
+			metrics.DiskWriteBytesTotal.WithLabelValues(r.streamID).Add(float64(size))
 
 			// Если поддерживается DropCache, то сбрасываем Page Cache
 			if dropper, ok := file.(registry.CacheDropper); ok {
@@ -162,7 +162,7 @@ func (r *Recorder) run() {
 			var err error
 			file, err = registry.CurrentBlobStore.Create(currentFilename)
 			if err != nil {
-				metrics.ArchiveErrorsTotal.Inc()
+				metrics.ArchiveErrorsTotal.WithLabelValues(r.streamID).Inc()
 				log.Error().Err(err).Msg("Failed to create record file")
 				if registry.CurrentEventBus != nil {
 					registry.CurrentEventBus.Publish("recording_failed", r.streamID, map[string]string{"error": err.Error(), "file": currentFilename})
@@ -232,7 +232,7 @@ func (r *Recorder) run() {
 			}
 
 			if err := part.Marshal(file); err != nil {
-				metrics.ArchiveErrorsTotal.Inc()
+				metrics.ArchiveErrorsTotal.WithLabelValues(r.streamID).Inc()
 				log.Error().Err(err).Msg("Failed to write fMP4 part")
 				closeAndRename()
 				pendingSample = nil
@@ -246,7 +246,7 @@ func (r *Recorder) run() {
 			for _, s := range partSamples {
 				size += uint32(len(s.Payload)) //nolint:gosec
 			}
-			metrics.DiskWriteBytesTotal.Add(float64(size))
+			metrics.DiskWriteBytesTotal.WithLabelValues(r.streamID).Add(float64(size))
 
 			// OPTIMIZATION: Drop Page Cache to save RAM (Direct I/O alternative)
 			if dropper, ok := file.(registry.CacheDropper); ok {

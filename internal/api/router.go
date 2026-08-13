@@ -76,7 +76,7 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool, corsOrigin
 		l := log.Info()
 		
 		switch {
-		case status < 400 && c.Request.Method == "GET" && (path == "/api/cameras" || path == "/api/stats" || path == "/api/tags" || path == "/health"):
+		case status < 400 && c.Request.Method == "GET" && (path == "/api/cameras" || path == "/api/stats" || path == "/api/tags" || path == "/livez" || path == "/readyz"):
 			l = log.Debug()
 		case status >= 400 && status < 500:
 			l = log.Warn()
@@ -127,7 +127,8 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool, corsOrigin
 	})
 
 	// Роуты без авторизации
-	r.GET("/health", h.HealthCheck)
+	r.GET("/livez", h.LivenessCheck)
+	r.GET("/readyz", h.ReadinessCheck)
 	r.POST("/api/login", auth.Login)
 
 	// Метрики Prometheus

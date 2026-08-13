@@ -10,26 +10,26 @@ import (
 
 func TestMetricsRegistration(t *testing.T) {
 	// 1. Test Gauges
-	ActiveStreams.Set(10)
-	if val := testutil.ToFloat64(ActiveStreams); val != 10 {
+	ActiveStreams.WithLabelValues("cam1").Set(10)
+	if val := testutil.ToFloat64(ActiveStreams.WithLabelValues("cam1")); val != 10 {
 		t.Errorf("Expected ActiveStreams to be 10, got %v", val)
 	}
-	ActiveStreams.Set(0) // Reset
+	ActiveStreams.WithLabelValues("cam1").Set(0) // Reset
 
-	WebRTCPeersActive.Set(5)
-	if val := testutil.ToFloat64(WebRTCPeersActive); val != 5 {
+	WebRTCPeersActive.WithLabelValues("cam1").Set(5)
+	if val := testutil.ToFloat64(WebRTCPeersActive.WithLabelValues("cam1")); val != 5 {
 		t.Errorf("Expected WebRTCPeersActive to be 5, got %v", val)
 	}
-	WebRTCPeersActive.Set(0) // Reset
+	WebRTCPeersActive.WithLabelValues("cam1").Set(0) // Reset
 
 	// 2. Test Counters
-	FramesReceivedTotal.Inc()
-	if val := testutil.ToFloat64(FramesReceivedTotal); val != 1 {
+	FramesReceivedTotal.WithLabelValues("cam1").Inc()
+	if val := testutil.ToFloat64(FramesReceivedTotal.WithLabelValues("cam1")); val != 1 {
 		t.Errorf("Expected FramesReceivedTotal to be 1, got %v", val)
 	}
 
-	NetworkReceiveBytesTotal.Add(1024)
-	if val := testutil.ToFloat64(NetworkReceiveBytesTotal); val != 1024 {
+	NetworkReceiveBytesTotal.WithLabelValues("cam1").Add(1024)
+	if val := testutil.ToFloat64(NetworkReceiveBytesTotal.WithLabelValues("cam1")); val != 1024 {
 		t.Errorf("Expected NetworkReceiveBytesTotal to be 1024, got %v", val)
 	}
 
@@ -38,13 +38,13 @@ func TestMetricsRegistration(t *testing.T) {
 		t.Errorf("Expected EventbusDropsTotal to be 1, got %v", val)
 	}
 
-	RingbufferDropsTotal.Inc()
-	if val := testutil.ToFloat64(RingbufferDropsTotal); val != 1 {
+	RingbufferDropsTotal.WithLabelValues("cam1").Inc()
+	if val := testutil.ToFloat64(RingbufferDropsTotal.WithLabelValues("cam1")); val != 1 {
 		t.Errorf("Expected RingbufferDropsTotal to be 1, got %v", val)
 	}
 
-	HLSRequestsTotal.Inc()
-	if val := testutil.ToFloat64(HLSRequestsTotal); val != 1 {
+	HLSRequestsTotal.WithLabelValues("cam1").Inc()
+	if val := testutil.ToFloat64(HLSRequestsTotal.WithLabelValues("cam1")); val != 1 {
 		t.Errorf("Expected HLSRequestsTotal to be 1, got %v", val)
 	}
 

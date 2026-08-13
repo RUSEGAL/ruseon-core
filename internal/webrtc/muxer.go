@@ -114,12 +114,12 @@ func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, e
 		log.Info().Str("stream", h.streamID).Str("state", state.String()).Msg("WebRTC Connection State changed")
 		if state == webrtc.PeerConnectionStateConnected {
 			if !isConnected.Swap(true) {
-				metrics.WebRTCPeersActive.Inc()
+				metrics.WebRTCPeersActive.WithLabelValues(h.streamID).Inc()
 			}
 		}
 		if state == webrtc.PeerConnectionStateClosed || state == webrtc.PeerConnectionStateFailed {
 			if isConnected.Swap(false) {
-				metrics.WebRTCPeersActive.Dec()
+				metrics.WebRTCPeersActive.WithLabelValues(h.streamID).Dec()
 			}
 		}
 	})

@@ -85,10 +85,28 @@ func NewHandler(manager *stream.Manager, cfg *config.Config, store registry.Stat
 	}
 }
 
-// HealthCheck отвечает на запрос для проверки работоспособности сервиса.
-func (h *Handler) HealthCheck(c *gin.Context) {
+// LivenessCheck responds to liveness probes (e.g. /livez).
+func (h *Handler) LivenessCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",
+	})
+}
+
+// ReadinessCheck responds to readiness probes (e.g. /readyz).
+func (h *Handler) ReadinessCheck(c *gin.Context) {
+	if registry.CurrentStateStore == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"status": "not ready", "error": "store not initialized"})
+		return
+	}
+	// Check store connection by doing a simple operation
+	_, err := registry.CurrentStateStore.HasUsers()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"status": "not ready", "error": "database unavailable"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "ready",
 	})
 }
 
@@ -370,8 +388,8 @@ func (h *Handler) EditCamera(c *gin.Context) {
 
 // GetHLSPlaylist возвращает M3U8 плейлист для конкретной камеры.
 func (h *Handler) GetHLSPlaylist(c *gin.Context) {
-	metrics.HLSRequestsTotal.Inc()
 	id := c.Param("id")
+	metrics.HLSRequestsTotal.WithLabelValues(id).Inc()
 	h.tracker.Mark(c.ClientIP(), id)
 	st, ok := h.manager.GetStream(id)
 	if !ok {
@@ -397,8 +415,8 @@ stream.m3u8
 
 // GetHLSVideoPlaylist возвращает плейлист видео сегментов для HLS.
 func (h *Handler) GetHLSVideoPlaylist(c *gin.Context) {
-	metrics.HLSRequestsTotal.Inc()
 	id := c.Param("id")
+	metrics.HLSRequestsTotal.WithLabelValues(id).Inc()
 	h.tracker.Mark(c.ClientIP(), id)
 	st, ok := h.manager.GetStream(id)
 	if !ok {
@@ -417,8 +435,8 @@ func (h *Handler) GetHLSVideoPlaylist(c *gin.Context) {
 
 // GetHLSSubsPlaylist возвращает M3U8 плейлист субтитров для конкретной камеры.
 func (h *Handler) GetHLSSubsPlaylist(c *gin.Context) {
-	metrics.HLSRequestsTotal.Inc()
 	id := c.Param("id")
+	metrics.HLSRequestsTotal.WithLabelValues(id).Inc()
 	h.tracker.Mark(c.ClientIP(), id)
 	st, ok := h.manager.GetStream(id)
 	if !ok {
@@ -435,9 +453,9 @@ func (h *Handler) GetHLSSubsPlaylist(c *gin.Context) {
 
 // GetHLSSegment возвращает TS-сегмент или VTT файл для конкретной камеры.
 func (h *Handler) GetHLSSegment(c *gin.Context) {
-	metrics.HLSRequestsTotal.Inc()
 	id := c.Param("id")
 	h.tracker.Mark(c.ClientIP(), id)
+	metrics.HLSRequestsTotal.WithLabelValues(id).Inc()
 	segment := c.Param("segment")
 
 	st, ok := h.manager.GetStream(id)
@@ -734,8 +752,8 @@ func (h *Handler) GetCameraArchive(c *gin.Context) {
 
 // GetArchiveHLSPlaylist отдает M3U8 манифест для конкретного файла архива
 func (h *Handler) GetArchiveHLSPlaylist(c *gin.Context) {
-	metrics.HLSRequestsTotal.Inc()
 	id := c.Param("id")
+	metrics.HLSRequestsTotal.WithLabelValues(id).Inc()
 	filename := c.Query("file")
 
 	if filename == "" {
@@ -810,8 +828,8 @@ func (h *Handler) ImportBackupJSON(c *gin.Context) {
 
 // GetArchiveHLSSegment отдает TS сегмент архива "на лету"
 func (h *Handler) GetArchiveHLSSegment(c *gin.Context) {
-	metrics.HLSRequestsTotal.Inc()
 	id := c.Param("id")
+	metrics.HLSRequestsTotal.WithLabelValues(id).Inc()
 	filename := c.Query("file")
 	seqStr := c.Query("seq")
 

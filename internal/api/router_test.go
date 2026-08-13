@@ -15,6 +15,7 @@ import (
 	"github.com/RUSEGAL/ruseon-core/internal/stream"
 	"github.com/RUSEGAL/ruseon-core/pkg/auth"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 	"github.com/RUSEGAL/ruseon-core/pkg/storage"
 )
 
@@ -22,10 +23,14 @@ func TestRouterMiddleware(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	tempDir := t.TempDir()
 	store, _ := storage.NewStorage(filepath.Join(tempDir, "db"))
+	registry.CurrentStateStore = store
 	defer store.Close()
 
 	cfg := &config.Config{}
 	cfg.Auth.Secret = "secret"
+	
+	// Add mock admin user for valid token requests
+	store.SaveUser(&models.User{Username: "admin", PasswordHash: "x", Role: models.RoleAdmin})
 
 	manager := stream.NewManager()
 	handler := NewHandler(manager, cfg, store)
@@ -91,14 +96,22 @@ func TestRouterMetrics(t *testing.T) {
 	store, _ := storage.NewStorage(filepath.Join(tempDir, "db"))
 	defer store.Close()
 
+	registry.CurrentStateStore = store
+	defer store.Close()
+
 	cfg := &config.Config{}
 	manager := stream.NewManager()
 	handler := NewHandler(manager, cfg, store)
 	authenticator := auth.NewLocalAuthenticator(cfg)
 
 	router := SetupRouter(handler, authenticator, false, nil)
+	
+	// Add mock users for RBAC
+	store.SaveUser(&models.User{Username: "viewer", PasswordHash: "x", Role: models.RoleViewer})
+	store.SaveUser(&models.User{Username: "operator", PasswordHash: "x", Role: models.RoleOperator})
+	store.SaveUser(&models.User{Username: "admin", PasswordHash: "x", Role: models.RoleAdmin})
 
-	// Test /metrics endpoint
+	// Helpers for tokenstrics endpoint
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/metrics", nil)
 	router.ServeHTTP(w, req)
@@ -117,6 +130,7 @@ func TestRBAC(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	tempDir := t.TempDir()
 	store, _ := storage.NewStorage(filepath.Join(tempDir, "db"))
+	registry.CurrentStateStore = store
 	defer store.Close()
 
 	cfg := &config.Config{}
@@ -126,9 +140,13 @@ func TestRBAC(t *testing.T) {
 	authenticator := auth.NewLocalAuthenticator(cfg)
 
 	router := SetupRouter(handler, authenticator, false, nil)
+	
+	store.SaveUser(&models.User{Username: "viewer", PasswordHash: "x", Role: models.RoleViewer})
+	store.SaveUser(&models.User{Username: "operator", PasswordHash: "x", Role: models.RoleOperator})
+	store.SaveUser(&models.User{Username: "admin", PasswordHash: "x", Role: models.RoleAdmin})
 
 	getToken := func(role models.Role) string {
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"username": "test", "role": string(role)})
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"username": strings.ToLower(string(role)), "role": string(role)})
 		tokenString, _ := token.SignedString([]byte("secret"))
 		return tokenString
 	}
