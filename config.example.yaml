@@ -7,6 +7,18 @@ server:
   record_retention_days: 7
   gc_percent: 50
   gc_memory_limit_mb: 2048
+  grpc:
+    address: "0.0.0.0"
+    port: 50051
+  tls:
+    cert_file: "" # Path to TLS certificate (optional)
+    key_file: ""  # Path to TLS key (optional)
+  webrtc:
+    ice_servers:
+      - "stun:stun.l.google.com:19302"
+    ice_transport_policy: "all" # 'all' or 'relay'
+    turn_username: ""
+    turn_password: ""
 
 auth:
   secret: "" # Leave empty for auto-generation
