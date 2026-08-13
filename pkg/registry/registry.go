@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/RUSEGAL/ruseon-core/internal/models"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 )
 
@@ -27,8 +28,8 @@ type StateStore interface {
 	DeleteFolder(id string) error
 	ListFolders() ([]config.FolderConfig, error)
 
-	SaveUser(username, passwordHash string) error
-	GetUser(username string) (string, error)
+	SaveUser(user *models.User) error
+	GetUser(username string) (*models.User, error)
 	HasUsers() (bool, error)
 
 	MigrateFromConfig(cfg *config.Config) error

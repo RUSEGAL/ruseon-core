@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/RUSEGAL/ruseon-core/internal/models"
 	"github.com/RUSEGAL/ruseon-core/pkg/auth"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
@@ -62,7 +63,11 @@ func TestLogin(t *testing.T) {
 	
 	registry.CurrentStateStore = store
 	hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	_ = store.SaveUser("admin", string(hash))
+	_ = store.SaveUser(&models.User{
+		Username:     "admin",
+		PasswordHash: string(hash),
+		Role:         models.RoleAdmin,
+	})
 
 	authenticator := auth.NewLocalAuthenticator(cfg)
 	

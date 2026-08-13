@@ -263,6 +263,7 @@ func (h *Handler) AddCamera(c *gin.Context) {
 		}
 	}
 
+	log.Info().Str("audit", "true").Str("action", "camera_added").Str("camera_id", cam.ID).Str("user", c.GetString("username")).Msg("Camera added")
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
@@ -285,6 +286,7 @@ func (h *Handler) DeleteCamera(c *gin.Context) {
 	// Останавливаем поток
 	h.manager.RemoveStream(id)
 
+	log.Info().Str("audit", "true").Str("action", "camera_deleted").Str("camera_id", id).Str("user", c.GetString("username")).Msg("Camera deleted")
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
@@ -362,6 +364,7 @@ func (h *Handler) EditCamera(c *gin.Context) {
 		_ = h.manager.AddStream(req.ID, req.URL, req.Record, req.LazyHLS, req.Transport)
 	}
 
+	log.Info().Str("audit", "true").Str("action", "camera_edited").Str("camera_id", id).Str("user", c.GetString("username")).Msg("Camera edited")
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
@@ -725,6 +728,7 @@ func (h *Handler) GetCameraArchive(c *gin.Context) {
 		return
 	}
 
+	log.Info().Str("audit", "true").Str("action", "archive_viewed").Str("camera_id", id).Str("user", c.GetString("username")).Msg("Camera archive viewed")
 	c.JSON(http.StatusOK, intervals)
 }
 
@@ -747,6 +751,7 @@ func (h *Handler) GetArchiveHLSPlaylist(c *gin.Context) {
 
 	c.Header("Content-Type", "application/vnd.apple.mpegurl")
 	c.Header("Cache-Control", "no-cache")
+	log.Info().Str("audit", "true").Str("action", "archive_playlist_viewed").Str("camera_id", id).Str("user", c.GetString("username")).Msg("Camera archive HLS playlist viewed")
 	c.String(http.StatusOK, playlist)
 }
 
@@ -863,7 +868,9 @@ func (h *Handler) ExportCameraArchive(c *gin.Context) {
 		}
 	}
 
-	c.Header("Content-Type", "video/mp4")
+	log.Info().Str("audit", "true").Str("action", "archive_exported").Str("camera_id", id).Str("user", c.GetString("username")).Msg("Camera archive exported")
+
+	c.Writer.Header().Set("Content-Type", "video/mp4")
 	
 	downloadFilename := fmt.Sprintf("export_%s", filename)
 	if startSeqStr != "" && endSeqStr != "" {

@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -10,11 +11,14 @@ import (
 	"github.com/dgraph-io/badger/v4"
 	"github.com/rs/zerolog/log"
 
+	"github.com/RUSEGAL/ruseon-core/internal/models"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/go-co-op/gocron/v2"
 	"github.com/samber/ro"
 	rocron "github.com/samber/ro/plugins/cron"
 )
+
+var ErrNotFound = errors.New("not found")
 
 const (
 	PrefixCamera = "camera:"
@@ -335,32 +339,38 @@ func (s *Storage) ListFolders() ([]config.FolderConfig, error) {
 	return folders, err
 }
 
-// SaveUser сохраняет хэш пароля пользователя.
-func (s *Storage) SaveUser(username, passwordHash string) error {
-	key := []byte(PrefixUser + username)
+// SaveUser сохраняет объект пользователя.
+func (s *Storage) SaveUser(user *models.User) error {
+	key := []byte(PrefixUser + user.Username)
+	data, err := json.Marshal(user)
+	if err != nil {
+		return err
+	}
 	return s.db.Update(func(txn *badger.Txn) error {
-		return txn.Set(key, []byte(passwordHash))
+		return txn.Set(key, data)
 	})
 }
 
-// GetUser возвращает хэш пароля пользователя по имени.
-func (s *Storage) GetUser(username string) (string, error) {
+// GetUser возвращает объект пользователя по имени.
+func (s *Storage) GetUser(username string) (*models.User, error) {
 	key := []byte(PrefixUser + username)
-	var hash string
+	var user models.User
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
 		if err != nil {
 			return err
 		}
 		return item.Value(func(val []byte) error {
-			hash = string(val)
-			return nil
+			return json.Unmarshal(val, &user)
 		})
 	})
 	if err != nil {
-		return "", err
+		if errors.Is(err, badger.ErrKeyNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
 	}
-	return hash, nil
+	return &user, nil
 }
 
 // HasUsers возвращает true, если в БД есть хотя бы один пользователь.

@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/RUSEGAL/ruseon-core/internal/models"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
@@ -43,7 +44,12 @@ func NewLocalAuthenticator(cfg *config.Config) *LocalAuthenticator {
 			password := generateRandomPassword(16)
 			hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 			if err == nil {
-				err = registry.CurrentStateStore.SaveUser("admin", string(hash))
+				user := &models.User{
+					Username:     "admin",
+					PasswordHash: string(hash),
+					Role:         models.RoleAdmin,
+				}
+				err = registry.CurrentStateStore.SaveUser(user)
 				if err == nil {
 					fmt.Println("\n=======================================================")
 					fmt.Printf("[SECURITY] INITIAL ADMIN PASSWORD: %s\n", password)
@@ -51,6 +57,7 @@ func NewLocalAuthenticator(cfg *config.Config) *LocalAuthenticator {
 					fmt.Println("[SECURITY] Please save this password. It will not be shown again.")
 					fmt.Println("=======================================================")
 					log.Info().Msg("Generated initial admin password and saved to BadgerDB")
+					log.Info().Str("audit", "true").Str("action", "user_created").Str("username", "admin").Msg("Initial admin user created")
 				} else {
 					log.Error().Err(err).Msg("Failed to save initial admin password to BadgerDB")
 				}
@@ -81,21 +88,25 @@ func (a *LocalAuthenticator) Login(c *gin.Context) {
 		return
 	}
 
-	hash, err := registry.CurrentStateStore.GetUser(req.Username)
-	if err != nil || hash == "" {
+	user, err := registry.CurrentStateStore.GetUser(req.Username)
+	if err != nil || user == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 	if err != nil {
+		log.Warn().Str("audit", "true").Str("action", "login_failed").Str("username", req.Username).Msg("Failed login attempt")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
+
+	log.Info().Str("audit", "true").Str("action", "login_success").Str("username", req.Username).Str("role", string(user.Role)).Msg("User logged in")
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": req.Username,
-		"exp":      time.Now().Add(time.Hour * 24 * 7).Unix(), // 7 дней
+		"username": user.Username,
+		"role":     user.Role,
+		"exp":      time.Now().Add(time.Hour * 1).Unix(), // 1 hour token
 	})
 
 	tokenString, err := token.SignedString([]byte(a.cfg.Auth.Secret))
@@ -142,9 +153,33 @@ func (a *LocalAuthenticator) Middleware() gin.HandlerFunc {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Stream tokens are not valid for API access"})
 				return
 			}
+			c.Set("username", claims["username"])
+			c.Set("role", claims["role"])
 		}
 
 		c.Next()
+	}
+}
+
+// RequireRole checks if the authenticated user has one of the allowed roles
+func RequireRole(allowedRoles ...models.Role) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userRole, exists := c.Get("role")
+		if !exists {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Role not found"})
+			return
+		}
+
+		roleStr := fmt.Sprintf("%v", userRole)
+		for _, r := range allowedRoles {
+			if roleStr == string(r) {
+				c.Next()
+				return
+			}
+		}
+
+		log.Warn().Str("audit", "true").Str("action", "access_denied").Str("path", c.Request.URL.Path).Str("role", roleStr).Msg("Access denied due to insufficient permissions")
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Insufficient permissions"})
 	}
 }
 

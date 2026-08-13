@@ -20,6 +20,8 @@ import (
 	// init swagger docs
 	_ "github.com/RUSEGAL/ruseon-core/internal/api/docs"
 
+	"github.com/RUSEGAL/ruseon-core/internal/models"
+	pkgauth "github.com/RUSEGAL/ruseon-core/pkg/auth"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
@@ -138,29 +140,33 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool, corsOrigin
 	api := r.Group("/api")
 	api.Use(auth.Middleware())
 	
-	api.GET("/cameras", h.GetCameras)
-	api.POST("/cameras", h.AddCamera)
-	api.PUT("/cameras/:id", h.EditCamera)
-	api.DELETE("/cameras/:id", h.DeleteCamera)
-	api.GET("/cameras/:id/archive", h.GetCameraArchive)
-	api.GET("/cameras/:id/export", h.ExportCameraArchive)
-	api.GET("/cameras/:id/stream-token", h.GetStreamToken)
-	api.GET("/stats", h.GetServerStats)
-	api.GET("/logs/stream", h.StreamLogs)
-	
-	// Backup
-	api.GET("/system/backup/export", h.ExportBackupJSON)
-	api.POST("/system/backup/import", h.ImportBackupJSON)
-	
-	api.GET("/tags", h.GetTags)
-	api.POST("/tags", h.AddTag)
-	api.PUT("/tags/:id", h.EditTag)
-	api.DELETE("/tags/:id", h.DeleteTag)
+	// Admin and Operator roles can view/manage streams and stats. Viewer can only view streams. Service is for automation.
+	apiRead := api.Group("", pkgauth.RequireRole(models.RoleAdmin, models.RoleOperator, models.RoleViewer, models.RoleService))
+	apiRead.GET("/cameras", h.GetCameras)
+	apiRead.GET("/cameras/:id/archive", h.GetCameraArchive)
+	apiRead.GET("/cameras/:id/export", h.ExportCameraArchive)
+	apiRead.GET("/cameras/:id/stream-token", h.GetStreamToken)
+	apiRead.GET("/stats", h.GetServerStats)
+	apiRead.GET("/tags", h.GetTags)
+	apiRead.GET("/folders", h.GetFolders)
 
-	api.GET("/folders", h.GetFolders)
-	api.POST("/folders", h.AddFolder)
-	api.PUT("/folders/:id", h.EditFolder)
-	api.DELETE("/folders/:id", h.DeleteFolder)
+	// Admin and Operator can edit cameras
+	apiWrite := api.Group("", pkgauth.RequireRole(models.RoleAdmin, models.RoleOperator))
+	apiWrite.POST("/cameras", h.AddCamera)
+	apiWrite.PUT("/cameras/:id", h.EditCamera)
+	apiWrite.DELETE("/cameras/:id", h.DeleteCamera)
+
+	// Admin only for system level operations
+	apiAdmin := api.Group("", pkgauth.RequireRole(models.RoleAdmin))
+	apiAdmin.GET("/logs/stream", h.StreamLogs)
+	apiAdmin.GET("/system/backup/export", h.ExportBackupJSON)
+	apiAdmin.POST("/system/backup/import", h.ImportBackupJSON)
+	apiAdmin.POST("/tags", h.AddTag)
+	apiAdmin.PUT("/tags/:id", h.EditTag)
+	apiAdmin.DELETE("/tags/:id", h.DeleteTag)
+	apiAdmin.POST("/folders", h.AddFolder)
+	apiAdmin.PUT("/folders/:id", h.EditFolder)
+	apiAdmin.DELETE("/folders/:id", h.DeleteFolder)
 
 	// Опциональная авторизация для видео-потоков
 	streamMiddleware := auth.StreamMiddleware()

@@ -11,10 +11,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
+	"github.com/RUSEGAL/ruseon-core/internal/models"
+	"github.com/RUSEGAL/ruseon-core/internal/stream"
 	"github.com/RUSEGAL/ruseon-core/pkg/auth"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/storage"
-	"github.com/RUSEGAL/ruseon-core/internal/stream"
 )
 
 func TestRouterMiddleware(t *testing.T) {
@@ -51,7 +52,7 @@ func TestRouterMiddleware(t *testing.T) {
 	}
 
 	// 4. Test Auth Middleware - Valid Token (Query param)
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"username": "admin"})
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"username": "admin", "role": string(models.RoleAdmin)})
 	tokenString, _ := token.SignedString([]byte("secret"))
 	w4 := httptest.NewRecorder()
 	req4, _ := http.NewRequest("GET", "/api/cameras?token="+tokenString, nil)
