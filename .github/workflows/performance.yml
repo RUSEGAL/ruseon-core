@@ -52,7 +52,7 @@ jobs:
           echo "vus=${VUS_RAW}" >> $GITHUB_OUTPUT
 
       - name: Update Latency Badge
-        uses: Schneegans/dynamic-badges-action@v1.7.0
+        uses: Schneegans/dynamic-badges-action@v1.9.0
         with:
           auth: ${{ secrets.GIST_TOKEN }}
           gistID: 9c2397c2c47671c0e65d91e39e91a7a3
@@ -62,7 +62,7 @@ jobs:
           color: "success"
 
       - name: Update Success Badge
-        uses: Schneegans/dynamic-badges-action@v1.7.0
+        uses: Schneegans/dynamic-badges-action@v1.9.0
         with:
           auth: ${{ secrets.GIST_TOKEN }}
           gistID: 9c2397c2c47671c0e65d91e39e91a7a3
@@ -72,7 +72,7 @@ jobs:
           color: "success"
 
       - name: Update VUs Badge
-        uses: Schneegans/dynamic-badges-action@v1.7.0
+        uses: Schneegans/dynamic-badges-action@v1.9.0
         with:
           auth: ${{ secrets.GIST_TOKEN }}
           gistID: 9c2397c2c47671c0e65d91e39e91a7a3
