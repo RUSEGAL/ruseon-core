@@ -3,6 +3,7 @@ package recorder
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -103,6 +104,11 @@ func checkDiskUsage(dir string) {
 	if err != nil {
 		absDir = dir
 	}
+	
+	if _, err := os.Stat(absDir); os.IsNotExist(err) {
+		return // Ignore if folder doesn't exist yet
+	}
+
 	usage, err := disk.Usage(absDir)
 	if err != nil {
 		log.Warn().Err(err).Str("path", absDir).Msg("Failed to check disk usage")
