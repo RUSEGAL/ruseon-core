@@ -14,6 +14,7 @@
   <a href="https://goreportcard.com/report/github.com/RUSEON/ruseon-core"><img src="https://goreportcard.com/badge/github.com/RUSEON/ruseon-core?style=flat-square" alt="Go Report Card"></a>
   <a href="https://github.com/RUSEON/ruseon-core/releases/latest"><img src="https://img.shields.io/github/v/release/RUSEON/ruseon-core?style=flat-square" alt="Latest Release"></a>
   <img src="https://img.shields.io/docker/pulls/ruseon/ruseon-core?style=flat-square" alt="Docker Pulls">
+  <a href="bench_max.md"><img src="https://img.shields.io/badge/Стресс--тест-100%20Камер%20%7C%207k%20RPS%20%7C%200%20Дропов-brightgreen?style=flat-square" alt="Стресс-тест"></a>
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License">
   <br>
   <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/RUSEGAL/9c2397c2c47671c0e65d91e39e91a7a3/raw/latency-badge.json" alt="Latency p(95)">
@@ -125,11 +126,26 @@ graph LR
 
 ---
 
-## 📊 Производительность
+## 📊 Производительность и Нагрузочные тесты
 
 RUSEON Core спроектирован для максимальной эффективности. В его основе лежит маршрутизатор, который обеспечивает **zero-copy / low-copy frame distribution with allocation minimization on the hot path**.
 
-Архитектура продемонстрировала высокую стабильность в наших бенчмарк-сценариях. RUSEON Core эффективно утилизировал локальные сетевые интерфейсы 10G, достигая пропускной способности **~8.8 Gbit/s end-to-end** для раздачи HLS.
+Результаты максимального комплексного стресс-теста на 12-ядерном CPU (100 камер 30 FPS + 350 одновременных зрителей/воркеров + непрерывная запись MP4 на диск):
+
+| Метрика | Значение | Описание |
+| :--- | :--- | :--- |
+| **Входящий поток (Ingest)** | **3 028 FPS (252.3 Mbps)** | 100 камер, **0** потерь кадров |
+| **REST API RPS** | **6 897 RPS** (414k запросов) | `p50: 0.0 ms` / `p95: 3.0 ms` / `p99: 39.5 ms` |
+| **Раздача HLS fMP4** | **46.1 MB/s** (3 000 сегментов) | `p50: 44.9 ms` на сегмент |
+| **WebRTC WHEP** | **488k RTP пакетов (9.0 MB/s)** | **0** ошибок подключений |
+| **Запись архива (MP4)** | **29.8 MB/s** | 100 файлов на реальный диск |
+
+👉 **[Смотреть полный двуязычный отчет нагрузочного тестирования (bench_max.md)](bench_max.md)**
+
+```bash
+# Воспроизвести стресс-тест локально:
+go run ./cmd/loadtest -cameras=100 -api-workers=150 -hls-viewers=150 -webrtc-viewers=30 -duration=60 -real-disk=true
+```
 
 Для просмотра полных результатов автоматизированных бенчмарков, стресс-тестов и отчетов Chaos Engineering, пожалуйста, обращайтесь к нашему единому источнику правды:
 👉 **[benchmarks/RESULTS.md](benchmarks/RESULTS.md)**

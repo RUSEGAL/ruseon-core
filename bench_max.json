@@ -1,0 +1,130 @@
+{
+  "timestamp": "2026-08-14 12:22:52",
+  "duration_sec": 60.03,
+  "config": {
+    "cameras": 100,
+    "api_workers": 150,
+    "hls_viewers": 150,
+    "webrtc_viewers": 30,
+    "grpc_pushers": 20,
+    "duration_sec": 60,
+    "real_disk": true
+  },
+  "ingest": {
+    "total_frames": 181764,
+    "key_frames": 6100,
+    "total_bytes": 1893312000,
+    "fps": 3027.9,
+    "bitrate_mbps": 252.3,
+    "dropped_frames": 0
+  },
+  "http": {
+    "total_ok": 414036,
+    "total_err": 0,
+    "rps": 6897.2,
+    "bytes_sent": 5910918596,
+    "latency": {
+      "count": 414036,
+      "min_ms": 0,
+      "avg_ms": 1.43,
+      "p50_ms": 0,
+      "p90_ms": 1,
+      "p95_ms": 3,
+      "p99_ms": 39.56,
+      "p999_ms": 73.66,
+      "max_ms": 135.69
+    },
+    "status_2xx": 414036,
+    "status_4xx": 0,
+    "status_5xx": 0
+  },
+  "hls": {
+    "playlists_ok": 17400,
+    "segments_ok": 2999,
+    "errors": 0,
+    "bytes_sent": 2901556913,
+    "throughput_mb_s": 46.1,
+    "playlist_latency": {
+      "count": 17400,
+      "min_ms": 0,
+      "avg_ms": 22.47,
+      "p50_ms": 1.51,
+      "p90_ms": 9.05,
+      "p95_ms": 24.58,
+      "p99_ms": 77.38,
+      "p999_ms": 2207.32,
+      "max_ms": 2234.77
+    },
+    "segment_latency": {
+      "count": 2999,
+      "min_ms": 0.537,
+      "avg_ms": 44.69,
+      "p50_ms": 44.97,
+      "p90_ms": 72.53,
+      "p95_ms": 79.32,
+      "p99_ms": 89.68,
+      "p999_ms": 104.17,
+      "max_ms": 115.01
+    }
+  },
+  "webrtc": {
+    "sessions_ok": 30,
+    "sessions_err": 0,
+    "rtp_packets_rx": 488801,
+    "bytes_rx": 567535861,
+    "throughput_mb_s": 9.02,
+    "handshake_latency": {
+      "count": 30,
+      "min_ms": 163.287,
+      "avg_ms": 199.52,
+      "p50_ms": 197.05,
+      "p90_ms": 233.84,
+      "p95_ms": 245.8,
+      "p99_ms": 250.56,
+      "p999_ms": 250.56,
+      "max_ms": 250.56
+    }
+  },
+  "grpc": {
+    "frames_sent": 181727,
+    "meta_pushed": 11886,
+    "errors": 0,
+    "fps": 3027.3,
+    "meta_rps": 198,
+    "bytes_sent": 1893968608,
+    "stream_latency": {
+      "count": 181727,
+      "min_ms": 0,
+      "avg_ms": 32.72,
+      "p50_ms": 33,
+      "p90_ms": 35.13,
+      "p95_ms": 42.46,
+      "p99_ms": 77.94,
+      "p999_ms": 100.25,
+      "max_ms": 171.22
+    }
+  },
+  "eventbus": {
+    "published": 23519,
+    "delivered": 23519,
+    "rate_per_sec": 391.8
+  },
+  "storage": {
+    "real_disk": true,
+    "bytes_written": 1875524300,
+    "write_mb_s": 29.8,
+    "files_created": 100
+  },
+  "system": {
+    "num_cpu": 12,
+    "goroutines_end": 1539,
+    "heap_alloc_mb": 1214,
+    "heap_inuse_mb": 1251,
+    "heap_sys_mb": 1517,
+    "total_alloc_mb": 49713,
+    "sys_mb": 1586,
+    "num_gc": 129,
+    "gc_pause_total_ms": 35.66,
+    "gc_pause_max_ms": 0
+  }
+}

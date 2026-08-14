@@ -1,18 +1,20 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
-
-	"strconv"
-	"strings"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/RUSEGAL/ruseon-core/internal/archive"
 	"github.com/RUSEGAL/ruseon-core/internal/models"
@@ -63,17 +65,33 @@ func (c *ClientTracker) GetActiveClients(timeout time.Duration) []ClientInfo {
 	return active
 }
 
+type cachedCamerasResponse struct {
+	data      []byte
+	timestamp time.Time
+}
+
 // Handler хранит зависимости для API.
 type Handler struct {
-	manager   *stream.Manager
-	cfg       *config.Config
-	store     registry.StateStore
-	startTime time.Time
-	tracker   *ClientTracker
+	manager      *stream.Manager
+	cfg          *config.Config
+	store        registry.StateStore
+	startTime    time.Time
+	tracker      *ClientTracker
+	camerasCache atomic.Pointer[cachedCamerasResponse]
+	camerasSf    singleflight.Group
+	cacheTTL     time.Duration
+	webrtcEngine *webrtc.Engine
 }
 
 // NewHandler создает новый обработчик API.
-func NewHandler(manager *stream.Manager, cfg *config.Config, store registry.StateStore) *Handler {
+func NewHandler(manager *stream.Manager, cfg *config.Config, store registry.StateStore, webrtcEngine ...*webrtc.Engine) *Handler {
+	var engine *webrtc.Engine
+	if len(webrtcEngine) > 0 && webrtcEngine[0] != nil {
+		engine = webrtcEngine[0]
+	} else if cfg != nil {
+		engine, _ = webrtc.NewEngine(cfg)
+	}
+
 	return &Handler{
 		manager:   manager,
 		cfg:       cfg,
@@ -82,7 +100,14 @@ func NewHandler(manager *stream.Manager, cfg *config.Config, store registry.Stat
 		tracker: &ClientTracker{
 			clients: make(map[string]map[string]time.Time),
 		},
+		cacheTTL:     250 * time.Millisecond,
+		webrtcEngine: engine,
 	}
+}
+
+// InvalidateCamerasCache сбрасывает кэш списка камер.
+func (h *Handler) InvalidateCamerasCache() {
+	h.camerasCache.Store(nil)
 }
 
 // LivenessCheck responds to liveness probes (e.g. /livez).
@@ -178,77 +203,112 @@ type CameraInfo struct {
 // @Success 200 {array} CameraInfo
 // @Router /api/cameras [get]
 func (h *Handler) GetCameras(c *gin.Context) {
-	streams := h.manager.GetStreams()
-	streamMap := make(map[string]*stream.Stream, len(streams))
-	for _, st := range streams {
-		streamMap[st.ID] = st
+	// 1. Fast path: check TTL cache
+	if cached := h.camerasCache.Load(); cached != nil {
+		if time.Since(cached.timestamp) < h.cacheTTL {
+			c.Data(http.StatusOK, "application/json; charset=utf-8", cached.data)
+			return
+		}
 	}
 
-	result := make([]CameraInfo, 0)
-	cams, err := h.store.ListCameras()
-	if err != nil {
-		cams = []config.CameraConfig{}
-	}
-
-	for _, cam := range cams {
-		stats := streamMap[cam.ID]
-
-		var state models.CameraState = models.StateOffline
-		var uptime, bytesReceived, bytesSent, frames, keyFrames, reconnects uint64
-		var lastFrameTime, lastKeyTime int64
-		var bitrate float64
-		var lastError string
-		codec := "-"
-		if stats != nil {
-			s := stats.GetStats()
-			state = s.State
-			uptime = uint64(s.Uptime) //nolint:gosec
-			bytesReceived = s.BytesReceived
-			bytesSent = s.BytesSent
-			frames = s.Frames
-			keyFrames = s.KeyFrames
-			codec = s.Codec
-			lastFrameTime = s.LastFrameTime
-			lastKeyTime = s.LastKeyTime
-			lastError = s.LastError
-			reconnects = s.Reconnects
-			bitrate = s.Bitrate
+	// 2. Slow path: singleflight to avoid stampede
+	val, err, _ := h.camerasSf.Do("get_cameras", func() (interface{}, error) {
+		// Double check after acquiring singleflight lock
+		if cached := h.camerasCache.Load(); cached != nil {
+			if time.Since(cached.timestamp) < h.cacheTTL {
+				return cached.data, nil
+			}
 		}
 
-		result = append(result, CameraInfo{
-			ID:             cam.ID,
-			URL:            cam.URL,
-			State:          state,
-			Record:         cam.Record,
-			RetentionDays:  cam.RetentionDays,
-			Tags:           cam.Tags,
-			FolderID:       cam.FolderID,
-			Comment:        cam.Comment,
-			SimPhone:       cam.SimPhone,
-			SimICCID:       cam.SimICCID,
-			TrafficLimit:   cam.TrafficLimit,
-			TrafficUsed:    cam.TrafficUsed,
-			Disabled:       cam.Disabled,
-			DisableReason:  cam.DisableReason,
-			DisableHistory: cam.DisableHistory,
-			RecordHistory:  cam.RecordHistory,
-			Uptime:         uptime,
-			BytesReceived:  bytesReceived,
-			BytesSent:      bytesSent,
-			Frames:         frames,
-			KeyFrames:      keyFrames,
-			Codec:          codec,
-			LastFrameTime:  lastFrameTime,
-			LastKeyTime:    lastKeyTime,
-			LastError:      lastError,
-			Reconnects:     reconnects,
-			Bitrate:        bitrate,
-			LazyHLS:        cam.LazyHLS,
-			TokenAuth:      cam.TokenAuth,
+		streams := h.manager.GetStreams()
+		streamMap := make(map[string]*stream.Stream, len(streams))
+		for _, st := range streams {
+			streamMap[st.ID] = st
+		}
+
+		result := make([]CameraInfo, 0)
+		cams, err := h.store.ListCameras()
+		if err != nil {
+			cams = []config.CameraConfig{}
+		}
+
+		for _, cam := range cams {
+			stats := streamMap[cam.ID]
+
+			var state models.CameraState = models.StateOffline
+			var uptime, bytesReceived, bytesSent, frames, keyFrames, reconnects uint64
+			var lastFrameTime, lastKeyTime int64
+			var bitrate float64
+			var lastError string
+			codec := "-"
+			if stats != nil {
+				s := stats.GetStats()
+				state = s.State
+				uptime = uint64(s.Uptime) //nolint:gosec
+				bytesReceived = s.BytesReceived
+				bytesSent = s.BytesSent
+				frames = s.Frames
+				keyFrames = s.KeyFrames
+				codec = s.Codec
+				lastFrameTime = s.LastFrameTime
+				lastKeyTime = s.LastKeyTime
+				lastError = s.LastError
+				reconnects = s.Reconnects
+				bitrate = s.Bitrate
+			}
+
+			result = append(result, CameraInfo{
+				ID:             cam.ID,
+				URL:            cam.URL,
+				State:          state,
+				Record:         cam.Record,
+				RetentionDays:  cam.RetentionDays,
+				Tags:           cam.Tags,
+				FolderID:       cam.FolderID,
+				Comment:        cam.Comment,
+				SimPhone:       cam.SimPhone,
+				SimICCID:       cam.SimICCID,
+				TrafficLimit:   cam.TrafficLimit,
+				TrafficUsed:    cam.TrafficUsed,
+				Disabled:       cam.Disabled,
+				DisableReason:  cam.DisableReason,
+				DisableHistory: cam.DisableHistory,
+				RecordHistory:  cam.RecordHistory,
+				Uptime:         uptime,
+				BytesReceived:  bytesReceived,
+				BytesSent:      bytesSent,
+				Frames:         frames,
+				KeyFrames:      keyFrames,
+				Codec:          codec,
+				LastFrameTime:  lastFrameTime,
+				LastKeyTime:    lastKeyTime,
+				LastError:      lastError,
+				Reconnects:     reconnects,
+				Bitrate:        bitrate,
+				LazyHLS:        cam.LazyHLS,
+				TokenAuth:      cam.TokenAuth,
+			})
+		}
+
+		data, err := json.Marshal(result)
+		if err != nil {
+			return nil, err
+		}
+
+		h.camerasCache.Store(&cachedCamerasResponse{
+			data:      data,
+			timestamp: time.Now(),
 		})
+
+		return data, nil
+	})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to serialize cameras: " + err.Error()})
+		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	c.Data(http.StatusOK, "application/json; charset=utf-8", val.([]byte))
 }
 
 // @Summary Add a new camera
@@ -282,6 +342,7 @@ func (h *Handler) AddCamera(c *gin.Context) {
 	}
 
 	log.Info().Str("audit", "true").Str("action", "camera_added").Str("camera_id", cam.ID).Str("user", c.GetString("username")).Msg("Camera added")
+	h.InvalidateCamerasCache()
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
@@ -305,6 +366,7 @@ func (h *Handler) DeleteCamera(c *gin.Context) {
 	h.manager.RemoveStream(id)
 
 	log.Info().Str("audit", "true").Str("action", "camera_deleted").Str("camera_id", id).Str("user", c.GetString("username")).Msg("Camera deleted")
+	h.InvalidateCamerasCache()
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
@@ -383,6 +445,7 @@ func (h *Handler) EditCamera(c *gin.Context) {
 	}
 
 	log.Info().Str("audit", "true").Str("action", "camera_edited").Str("camera_id", id).Str("user", c.GetString("username")).Msg("Camera edited")
+	h.InvalidateCamerasCache()
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
@@ -495,7 +558,7 @@ func (h *Handler) PostWHEP(c *gin.Context) {
 	}
 	offerSDP := string(body)
 
-	whepHandler := webrtc.NewWHEPHandler(id, st.GetRingBuffer(), st.GetMetadataBroadcaster(), h.cfg)
+	whepHandler := webrtc.NewWHEPHandler(id, st.GetRingBuffer(), st.GetMetadataBroadcaster(), h.cfg, h.webrtcEngine)
 	answerSDP, err := whepHandler.HandleOffer(c.Request.Context(), offerSDP)
 	if err != nil {
 		log.Error().Err(err).Str("stream", id).Msg("WHEP HandleOffer failed")
@@ -823,6 +886,7 @@ func (h *Handler) ImportBackupJSON(c *gin.Context) {
 		return
 	}
 
+	h.InvalidateCamerasCache()
 	c.JSON(http.StatusOK, gin.H{"message": "Backup imported and streams restarted successfully."})
 }
 

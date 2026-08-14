@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -142,6 +143,13 @@ func (s *Stream) run() {
 			log.Error().Interface("panic", r).Str("id", s.ID).Msg("Recovered from panic in Stream.run")
 		}
 	}()
+
+	if s.URL == "" || s.URL == "synthetic" || strings.HasPrefix(s.URL, "synthetic://") {
+		log.Info().Str("id", s.ID).Msg("Synthetic stream started (in-memory ingest mode)")
+		<-s.ctx.Done()
+		return
+	}
+
 	log.Info().Str("id", s.ID).Msg("Starting stream processing")
 	for {
 		if s.ctx.Err() != nil {
@@ -327,6 +335,36 @@ func (s *Stream) lazyHLSWatchdog() {
 			return
 		}
 	}
+}
+
+// SetState updates the camera state.
+func (s *Stream) SetState(st models.CameraState) {
+	s.state.Store(st)
+}
+
+// AddBytesReceived increases received bytes counter.
+func (s *Stream) AddBytesReceived(n uint64) {
+	s.bytesReceived.Add(n)
+	s.metricNetRxBytes.Add(float64(n))
+}
+
+// AddFramesReceived increases received frames counter and updates last frame time.
+func (s *Stream) AddFramesReceived(n uint64) {
+	s.framesReceived.Add(n)
+	s.metricFramesRx.Add(float64(n))
+	s.lastFrameTime.Store(time.Now().Unix())
+}
+
+// AddKeyFramesReceived increases received key frames counter and updates last key time.
+func (s *Stream) AddKeyFramesReceived(n uint64) {
+	s.keyFramesReceived.Add(n)
+	s.metricKeyFrames.Add(float64(n))
+	s.lastKeyTime.Store(time.Now().Unix())
+}
+
+// SetConnectedAt sets connection timestamp.
+func (s *Stream) SetConnectedAt(t time.Time) {
+	s.connectedAt.Store(t.Unix())
 }
 
 // AddBytesSent увеличивает счетчик исходящего трафика

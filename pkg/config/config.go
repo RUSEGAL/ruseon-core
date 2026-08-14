@@ -27,6 +27,8 @@ type Config struct {
 			KeyFile  string `yaml:"key_file" json:"keyFile"`
 		} `yaml:"tls" json:"tls"`
 		WebRTC struct {
+			ListenPort         int      `yaml:"listen_port" json:"listenPort"`
+			NAT1To1IPs         []string `yaml:"nat_1_to_1_ips" json:"nat1To1IPs"`
 			ICEServers         []string `yaml:"ice_servers" json:"iceServers"`
 			ICETransportPolicy string   `yaml:"ice_transport_policy" json:"iceTransportPolicy"`
 			TURNUsername       string   `yaml:"turn_username" json:"turnUsername"`

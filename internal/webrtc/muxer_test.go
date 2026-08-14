@@ -21,42 +21,17 @@ func TestWHEPHandler_MetadataDataChannel(t *testing.T) {
 	// 2. Setup MetadataBroadcaster
 	mb := stream.NewMetadataBroadcaster()
 
-	// 3. Create Handler
-	cfg := &config.Config{
-		Server: struct {
-			Port                int      `yaml:"port"`
-			Debug               bool     `yaml:"debug"`
-			PprofPort           int      `yaml:"pprof_port"`
-			RecordRetentionDays int      `yaml:"record_retention_days"`
-			GCPercent           int      `yaml:"gc_percent"`
-			GCMemoryLimitMB     int      `yaml:"gc_memory_limit_mb"`
-			CORSAllowedOrigins  []string `yaml:"cors_allowed_origins" json:"corsAllowedOrigins"`
-			GRPC                struct {
-				Address string `yaml:"address" json:"address"`
-				Port    int    `yaml:"port" json:"port"`
-			} `yaml:"grpc" json:"grpc"`
-			TLS struct {
-				CertFile string `yaml:"cert_file" json:"certFile"`
-				KeyFile  string `yaml:"key_file" json:"keyFile"`
-			} `yaml:"tls" json:"tls"`
-			WebRTC struct {
-				ICEServers         []string `yaml:"ice_servers" json:"iceServers"`
-				ICETransportPolicy string   `yaml:"ice_transport_policy" json:"iceTransportPolicy"`
-				TURNUsername       string   `yaml:"turn_username" json:"turnUsername"`
-				TURNPassword       string   `yaml:"turn_password" json:"turnPassword"`
-			} `yaml:"webrtc" json:"webrtc"`
-		}{
-			WebRTC: struct {
-				ICEServers         []string `yaml:"ice_servers" json:"iceServers"`
-				ICETransportPolicy string   `yaml:"ice_transport_policy" json:"iceTransportPolicy"`
-				TURNUsername       string   `yaml:"turn_username" json:"turnUsername"`
-				TURNPassword       string   `yaml:"turn_password" json:"turnPassword"`
-			}{
-				ICEServers: []string{"stun:stun.l.google.com:19302"},
-			},
-		},
+	// 3. Create Handler and Engine
+	cfg := &config.Config{}
+	cfg.Server.WebRTC.ICEServers = []string{"stun:stun.l.google.com:19302"}
+
+	engine, err := NewEngine(cfg)
+	if err != nil {
+		t.Fatal(err)
 	}
-	handler := NewWHEPHandler("test_stream", rb, mb, cfg)
+	defer engine.Close()
+
+	handler := NewWHEPHandler("test_stream", rb, mb, cfg, engine)
 
 	// 4. Create Client WebRTC PeerConnection
 	m := &webrtc.MediaEngine{}

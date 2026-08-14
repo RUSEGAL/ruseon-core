@@ -23,14 +23,20 @@ type WHEPHandler struct {
 	rb       *buffer.RingBuffer
 	mb       *stream.MetadataBroadcaster
 	cfg      *config.Config
+	engine   *Engine
 }
 
-func NewWHEPHandler(streamID string, rb *buffer.RingBuffer, mb *stream.MetadataBroadcaster, cfg *config.Config) *WHEPHandler {
+func NewWHEPHandler(streamID string, rb *buffer.RingBuffer, mb *stream.MetadataBroadcaster, cfg *config.Config, engine ...*Engine) *WHEPHandler {
+	var eng *Engine
+	if len(engine) > 0 && engine[0] != nil {
+		eng = engine[0]
+	}
 	return &WHEPHandler{
 		streamID: streamID,
 		rb:       rb,
 		mb:       mb,
 		cfg:      cfg,
+		engine:   eng,
 	}
 }
 
@@ -41,15 +47,8 @@ func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, e
 		return "", errors.New("stream codec parameters not ready yet, please wait")
 	}
 
-	m := &webrtc.MediaEngine{}
-	if err := m.RegisterDefaultCodecs(); err != nil {
-		return "", err
-	}
-
-	api := webrtc.NewAPI(webrtc.WithMediaEngine(m))
-
 	var iceServers []webrtc.ICEServer
-	if len(h.cfg.Server.WebRTC.ICEServers) > 0 {
+	if h.cfg != nil && len(h.cfg.Server.WebRTC.ICEServers) > 0 {
 		iceServers = append(iceServers, webrtc.ICEServer{
 			URLs:       h.cfg.Server.WebRTC.ICEServers,
 			Username:   h.cfg.Server.WebRTC.TURNUsername,
@@ -58,7 +57,7 @@ func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, e
 	}
 
 	iceTransportPolicy := webrtc.ICETransportPolicyAll
-	if h.cfg.Server.WebRTC.ICETransportPolicy == "relay" {
+	if h.cfg != nil && h.cfg.Server.WebRTC.ICETransportPolicy == "relay" {
 		iceTransportPolicy = webrtc.ICETransportPolicyRelay
 	}
 
@@ -67,7 +66,18 @@ func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, e
 		ICETransportPolicy: iceTransportPolicy,
 	}
 
-	pc, err := api.NewPeerConnection(config)
+	var pc *webrtc.PeerConnection
+	var err error
+	if h.engine != nil {
+		pc, err = h.engine.NewPeerConnection(config)
+	} else {
+		m := &webrtc.MediaEngine{}
+		if err := m.RegisterDefaultCodecs(); err != nil {
+			return "", err
+		}
+		api := webrtc.NewAPI(webrtc.WithMediaEngine(m))
+		pc, err = api.NewPeerConnection(config)
+	}
 	if err != nil {
 		return "", err
 	}
