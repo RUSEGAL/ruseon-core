@@ -25,13 +25,14 @@ package main
 
 import (
 	"context"
+	crand "crypto/rand"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"io/fs"
 	"math"
-	"math/rand"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -487,7 +488,7 @@ func runAPIWorker(ctx context.Context, baseURL, token string, wg *sync.WaitGroup
 		}
 
 		// Light jitter between requests (10-30ms)
-		jitter := time.Duration(10+rand.Intn(20)) * time.Millisecond //nolint:gosec
+		jitter := time.Duration(10+randIntn(20)) * time.Millisecond
 		select {
 		case <-ctx.Done():
 			return
@@ -511,7 +512,7 @@ func runHLSViewer(ctx context.Context, baseURL string, camIDs []string, wg *sync
 		},
 	}
 
-	camID := camIDs[rand.Intn(len(camIDs))] //nolint:gosec
+	camID := camIDs[randIntn(len(camIDs))]
 	seenSegments := make(map[string]bool)
 
 	ticker := time.NewTicker(500 * time.Millisecond)
@@ -596,7 +597,7 @@ func runHLSViewer(ctx context.Context, baseURL string, camIDs []string, wg *sync
 func runWebRTCViewer(ctx context.Context, baseURL string, camIDs []string, engine *iwebrtc.Engine, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	camID := camIDs[rand.Intn(len(camIDs))] //nolint:gosec
+	camID := camIDs[randIntn(len(camIDs))]
 
 	var pc *webrtc.PeerConnection
 	var err error
@@ -769,7 +770,7 @@ func runGRPCMetaPusher(ctx context.Context, addr string, camIDs []string, wg *sy
 			_, _ = pushStream.CloseAndRecv()
 			return
 		case <-ticker.C:
-			camID := camIDs[rand.Intn(len(camIDs))] //nolint:gosec
+			camID := camIDs[randIntn(len(camIDs))]
 			err := pushStream.Send(&pb.MetadataRequest{
 				CameraId: camID,
 				Objects: []*pb.BoundingBox{
@@ -813,8 +814,8 @@ func runEventBusFlood(ctx context.Context, camIDs []string, wg *sync.WaitGroup) 
 			if registry.CurrentEventBus == nil {
 				continue
 			}
-			topic := topics[rand.Intn(len(topics))] //nolint:gosec
-			camID := camIDs[rand.Intn(len(camIDs))] //nolint:gosec
+			topic := topics[randIntn(len(topics))]
+			camID := camIDs[randIntn(len(camIDs))]
 			registry.CurrentEventBus.Publish(topic, camID, map[string]string{"source": "loadtest"})
 			cntEventsPub.Add(1)
 		}
@@ -1263,6 +1264,17 @@ func freeAddr() (string, error) {
 	addr := l.Addr().String()
 	l.Close()
 	return addr, nil
+}
+
+func randIntn(maxVal int) int {
+	if maxVal <= 0 {
+		return 0
+	}
+	n, err := crand.Int(crand.Reader, big.NewInt(int64(maxVal)))
+	if err != nil {
+		return 0
+	}
+	return int(n.Int64())
 }
 
 func banner() {
