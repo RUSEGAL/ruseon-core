@@ -20,6 +20,7 @@ import (
 	"github.com/RUSEGAL/ruseon-core/internal/recorder"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 	"github.com/RUSEGAL/ruseon-core/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/internal/webrtc"
 )
 
 // Run запускает все подсистемы ядра (стриминг, API, воркеры).
@@ -88,8 +89,15 @@ func Run(cfg *config.Config) {
 		}
 	}
 
-	// 5. Инициализация HTTP сервера (Gin)
-	handler := api.NewHandler(manager, cfg, registry.CurrentStateStore)
+	// 5. Инициализация WebRTC Engine и HTTP сервера (Gin)
+	webrtcEngine, err := webrtc.NewEngine(cfg)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to initialize WebRTC engine")
+	} else if webrtcEngine != nil {
+		defer webrtcEngine.Close()
+	}
+
+	handler := api.NewHandler(manager, cfg, registry.CurrentStateStore, webrtcEngine)
 	router := api.SetupRouter(handler, registry.CurrentAuthenticator, cfg.Server.Debug, cfg.Server.CORSAllowedOrigins)
 
 	// 6. Запуск сервера с Graceful Shutdown
