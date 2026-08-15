@@ -3,7 +3,7 @@ import { AiRuntime } from './runtime';
 import { ObjectDetector, type Detection, type ObjectDetectorOptions } from './inference';
 
 export type InferenceWorkerRequest =
-  | { type: 'init'; modelUrl?: string }
+  | { type: 'init'; modelUrl?: string; forceReload?: boolean }
   | { type: 'register'; cameraId: string; options?: ObjectDetectorOptions }
   | { type: 'update-options'; cameraId: string; options: ObjectDetectorOptions }
   | { type: 'detect'; cameraId: string; frame: ImageBitmap }
@@ -11,12 +11,13 @@ export type InferenceWorkerRequest =
   | { type: 'dispose-all' };
 
 export type InferenceWorkerResponse =
-  | { type: 'ready'; backend: string }
+  | { type: 'ready'; backend: string; modelUrl?: string }
   | { type: 'init-error'; error: string }
   | { type: 'detections'; cameraId: string; detections: Detection[] }
   | { type: 'error'; cameraId?: string; error: string };
 
 let runtime: AiRuntime | null = null;
+let currentModelUrl: string | undefined = undefined;
 let initPromise: Promise<void> | null = null;
 const detectors = new Map<string, ObjectDetector>();
 
@@ -28,21 +29,32 @@ function post(msg: InferenceWorkerResponse, transfer?: Transferable[]) {
   (self as unknown as Worker).postMessage(msg, transfer ? { transfer } : undefined);
 }
 
-async function ensureRuntime(modelUrl?: string): Promise<void> {
-  if (runtime && runtime.isReady()) return;
+async function ensureRuntime(modelUrl?: string, forceReload = false): Promise<void> {
+  const isUrlChanged = modelUrl && currentModelUrl && modelUrl !== currentModelUrl;
+  if (runtime && runtime.isReady() && !forceReload && !isUrlChanged) return;
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
+    if (runtime) {
+      runtime.dispose();
+      runtime = null;
+    }
     const rt = new AiRuntime();
     await rt.init(modelUrl);
     runtime = rt;
+    currentModelUrl = modelUrl;
+
+    // Refresh detectors with new runtime
+    for (const id of Array.from(detectors.keys())) {
+      detectors.set(id, new ObjectDetector(runtime));
+    }
   })();
 
   try {
     await initPromise;
     const backend = runtime?.getBackend() || 'wasm';
-    console.log(`%c[AI Inference Worker] Ready! Backend: ${backend}`, 'color: #10b981; font-weight: bold;');
-    post({ type: 'ready', backend });
+    console.log(`%c[AI Inference Worker] Ready! Backend: ${backend} | Model: ${currentModelUrl || 'default'}`, 'color: #10b981; font-weight: bold;');
+    post({ type: 'ready', backend, modelUrl: currentModelUrl });
   } catch (err: any) {
     console.error('[AI Inference Worker] Failed to initialize:', err);
     post({ type: 'init-error', error: err?.message || 'Failed to initialize AI runtime' });
@@ -106,7 +118,7 @@ self.onmessage = async (event: MessageEvent<InferenceWorkerRequest>) => {
   switch (req.type) {
     case 'init': {
       try {
-        await ensureRuntime(req.modelUrl);
+        await ensureRuntime(req.modelUrl, req.forceReload);
       } catch {
         // Handled
       }

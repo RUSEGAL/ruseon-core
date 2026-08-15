@@ -13,6 +13,8 @@ import {
   Phone,
 } from 'lucide-react';
 
+import { AiDetectionSettingsCard } from '../settings/AiDetectionSettingsCard';
+
 interface SettingsViewProps {
   cameras: CameraInfo[];
   tags: TagConfig[];
@@ -48,6 +50,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* AI Inference & Hardware Engine Card */}
+      <AiDetectionSettingsCard />
+
       {/* Top Toolbar with Management Modals */}
       <div className="v2-grid-toolbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
