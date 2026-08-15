@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -16,18 +15,26 @@ import (
 
 var (
 	modelDownloadMu sync.Mutex
-	upstreamModels  = map[string]string{
-		"yolo11n.onnx": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.onnx",
-		"yolo11s.onnx": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11s.onnx",
-		"yolo11m.onnx": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11m.onnx",
+	upstreamModels  = map[string][]string{
+		"yolo11m.onnx": {
+			"https://huggingface.co/Xuban/yolo_weights_database/resolve/main/yolo11m.onnx",
+			"https://huggingface.co/banu4prasad/YOLO11m_BDD100k/resolve/main/yolo11m.onnx",
+		},
+		"yolo11s.onnx": {
+			"https://huggingface.co/Xuban/yolo_weights_database/resolve/main/yolo11s.onnx",
+		},
+		"yolo11n.onnx": {
+			"https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.onnx",
+			"https://huggingface.co/Xuban/yolo_weights_database/resolve/main/yolo11n.onnx",
+		},
 	}
 )
 
 // GetModel serves or transparently proxies & caches AI ONNX models locally.
-// This completely bypasses browser CORS restrictions on external GitHub Releases CDN.
+// This completely bypasses browser CORS restrictions on external CDNs.
 func (h *Handler) GetModel(c *gin.Context) {
 	filename := c.Param("filename")
-	upstreamURL, ok := upstreamModels[filename]
+	upstreamURLs, ok := upstreamModels[filename]
 	if !ok {
 		c.String(http.StatusNotFound, "Model not found")
 		return
@@ -59,29 +66,39 @@ func (h *Handler) GetModel(c *gin.Context) {
 		return
 	}
 
-	log.Info().Str("filename", filename).Str("url", upstreamURL).Msg("Downloading AI model on backend from upstream release...")
-
 	client := &http.Client{
 		Timeout: 5 * time.Minute,
 	}
 
-	req, err := http.NewRequestWithContext(c.Request.Context(), "GET", upstreamURL, nil)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Failed to create request: %v", err)
-		return
+	var resp *http.Response
+	var finalURL string
+
+	for _, u := range upstreamURLs {
+		log.Info().Str("filename", filename).Str("url", u).Msg("Attempting AI model download from upstream...")
+		req, err := http.NewRequestWithContext(c.Request.Context(), "GET", u, nil)
+		if err != nil {
+			continue
+		}
+
+		r, err := client.Do(req)
+		if err == nil && r.StatusCode == http.StatusOK {
+			resp = r
+			finalURL = u
+			break
+		}
+		if r != nil {
+			_ = r.Body.Close()
+		}
 	}
 
-	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		status := 0
-		if resp != nil {
-			status = resp.StatusCode
-		}
-		log.Error().Err(err).Int("status", status).Msg("Failed to download model from upstream CDN")
-		c.String(http.StatusBadGateway, fmt.Sprintf("Failed to fetch model from upstream (status: %d)", status))
+	if resp == nil {
+		log.Error().Str("filename", filename).Msg("Failed to download model from all configured upstream CDNs")
+		c.String(http.StatusBadGateway, "Failed to download model from upstream CDNs")
 		return
 	}
 	defer resp.Body.Close()
+
+	log.Info().Str("filename", filename).Str("url", finalURL).Msg("Streaming AI model and saving to local disk cache...")
 
 	tmpFile := modelPath + ".tmp"
 	f, err := os.Create(tmpFile)
