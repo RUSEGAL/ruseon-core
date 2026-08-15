@@ -16,6 +16,17 @@ import { UserManagerModal } from './components/modals/UserManagerModal';
 import type { TagConfig, FolderConfig } from './types';
 import { useTranslation } from 'react-i18next';
 import { FolderManagerModal } from './components/modals/FolderManagerModal';
+import {
+  useUiVariant,
+  V2Layout,
+  V2CameraDetailsModal,
+  V2CameraFormModal,
+  V2TagManagerModal,
+  V2FolderManagerModal,
+  V2LogsModal,
+  V2ServerStatsModal,
+  V2UserManagerModal,
+} from './v2';
 
 export default function App() {
   const { t } = useTranslation();
@@ -254,8 +265,98 @@ export default function App() {
     }
   }, [token]);
 
+  const { uiVariant } = useUiVariant();
+
   if (!token) {
     return <Login onLogin={setToken} />;
+  }
+
+  if (uiVariant === 'v2') {
+    return (
+      <>
+        <V2Layout
+          cameras={cameras}
+          serverStats={serverStats}
+          tags={globalTags}
+          folders={folders}
+          userRole={userRole}
+          onLogout={handleLogout}
+          onAddCamera={openAddModal}
+          onEditCamera={(cam) => {
+            openEditModal(cam);
+          }}
+          onDeleteCamera={deleteCamera}
+          onOpenDetails={setDetailsCam}
+          onOpenStats={() => setShowStatsModal(true)}
+          onOpenTags={() => setShowTagModal(true)}
+          onOpenFolders={() => setShowFolderModal(true)}
+          onOpenLogs={() => setShowLogsModal(true)}
+          onOpenUsers={() => setShowUserModal(true)}
+        />
+        {/* Next-Gen v2 Modals */}
+        {showModal && (
+          <V2CameraFormModal
+            isEditing={isEditing}
+            camForm={camForm}
+            setCamForm={setCamForm}
+            onClose={() => setShowModal(false)}
+            onSave={saveCamera}
+            globalTags={globalTags}
+            folders={folders}
+          />
+        )}
+        {showTagModal && (
+          <V2TagManagerModal
+            tags={globalTags}
+            token={token}
+            onClose={() => setShowTagModal(false)}
+            onTagsChange={() => {
+              fetch('/api/tags', { headers: { 'Authorization': `Bearer ${token}` } })
+                .then(r => r.json())
+                .then(setGlobalTags);
+            }}
+          />
+        )}
+        {showFolderModal && (
+          <V2FolderManagerModal
+            folders={folders}
+            token={token}
+            onClose={() => setShowFolderModal(false)}
+            onFoldersChange={() => {
+              fetch('/api/folders', { headers: { 'Authorization': `Bearer ${token}` } })
+                .then(r => r.json())
+                .then(setFolders);
+            }}
+          />
+        )}
+        {detailsCam && (
+          <V2CameraDetailsModal
+            detailsCam={detailsCam}
+            bitrates={bitrates}
+            fpsMap={fpsMap}
+            onClose={() => setDetailsCam(null)}
+            globalTags={globalTags}
+          />
+        )}
+        {showStatsModal && serverStats && (
+          <V2ServerStatsModal
+            serverStats={serverStats}
+            onClose={() => setShowStatsModal(false)}
+          />
+        )}
+        {showLogsModal && (
+          <V2LogsModal
+            onClose={() => setShowLogsModal(false)}
+          />
+        )}
+        {showUserModal && (
+          <V2UserManagerModal
+            token={token}
+            onClose={() => setShowUserModal(false)}
+          />
+        )}
+      </>
+    );
   }
 
   return (

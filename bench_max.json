@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-08-14 12:22:52",
-  "duration_sec": 60.03,
+  "timestamp": "2026-08-14 12:43:34",
+  "duration_sec": 60.02,
   "config": {
     "cameras": 100,
     "api_workers": 150,
@@ -11,103 +11,103 @@
     "real_disk": true
   },
   "ingest": {
-    "total_frames": 181764,
+    "total_frames": 181693,
     "key_frames": 6100,
-    "total_bytes": 1893312000,
-    "fps": 3027.9,
+    "total_bytes": 1892744000,
+    "fps": 3027.4,
     "bitrate_mbps": 252.3,
     "dropped_frames": 0
   },
   "http": {
-    "total_ok": 414036,
+    "total_ok": 417738,
     "total_err": 0,
-    "rps": 6897.2,
-    "bytes_sent": 5910918596,
+    "rps": 6960.5,
+    "bytes_sent": 5968767242,
     "latency": {
-      "count": 414036,
+      "count": 417738,
       "min_ms": 0,
-      "avg_ms": 1.43,
+      "avg_ms": 1.31,
       "p50_ms": 0,
-      "p90_ms": 1,
-      "p95_ms": 3,
-      "p99_ms": 39.56,
-      "p999_ms": 73.66,
-      "max_ms": 135.69
+      "p90_ms": 1.52,
+      "p95_ms": 7.54,
+      "p99_ms": 27.22,
+      "p999_ms": 76.27,
+      "max_ms": 198.02
     },
-    "status_2xx": 414036,
+    "status_2xx": 417738,
     "status_4xx": 0,
     "status_5xx": 0
   },
   "hls": {
     "playlists_ok": 17400,
-    "segments_ok": 2999,
+    "segments_ok": 2995,
     "errors": 0,
-    "bytes_sent": 2901556913,
-    "throughput_mb_s": 46.1,
+    "bytes_sent": 2897748960,
+    "throughput_mb_s": 46.05,
     "playlist_latency": {
       "count": 17400,
       "min_ms": 0,
-      "avg_ms": 22.47,
-      "p50_ms": 1.51,
-      "p90_ms": 9.05,
-      "p95_ms": 24.58,
-      "p99_ms": 77.38,
-      "p999_ms": 2207.32,
-      "max_ms": 2234.77
+      "avg_ms": 22.93,
+      "p50_ms": 1,
+      "p90_ms": 12.18,
+      "p95_ms": 22.63,
+      "p99_ms": 77.82,
+      "p999_ms": 2208.77,
+      "max_ms": 2274.83
     },
     "segment_latency": {
-      "count": 2999,
-      "min_ms": 0.537,
-      "avg_ms": 44.69,
-      "p50_ms": 44.97,
-      "p90_ms": 72.53,
-      "p95_ms": 79.32,
-      "p99_ms": 89.68,
-      "p999_ms": 104.17,
-      "max_ms": 115.01
+      "count": 2995,
+      "min_ms": 0,
+      "avg_ms": 36.22,
+      "p50_ms": 34.31,
+      "p90_ms": 66.32,
+      "p95_ms": 77.13,
+      "p99_ms": 91.86,
+      "p999_ms": 107.15,
+      "max_ms": 121.69
     }
   },
   "webrtc": {
     "sessions_ok": 30,
     "sessions_err": 0,
-    "rtp_packets_rx": 488801,
-    "bytes_rx": 567535861,
-    "throughput_mb_s": 9.02,
+    "rtp_packets_rx": 488101,
+    "bytes_rx": 566724345,
+    "throughput_mb_s": 9.01,
     "handshake_latency": {
       "count": 30,
-      "min_ms": 163.287,
-      "avg_ms": 199.52,
-      "p50_ms": 197.05,
-      "p90_ms": 233.84,
-      "p95_ms": 245.8,
-      "p99_ms": 250.56,
-      "p999_ms": 250.56,
-      "max_ms": 250.56
+      "min_ms": 208.414,
+      "avg_ms": 269.68,
+      "p50_ms": 271.87,
+      "p90_ms": 300.4,
+      "p95_ms": 305.76,
+      "p99_ms": 322.18,
+      "p999_ms": 322.18,
+      "max_ms": 322.18
     }
   },
   "grpc": {
-    "frames_sent": 181727,
-    "meta_pushed": 11886,
+    "frames_sent": 181641,
+    "meta_pushed": 11880,
     "errors": 0,
-    "fps": 3027.3,
-    "meta_rps": 198,
-    "bytes_sent": 1893968608,
+    "fps": 3026.6,
+    "meta_rps": 197.9,
+    "bytes_sent": 1893280264,
     "stream_latency": {
-      "count": 181727,
+      "count": 181641,
       "min_ms": 0,
       "avg_ms": 32.72,
-      "p50_ms": 33,
-      "p90_ms": 35.13,
-      "p95_ms": 42.46,
-      "p99_ms": 77.94,
-      "p999_ms": 100.25,
-      "max_ms": 171.22
+      "p50_ms": 32.98,
+      "p90_ms": 35.25,
+      "p95_ms": 41.54,
+      "p99_ms": 58.13,
+      "p999_ms": 100.21,
+      "max_ms": 180.36
     }
   },
   "eventbus": {
-    "published": 23519,
-    "delivered": 23519,
-    "rate_per_sec": 391.8
+    "published": 23459,
+    "delivered": 23459,
+    "rate_per_sec": 390.9
   },
   "storage": {
     "real_disk": true,
@@ -117,14 +117,14 @@
   },
   "system": {
     "num_cpu": 12,
-    "goroutines_end": 1539,
-    "heap_alloc_mb": 1214,
-    "heap_inuse_mb": 1251,
-    "heap_sys_mb": 1517,
-    "total_alloc_mb": 49713,
-    "sys_mb": 1586,
-    "num_gc": 129,
-    "gc_pause_total_ms": 35.66,
+    "goroutines_end": 1427,
+    "heap_alloc_mb": 1089,
+    "heap_inuse_mb": 1137,
+    "heap_sys_mb": 1528,
+    "total_alloc_mb": 49948,
+    "sys_mb": 1598,
+    "num_gc": 126,
+    "gc_pause_total_ms": 23.51,
     "gc_pause_max_ms": 0
   }
 }

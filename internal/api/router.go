@@ -130,6 +130,7 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool, corsOrigin
 	r.GET("/livez", h.LivenessCheck)
 	r.GET("/readyz", h.ReadinessCheck)
 	r.POST("/api/login", auth.Login)
+	r.GET("/models/:filename", h.GetModel)
 
 	// Метрики Prometheus
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
@@ -193,6 +194,9 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool, corsOrigin
 
 	// WebRTC (WHEP)
 	r.POST("/stream/webrtc/whep/:id", streamAuth, h.PostWHEP)
+
+	// WebCodecs (WebSocket Binary NALU Stream)
+	r.GET("/stream/ws/:id", streamAuth, h.StreamWS)
 
 	// HLS стриминг (Archive)
 	r.GET("/hls/:id/archive.m3u8", streamAuth, h.GetArchiveHLSPlaylist)
