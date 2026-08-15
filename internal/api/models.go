@@ -16,14 +16,19 @@ import (
 
 var (
 	modelDownloadMu sync.Mutex
-	upstreamModelURL = "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.onnx"
+	upstreamModels  = map[string]string{
+		"yolo11n.onnx": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.onnx",
+		"yolo11s.onnx": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11s.onnx",
+		"yolo11m.onnx": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11m.onnx",
+	}
 )
 
 // GetModel serves or transparently proxies & caches AI ONNX models locally.
 // This completely bypasses browser CORS restrictions on external GitHub Releases CDN.
 func (h *Handler) GetModel(c *gin.Context) {
 	filename := c.Param("filename")
-	if filename != "yolo11n.onnx" && filename != "yolov8n.onnx" {
+	upstreamURL, ok := upstreamModels[filename]
+	if !ok {
 		c.String(http.StatusNotFound, "Model not found")
 		return
 	}
@@ -54,13 +59,13 @@ func (h *Handler) GetModel(c *gin.Context) {
 		return
 	}
 
-	log.Info().Str("filename", filename).Msg("Downloading AI model on backend from upstream release...")
+	log.Info().Str("filename", filename).Str("url", upstreamURL).Msg("Downloading AI model on backend from upstream release...")
 
 	client := &http.Client{
-		Timeout: 2 * time.Minute,
+		Timeout: 5 * time.Minute,
 	}
 
-	req, err := http.NewRequestWithContext(c.Request.Context(), "GET", upstreamModelURL, nil)
+	req, err := http.NewRequestWithContext(c.Request.Context(), "GET", upstreamURL, nil)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to create request: %v", err)
 		return

@@ -9,7 +9,7 @@ import * as ort from 'onnxruntime-web';
 
 export const MODEL_CACHE_NAME = 'ruseon-ai-models';
 export const MODEL_URLS = [
-  '/models/yolo11n.onnx',
+  '/models/yolo11m.onnx',
 ];
 
 export interface AiRuntimeInitOptions {
