@@ -40,14 +40,19 @@ export interface ObjectDetectorOptions {
   enabledClasses?: string[] | null;
 }
 
+export const DEFAULT_SURVEILLANCE_CLASSES: string[] = [
+  'person', 'bicycle', 'car', 'motorcycle', 'bus', 'train', 'truck',
+  'dog', 'cat', 'backpack', 'handbag'
+];
+
 const INPUT_SIZE = 640;
 const NUM_CLASSES = 80;
-const CONFIDENCE_THRESHOLD = 0.50; // Calibrated 50% threshold for deep YOLOv11-Medium model
-const NMS_THRESHOLD = 0.40; // Tighter IoU threshold
+const CONFIDENCE_THRESHOLD = 0.65; // High confidence threshold (65%) for crisp, accurate detections
+const NMS_THRESHOLD = 0.35; // Strict IoU threshold to eliminate duplicate boxes
 const EMA_ALPHA = 0.35;
 const MAX_AGE = 10;
 const MAX_VALID_LOGIT = 15; // Ignore corrupted decode artifacts
-const MAX_DETECTIONS = 20; // Clean top detections limit
+const MAX_DETECTIONS = 15; // Clean top detections limit
 
 function sigmoid(x: number): number {
   return 1 / (1 + Math.exp(-x));
@@ -68,7 +73,7 @@ export class ObjectDetector {
       nmsThreshold: options?.nmsThreshold ?? NMS_THRESHOLD,
       emaAlpha: options?.emaAlpha ?? EMA_ALPHA,
       maxAge: options?.maxAge ?? MAX_AGE,
-      enabledClasses: options?.enabledClasses ?? null,
+      enabledClasses: options?.enabledClasses !== undefined ? options.enabledClasses : DEFAULT_SURVEILLANCE_CLASSES,
     };
   }
 
