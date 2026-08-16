@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ServerStats } from '../../../types';
 import { UiVariantToggle } from '../common/UiVariantToggle';
 import { LanguageSwitcher } from '../../../components/LanguageSwitcher';
@@ -21,6 +22,7 @@ export const V2Header: React.FC<V2HeaderProps> = ({
   onOpenLogs,
   onOpenUsers,
 }) => {
+  const { t } = useTranslation();
   const isAdmin = userRole === 'admin';
   const formatMem = (bytes: number) => {
     return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
@@ -50,7 +52,7 @@ export const V2Header: React.FC<V2HeaderProps> = ({
               title="Click to view full server metrics & connected clients"
             >
               <Radio size={12} className="animate-pulse" />
-              <span>{stats.onlineCameras} / {stats.totalCameras} Live</span>
+              <span>{stats.onlineCameras} / {stats.totalCameras} {t('v2.header.liveCameras', 'Live')}</span>
             </button>
 
             <button
@@ -70,7 +72,7 @@ export const V2Header: React.FC<V2HeaderProps> = ({
               title="Click to view detailed memory breakdown"
             >
               <Cpu size={12} color="#6366f1" />
-              <span>RAM: {stats.memoryUsed ? formatMem(stats.memoryUsed) : 'N/A'}</span>
+              <span>{t('v2.header.ram', 'RAM')}: {stats.memoryUsed ? formatMem(stats.memoryUsed) : 'N/A'}</span>
             </button>
 
             <div
@@ -87,7 +89,7 @@ export const V2Header: React.FC<V2HeaderProps> = ({
               }}
             >
               <Activity size={12} color="#38bdf8" />
-              <span>Goroutines: {stats.goroutines || 0}</span>
+              <span>{t('v2.header.goroutines', 'Goroutines')}: {stats.goroutines || 0}</span>
             </div>
           </>
         )}
@@ -113,7 +115,7 @@ export const V2Header: React.FC<V2HeaderProps> = ({
             title="User Management (RBAC)"
           >
             <Users size={14} color="#a5b4fc" />
-            <span>Users</span>
+            <span>{t('v2.header.users', 'Users')}</span>
           </button>
         )}
 
@@ -135,7 +137,7 @@ export const V2Header: React.FC<V2HeaderProps> = ({
             title="Live Server Logs Stream"
           >
             <Terminal size={14} color="#38bdf8" />
-            <span>Logs</span>
+            <span>{t('v2.header.logs', 'Logs')}</span>
           </button>
         )}
 
@@ -161,7 +163,7 @@ export const V2Header: React.FC<V2HeaderProps> = ({
           title="Log out"
         >
           <LogOut size={14} />
-          <span>Exit</span>
+          <span>{t('v2.header.logout', 'Exit')}</span>
         </button>
       </div>
     </header>

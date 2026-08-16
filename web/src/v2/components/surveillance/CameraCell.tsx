@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { CameraInfo } from '../../../types';
 import { UniversalCameraPlayer } from '../player/UniversalCameraPlayer';
 import { GripVertical, AlertCircle } from 'lucide-react';
@@ -24,6 +25,7 @@ export const CameraCell: React.FC<CameraCellProps> = ({
   onDragOver,
   onDrop,
 }) => {
+  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -71,7 +73,7 @@ export const CameraCell: React.FC<CameraCellProps> = ({
           title="Drag to reorder in grid"
         >
           <GripVertical size={12} />
-          <span>Move</span>
+          <span>{t('cameras.reorder', 'Move')}</span>
         </div>
       )}
 
@@ -115,13 +117,13 @@ export const CameraCell: React.FC<CameraCellProps> = ({
             }}
           >
             {camera.disableReason === 'payment'
-              ? 'Отключено за неуплату'
+              ? t('cameras.details.reasons.payment', 'Payment')
               : camera.disableReason === 'requested'
-              ? 'Отключено по требованию'
-              : 'Отключено: Тех. причины'}
+              ? t('cameras.details.reasons.requested', 'Requested')
+              : t('cameras.details.reasons.technical', 'Technical')}
           </span>
           <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
-            {camera.id} (Поток остановлен)
+            {camera.id} ({t('cameras.details.streamDisabledMsg', 'Stream Disabled')})
           </span>
 
           {onOpenDetails && (
@@ -138,7 +140,7 @@ export const CameraCell: React.FC<CameraCellProps> = ({
                 cursor: 'pointer',
               }}
             >
-              Подробнее / Включить
+              {t('cameras.edit', 'Edit')}
             </button>
           )}
         </div>

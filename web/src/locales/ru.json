@@ -172,5 +172,66 @@
       "viewer": "Зритель",
       "service": "Сервис"
     }
+  },
+  "v2": {
+    "nav": {
+      "overview": "Обзор",
+      "surveillance": "Сетка наблюдения",
+      "archive": "Архив и таймлайн",
+      "ai_events": "ИИ-аналитика",
+      "topology": "Топология и метрики",
+      "settings": "Настройки камер"
+    },
+    "header": {
+      "liveCameras": "Онлайн",
+      "ram": "ОЗУ",
+      "goroutines": "Горутины",
+      "users": "Пользователи",
+      "logs": "Логи",
+      "logout": "Выйти"
+    },
+    "ai": {
+      "title": "Клиентский ИИ-движок (Browser-side WebGPU)",
+      "subtitle": "Инференс выполняется локально на вашей видеокарте без передачи видео на сервер.",
+      "webgpu_active": "WebGPU Акселерация активна",
+      "wasm_active": "CPU WASM режим",
+      "recommended": "Рекомендованный профиль:",
+      "auto": "Авто-определение",
+      "auto_desc": "Автоматически подбирает модель под видеокарту устройства (сейчас:",
+      "active_model": "Активная модель в памяти:",
+      "loading": "загрузка...",
+      "cache": "Кеш:",
+      "instant_start": "Cache API (мгновенный старт)"
+    },
+    "surveillance": {
+      "searchPlaceholder": "Поиск по ID, названию, тегам...",
+      "allCameras": "Все камеры",
+      "gridAuto": "Авто",
+      "fullscreen": "На весь экран",
+      "noCameras": "Нет доступных камер для отображения.",
+      "offline": "Офлайн",
+      "disabled": "Отключена",
+      "live": "LIVE",
+      "webrtc": "WebRTC",
+      "webcodecs": "WebCodecs",
+      "hls": "HLS",
+      "snapshot": "Snapshot"
+    },
+    "settings": {
+      "title": "Управление камерами и ресурсами",
+      "folders": "Папки",
+      "tags": "Теги",
+      "addCamera": "Добавить камеру",
+      "table": {
+        "camera": "Камера",
+        "folder": "Папка",
+        "tags": "Теги",
+        "status": "Статус",
+        "protocol": "Протокол",
+        "recording": "Запись",
+        "sim": "SIM / Связь",
+        "actions": "Действия"
+      }
+    }
   }
 }

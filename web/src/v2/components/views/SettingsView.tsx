@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { CameraInfo, TagConfig, FolderConfig } from '../../../types';
 import {
   Plus,
@@ -44,6 +45,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenUsers,
   onOpenLogs,
 }) => {
+  const { t } = useTranslation();
   const isAdmin = userRole === 'admin';
   const isOperator = userRole === 'operator';
   const canEdit = isAdmin || isOperator;
@@ -58,7 +60,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Settings size={18} color="#6366f1" />
           <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#f8fafc' }}>
-            Camera & Resource Management
+            {t('v2.settings.title', 'Camera & Resource Management')}
           </h2>
         </div>
 
@@ -81,7 +83,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               }}
             >
               <Folder size={14} color="#6366f1" />
-              <span>Folders ({folders.length})</span>
+              <span>{t('folders.title', 'Folders')} ({folders.length})</span>
             </button>
           )}
 
@@ -102,7 +104,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               }}
             >
               <TagIcon size={14} color="#10b981" />
-              <span>Tags ({tags.length})</span>
+              <span>{t('tags.title', 'Tags')} ({tags.length})</span>
             </button>
           )}
 
@@ -123,7 +125,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               }}
             >
               <Users size={14} color="#a5b4fc" />
-              <span>Users</span>
+              <span>{t('users.title', 'Users')}</span>
             </button>
           )}
 
@@ -144,7 +146,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               }}
             >
               <Terminal size={14} color="#38bdf8" />
-              <span>Logs</span>
+              <span>{t('logs.title', 'Logs')}</span>
             </button>
           )}
 
@@ -166,7 +168,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               }}
             >
               <Plus size={15} />
-              <span>Add Camera</span>
+              <span>{t('cameras.add', 'Add Camera')}</span>
             </button>
           )}
         </div>
@@ -177,13 +179,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--v2-card-border)', color: '#94a3b8' }}>
-              <th style={{ padding: '10px' }}>ID / Name</th>
-              <th style={{ padding: '10px' }}>Folder / Location</th>
-              <th style={{ padding: '10px' }}>Tags</th>
-              <th style={{ padding: '10px' }}>Stream URL</th>
-              <th style={{ padding: '10px' }}>Recording</th>
-              <th style={{ padding: '10px' }}>Cellular / SIM</th>
-              <th style={{ padding: '10px', textAlign: 'right' }}>Actions</th>
+              <th style={{ padding: '10px' }}>{t('v2.settings.table.camera', 'Camera')}</th>
+              <th style={{ padding: '10px' }}>{t('v2.settings.table.folder', 'Folder')}</th>
+              <th style={{ padding: '10px' }}>{t('v2.settings.table.tags', 'Tags')}</th>
+              <th style={{ padding: '10px' }}>{t('cameras.url', 'Stream URL')}</th>
+              <th style={{ padding: '10px' }}>{t('cameras.record', 'Recording')}</th>
+              <th style={{ padding: '10px' }}>{t('v2.settings.table.sim', 'SIM / Comms')}</th>
+              <th style={{ padding: '10px', textAlign: 'right' }}>{t('v2.settings.table.actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>

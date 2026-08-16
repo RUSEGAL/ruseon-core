@@ -172,5 +172,66 @@
       "viewer": "Viewer",
       "service": "Service"
     }
+  },
+  "v2": {
+    "nav": {
+      "overview": "Overview",
+      "surveillance": "Surveillance Grid",
+      "archive": "Archive & Timeline",
+      "ai_events": "AI Analytics",
+      "topology": "Topology & Stats",
+      "settings": "Camera Settings"
+    },
+    "header": {
+      "liveCameras": "Live",
+      "ram": "RAM",
+      "goroutines": "Goroutines",
+      "users": "Users",
+      "logs": "Logs",
+      "logout": "Logout"
+    },
+    "ai": {
+      "title": "Client AI Engine (Browser-side WebGPU)",
+      "subtitle": "Inference is executed locally on your GPU without sending video to the server.",
+      "webgpu_active": "WebGPU Acceleration Active",
+      "wasm_active": "CPU WASM Fallback",
+      "recommended": "Recommended Profile:",
+      "auto": "Auto Detect",
+      "auto_desc": "Automatically selects the optimal model for your GPU (currently:",
+      "active_model": "Active Model in Memory:",
+      "loading": "loading...",
+      "cache": "Cache:",
+      "instant_start": "Cache API (Instant Start)"
+    },
+    "surveillance": {
+      "searchPlaceholder": "Search ID, name, tags...",
+      "allCameras": "All Cameras",
+      "gridAuto": "Auto",
+      "fullscreen": "Fullscreen",
+      "noCameras": "No cameras available for display.",
+      "offline": "Offline",
+      "disabled": "Disabled",
+      "live": "LIVE",
+      "webrtc": "WebRTC",
+      "webcodecs": "WebCodecs",
+      "hls": "HLS",
+      "snapshot": "Snapshot"
+    },
+    "settings": {
+      "title": "Camera & Resource Management",
+      "folders": "Folders",
+      "tags": "Tags",
+      "addCamera": "Add Camera",
+      "table": {
+        "camera": "Camera",
+        "folder": "Folder",
+        "tags": "Tags",
+        "status": "Status",
+        "protocol": "Protocol",
+        "recording": "Recording",
+        "sim": "SIM / Comms",
+        "actions": "Actions"
+      }
+    }
   }
 }

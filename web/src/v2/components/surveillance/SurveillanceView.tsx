@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { CameraInfo, FolderConfig, TagConfig } from '../../../types';
 import { SurveillanceGrid } from './SurveillanceGrid';
 import { useSurveillanceLayout } from '../../hooks/useSurveillanceLayout';
@@ -26,6 +27,7 @@ export const SurveillanceView: React.FC<SurveillanceViewProps> = ({
   folders = [],
   onOpenDetails,
 }) => {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'online' | 'recording' | 'high_traffic'>('all');
   const [selectedFolder, setSelectedFolder] = useState<string>('all');
@@ -101,7 +103,7 @@ export const SurveillanceView: React.FC<SurveillanceViewProps> = ({
             <Search size={14} color="#94a3b8" />
             <input
               type="text"
-              placeholder="Search cameras..."
+              placeholder={t('cameras.search', 'Search cameras...')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
@@ -141,8 +143,8 @@ export const SurveillanceView: React.FC<SurveillanceViewProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                <option value="all" style={{ background: '#0d111a' }}>All Folders</option>
-                <option value="unassigned" style={{ background: '#0d111a' }}>Unassigned</option>
+                <option value="all" style={{ background: '#0d111a' }}>{t('folders.title', 'Folders')}: {t('filters.all', 'All')}</option>
+                <option value="unassigned" style={{ background: '#0d111a' }}>{t('folders.unassigned', 'Unassigned')}</option>
                 {folders.map((f) => (
                   <option key={f.id} value={f.id} style={{ background: '#0d111a' }}>
                     {f.name}
@@ -168,7 +170,7 @@ export const SurveillanceView: React.FC<SurveillanceViewProps> = ({
                 fontWeight: 600,
               }}
             >
-              All ({cameras.length})
+              {t('filters.all', 'All')} ({cameras.length})
             </button>
             <button
               onClick={() => setFilterStatus('online')}
@@ -184,7 +186,7 @@ export const SurveillanceView: React.FC<SurveillanceViewProps> = ({
                 fontWeight: 600,
               }}
             >
-              Live ({onlineCount})
+              {t('filters.online', 'Live')} ({onlineCount})
             </button>
             <button
               onClick={() => setFilterStatus('recording')}
@@ -200,7 +202,7 @@ export const SurveillanceView: React.FC<SurveillanceViewProps> = ({
                 fontWeight: 600,
               }}
             >
-              Rec ({recordingCount})
+              {t('filters.recording', 'REC')} ({recordingCount})
             </button>
             <button
               onClick={() => setFilterStatus('high_traffic')}
@@ -216,7 +218,7 @@ export const SurveillanceView: React.FC<SurveillanceViewProps> = ({
                 fontWeight: 600,
               }}
             >
-              High Traffic
+              {t('filters.highUsage', 'High Traffic')}
             </button>
           </div>
         </div>
@@ -247,10 +249,10 @@ export const SurveillanceView: React.FC<SurveillanceViewProps> = ({
                 cursor: 'pointer',
               }}
             >
-              <option value="id" style={{ background: '#0d111a' }}>Sort by ID</option>
-              <option value="status" style={{ background: '#0d111a' }}>Sort by Status</option>
-              <option value="uptime" style={{ background: '#0d111a' }}>Sort by Uptime</option>
-              <option value="traffic" style={{ background: '#0d111a' }}>Sort by Traffic</option>
+              <option value="id" style={{ background: '#0d111a' }}>{t('filters.sortId', 'Sort by ID')}</option>
+              <option value="status" style={{ background: '#0d111a' }}>{t('filters.sortStatus', 'Sort by Status')}</option>
+              <option value="uptime" style={{ background: '#0d111a' }}>{t('filters.sortUptime', 'Sort by Uptime')}</option>
+              <option value="traffic" style={{ background: '#0d111a' }}>{t('filters.sortTraffic', 'Sort by Traffic')}</option>
             </select>
           </div>
 
@@ -286,7 +288,7 @@ export const SurveillanceView: React.FC<SurveillanceViewProps> = ({
                 {preset === '2x2' && <Grid2X2 size={13} />}
                 {preset === '3x3' && <Grid3X3 size={13} />}
                 {preset === '1+5' && <LayoutGrid size={13} />}
-                <span>{preset}</span>
+                <span>{preset === 'auto' ? t('v2.surveillance.gridAuto', 'Auto') : preset}</span>
               </button>
             ))}
           </div>
@@ -303,7 +305,7 @@ export const SurveillanceView: React.FC<SurveillanceViewProps> = ({
               display: 'flex',
               alignItems: 'center',
             }}
-            title="Surveillance Cinema Fullscreen"
+            title={t('v2.surveillance.fullscreen', 'Fullscreen')}
           >
             <Maximize2 size={14} />
           </button>

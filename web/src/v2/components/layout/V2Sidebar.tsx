@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Grid,
   Film,
@@ -26,13 +27,15 @@ export const V2Sidebar: React.FC<V2SidebarProps> = ({
   collapsed,
   onToggleCollapsed,
 }) => {
+  const { t } = useTranslation();
+
   const navItems = [
-    { id: 'dashboard' as V2NavRoute, label: 'Overview', icon: <Layers size={18} /> },
-    { id: 'surveillance' as V2NavRoute, label: 'Surveillance Grid', icon: <Grid size={18} /> },
-    { id: 'archive' as V2NavRoute, label: 'Archive & Timeline', icon: <Film size={18} /> },
-    { id: 'ai_events' as V2NavRoute, label: 'AI Metadata Stream', icon: <Cpu size={18} /> },
-    { id: 'topology' as V2NavRoute, label: 'Topology & Stats', icon: <Activity size={18} /> },
-    { id: 'settings' as V2NavRoute, label: 'Camera Settings', icon: <Settings size={18} /> },
+    { id: 'dashboard' as V2NavRoute, label: t('v2.nav.overview', 'Overview'), icon: <Layers size={18} /> },
+    { id: 'surveillance' as V2NavRoute, label: t('v2.nav.surveillance', 'Surveillance Grid'), icon: <Grid size={18} /> },
+    { id: 'archive' as V2NavRoute, label: t('v2.nav.archive', 'Archive & Timeline'), icon: <Film size={18} /> },
+    { id: 'ai_events' as V2NavRoute, label: t('v2.nav.ai_events', 'AI Metadata Stream'), icon: <Cpu size={18} /> },
+    { id: 'topology' as V2NavRoute, label: t('v2.nav.topology', 'Topology & Stats'), icon: <Activity size={18} /> },
+    { id: 'settings' as V2NavRoute, label: t('v2.nav.settings', 'Camera Settings'), icon: <Settings size={18} /> },
   ];
 
   return (

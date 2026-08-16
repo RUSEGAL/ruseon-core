@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Zap, CheckCircle2, Sparkles, Laptop, Smartphone, Monitor } from 'lucide-react';
 import {
   getHardwareProfile,
@@ -11,6 +12,7 @@ import {
 import { globalInferenceClient } from '../../ai/inference-client';
 
 export const AiDetectionSettingsCard: React.FC = () => {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<HardwareProfile | null>(null);
   const [preference, setPreference] = useState<AiModelPreference>(getAiModelPreference());
   const [activeTier, setActiveTier] = useState<AiModelTier>(globalInferenceClient.getCurrentTier());
@@ -78,10 +80,10 @@ export const AiDetectionSettingsCard: React.FC = () => {
           </div>
           <div>
             <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
-              Клиентский ИИ-движок (Browser-side WebGPU)
+              {t('v2.ai.title', 'Client AI Engine (Browser-side WebGPU)')}
             </h3>
             <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
-              Инференс выполняется локально на вашей видеокарте без передачи видео на сервер.
+              {t('v2.ai.subtitle', 'Inference is executed locally on your GPU without sending video to the server.')}
             </p>
           </div>
         </div>
@@ -110,7 +112,7 @@ export const AiDetectionSettingsCard: React.FC = () => {
               boxShadow: `0 0 8px ${profile?.hasWebGpu ? '#10b981' : '#f59e0b'}`,
             }}
           />
-          <span>{profile?.hasWebGpu ? 'WebGPU Акселерация активна' : 'CPU WASM режим'}</span>
+          <span>{profile?.hasWebGpu ? t('v2.ai.webgpu_active', 'WebGPU Acceleration Active') : t('v2.ai.wasm_active', 'CPU WASM Fallback')}</span>
         </div>
       </div>
 
@@ -136,13 +138,13 @@ export const AiDetectionSettingsCard: React.FC = () => {
                 {profile.gpuRenderer}
               </div>
               <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
-                {profile.deviceType.toUpperCase()} • {profile.cpuCores} CPU ядер • {profile.memoryGb} GB RAM
+                {profile.deviceType.toUpperCase()} • {profile.cpuCores} CPU • {profile.memoryGb} GB RAM
               </div>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#94a3b8' }}>
-            <span>Рекомендованный профиль:</span>
+            <span>{t('v2.ai.recommended', 'Recommended Profile:')}</span>
             <span style={{ color: '#38bdf8', fontWeight: 600 }}>
               {AI_MODELS_INFO[profile.recommendedTier].name}
             </span>
@@ -168,12 +170,12 @@ export const AiDetectionSettingsCard: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: '#f8fafc', fontSize: '0.84rem' }}>
               <Zap size={14} color="#818cf8" />
-              <span>Авто-определение</span>
+              <span>{t('v2.ai.auto', 'Auto Detect')}</span>
             </div>
             {preference === 'auto' && <CheckCircle2 size={15} color="#818cf8" />}
           </div>
           <p style={{ fontSize: '0.73rem', color: '#94a3b8', margin: 0, lineHeight: 1.35 }}>
-            Автоматически подбирает модель под видеокарту устройства (сейчас:{' '}
+            {t('v2.ai.auto_desc', 'Automatically selects the optimal model for your GPU (currently:')}{' '}
             <strong style={{ color: '#38bdf8' }}>{profile ? AI_MODELS_INFO[profile.recommendedTier].name.split(' ')[0] : '...'}</strong>).
           </p>
         </div>
@@ -251,12 +253,12 @@ export const AiDetectionSettingsCard: React.FC = () => {
       {/* Active Model Indicator */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#64748b' }}>
         <div>
-          Активная модель в памяти:{' '}
+          {t('v2.ai.active_model', 'Active Model in Memory:')}{' '}
           <strong style={{ color: '#e2e8f0' }}>{AI_MODELS_INFO[activeTier].name}</strong>
-          {isSwitching && <span style={{ color: '#fbbf24', marginLeft: '6px' }}>(загрузка...)</span>}
+          {isSwitching && <span style={{ color: '#fbbf24', marginLeft: '6px' }}>({t('v2.ai.loading', 'loading...')})</span>}
         </div>
         <div>
-          Кеш: <span style={{ color: '#10b981' }}>Cache API (мгновенный старт)</span>
+          {t('v2.ai.cache', 'Cache:')} <span style={{ color: '#10b981' }}>{t('v2.ai.instant_start', 'Cache API (Instant Start)')}</span>
         </div>
       </div>
     </div>
