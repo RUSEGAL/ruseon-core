@@ -12,7 +12,7 @@ import (
 )
 
 var wsUpgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
+	CheckOrigin: func(_ *http.Request) bool {
 		return true // CORS handled by upper middleware
 	},
 	ReadBufferSize:  1024,
@@ -72,6 +72,11 @@ func (h *Handler) StreamWS(c *gin.Context) {
 		codecType = 2 // H.265 / HEVC
 	}
 
+	if len(vps) > 0xFFFF || len(sps) > 0xFFFF || len(pps) > 0xFFFF {
+		log.Error().Str("id", id).Msg("Codec parameters exceed maximum size")
+		return
+	}
+
 	// 1. Build and send Header Packet
 	headerSize := 1 + 1 + 2 + len(vps) + 2 + len(sps) + 2 + len(pps)
 	headerBuf := make([]byte, headerSize)
@@ -79,21 +84,23 @@ func (h *Handler) StreamWS(c *gin.Context) {
 	headerBuf[1] = codecType
 	offset := 2
 
-	binary.BigEndian.PutUint16(headerBuf[offset:], uint16(len(vps)))
+	binary.BigEndian.PutUint16(headerBuf[offset:], uint16(len(vps))) //nolint:gosec // validated <= 0xFFFF
 	offset += 2
 	copy(headerBuf[offset:], vps)
 	offset += len(vps)
 
-	binary.BigEndian.PutUint16(headerBuf[offset:], uint16(len(sps)))
+	binary.BigEndian.PutUint16(headerBuf[offset:], uint16(len(sps))) //nolint:gosec // validated <= 0xFFFF
 	offset += 2
 	copy(headerBuf[offset:], sps)
 	offset += len(sps)
 
-	binary.BigEndian.PutUint16(headerBuf[offset:], uint16(len(pps)))
+	binary.BigEndian.PutUint16(headerBuf[offset:], uint16(len(pps))) //nolint:gosec // validated <= 0xFFFF
 	offset += 2
 	copy(headerBuf[offset:], pps)
 
-	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	if err := conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return
+	}
 	if err := conn.WriteMessage(websocket.BinaryMessage, headerBuf); err != nil {
 		log.Debug().Err(err).Str("id", id).Msg("Client disconnected before WebCodecs header")
 		return
@@ -104,10 +111,11 @@ func (h *Handler) StreamWS(c *gin.Context) {
 	defer sub.Close()
 
 	// Configure heartbeat and reader loop to detect disconnects
-	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	if err := conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+		return
+	}
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-		return nil
+		return conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	})
 
 	go func() {
@@ -133,7 +141,9 @@ func (h *Handler) StreamWS(c *gin.Context) {
 			return
 
 		case <-pingTicker.C:
-			conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			if err := conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+				return
+			}
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
@@ -165,7 +175,12 @@ func (h *Handler) StreamWS(c *gin.Context) {
 			} else {
 				packet[1] = 0x00
 			}
-			binary.BigEndian.PutUint64(packet[2:10], uint64(frame.Timestamp.Microseconds()))
+
+			tsMicro := frame.Timestamp.Microseconds()
+			if tsMicro < 0 {
+				tsMicro = 0
+			}
+			binary.BigEndian.PutUint64(packet[2:10], uint64(tsMicro)) //nolint:gosec // tsMicro >= 0
 
 			writePos := 10
 			for _, nalu := range frame.NALUs {
@@ -175,7 +190,9 @@ func (h *Handler) StreamWS(c *gin.Context) {
 				writePos += len(nalu)
 			}
 
-			conn.SetWriteDeadline(time.Now().Add(3 * time.Second))
+			if err := conn.SetWriteDeadline(time.Now().Add(3 * time.Second)); err != nil {
+				return
+			}
 			if err := conn.WriteMessage(websocket.BinaryMessage, packet); err != nil {
 				return
 			}
@@ -184,3 +201,4 @@ func (h *Handler) StreamWS(c *gin.Context) {
 		}
 	}
 }
+
