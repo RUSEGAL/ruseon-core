@@ -3,9 +3,10 @@ package api
 import (
 	"io"
 	"io/fs"
-	"net/http"
-	"time"
 	"mime"
+	"net/http"
+	"strings"
+	"time"
 
 	"github.com/RUSEGAL/ruseon-core/web"
 
@@ -31,6 +32,9 @@ func init() {
 	_ = mime.AddExtensionType(".woff2", "font/woff2")
 	_ = mime.AddExtensionType(".js", "application/javascript")
 	_ = mime.AddExtensionType(".css", "text/css")
+	_ = mime.AddExtensionType(".svg", "image/svg+xml")
+	_ = mime.AddExtensionType(".ico", "image/x-icon")
+	_ = mime.AddExtensionType(".wasm", "application/wasm")
 }
 
 // SetupRouter инициализирует маршруты Gin.
@@ -214,6 +218,22 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool, corsOrigin
 			c.String(http.StatusNotFound, "Frontend not embedded")
 			return
 		}
+
+		// Try to serve static root file from distFS (e.g. /favicon.svg, /favicon.ico, /icons.svg)
+		reqPath := strings.TrimPrefix(c.Request.URL.Path, "/")
+		if reqPath != "" && !strings.Contains(reqPath, "..") {
+			if f, errOpen := distFS.Open(reqPath); errOpen == nil {
+				defer f.Close()
+				if stat, errStat := f.Stat(); errStat == nil && !stat.IsDir() {
+					if rs, ok := f.(io.ReadSeeker); ok {
+						http.ServeContent(c.Writer, c.Request, stat.Name(), stat.ModTime(), rs)
+						return
+					}
+				}
+			}
+		}
+
+		// Fallback to index.html for client-side SPA routing
 		file, err2 := distFS.Open("index.html")
 		if err2 != nil {
 			c.String(http.StatusNotFound, "index.html not found")
