@@ -35,7 +35,7 @@ func (s *Segment) Retain() {
 
 // Release уменьшает счетчик ссылок. Когда счетчик падает до 0, буфер возвращается в sync.Pool.
 func (s *Segment) Release() {
-	if s.refCount.Add(-1) <= 0 {
+	if s.refCount.Add(-1) == 0 {
 		if s.buf != nil {
 			s.buf.Reset()
 			bufferPool.Put(s.buf)
@@ -335,7 +335,11 @@ func (m *Muxer) watchdog() {
 						Name:            fmt.Sprintf("stream_%d.ts", m.seqCount),
 						Duration:        lastSeg.Duration,
 						Data:            lastSeg.Data,
+						buf:             lastSeg.buf,
 						IsDiscontinuity: true, // Сигнал для плеера, что PTS может прыгнуть
+					}
+					if lastSeg.buf != nil {
+						lastSeg.Retain()
 					}
 					seg.refCount.Store(1)
 					m.segments = append(m.segments, seg)
@@ -408,6 +412,9 @@ func (m *Muxer) GetPlaylist() string {
 	}
 
 	res := string(buf)
+	if cap(buf) > 4096 {
+		buf = make([]byte, 0, 1024)
+	}
 	*pBuf = buf
 	playlistPool.Put(pBuf)
 	return res
@@ -454,6 +461,9 @@ func (m *Muxer) GetSubsPlaylist() string {
 	}
 
 	res := string(buf)
+	if cap(buf) > 4096 {
+		buf = make([]byte, 0, 1024)
+	}
 	*pBuf = buf
 	playlistPool.Put(pBuf)
 	return res
@@ -471,10 +481,10 @@ func (m *Muxer) AcquireSegment(name string) (*Segment, string) {
 	defer m.mu.RUnlock()
 	for _, seg := range m.segments {
 		if seg.Name == tsName {
+			seg.Retain()
 			if isVTT {
 				return seg, "text/vtt"
 			}
-			seg.Retain()
 			return seg, "video/mp2t"
 		}
 	}
@@ -487,10 +497,12 @@ func (m *Muxer) GetSegment(name string) ([]byte, string) {
 	if seg == nil {
 		return nil, ""
 	}
-	if mimeType == "text/vtt" {
-		return seg.VTTData, mimeType
-	}
 	defer seg.Release()
+	if mimeType == "text/vtt" {
+		resp := make([]byte, len(seg.VTTData))
+		copy(resp, seg.VTTData)
+		return resp, mimeType
+	}
 	resp := make([]byte, len(seg.Data))
 	copy(resp, seg.Data)
 	return resp, mimeType

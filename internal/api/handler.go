@@ -533,12 +533,12 @@ func (h *Handler) GetHLSSegment(c *gin.Context) {
 		c.String(http.StatusNotFound, "Segment not found")
 		return
 	}
+	defer seg.Release()
 
 	var data []byte
 	if mimeType == "text/vtt" {
 		data = seg.VTTData
 	} else {
-		defer seg.Release()
 		data = seg.Data
 	}
 
