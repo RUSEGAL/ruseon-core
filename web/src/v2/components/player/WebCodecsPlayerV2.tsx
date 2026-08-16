@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Loader2, AlertTriangle, Cpu } from 'lucide-react';
-import type { MetadataPayload } from '../../../components/MetadataOverlay';
+import type { MetadataPayload } from '../../../types';
 
 interface WebCodecsPlayerV2Props {
   streamId: string;
@@ -196,17 +196,21 @@ export const WebCodecsPlayerV2: React.FC<WebCodecsPlayerV2Props> = ({
                     ctx.lineWidth = 3;
                     ctx.font = 'bold 16px sans-serif';
                     for (const obj of currentMetadataRef.current.objects) {
-                      const x = obj.x * canvas.width;
-                      const y = obj.y * canvas.height;
-                      const w = obj.w * canvas.width;
-                      const h = obj.h * canvas.height;
+                      const objX = obj.x !== undefined ? obj.x : (obj.box ? obj.box[1] : 0);
+                      const objY = obj.y !== undefined ? obj.y : (obj.box ? obj.box[0] : 0);
+                      const objW = obj.w !== undefined ? obj.w : (obj.box ? obj.box[3] - obj.box[1] : 0);
+                      const objH = obj.h !== undefined ? obj.h : (obj.box ? obj.box[2] - obj.box[0] : 0);
+                      const x = objX * canvas.width;
+                      const y = objY * canvas.height;
+                      const w = objW * canvas.width;
+                      const h = objH * canvas.height;
                       ctx.strokeStyle = '#10b981';
                       ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
                       ctx.strokeRect(x, y, w, h);
                       ctx.fillRect(x, y, w, h);
 
                       ctx.fillStyle = '#10b981';
-                      const label = `${obj.className || 'Object'} (${Math.round(obj.confidence * 100)}%)`;
+                      const label = `${obj.className || obj.class || 'Object'} (${Math.round(obj.confidence * 100)}%)`;
                       ctx.fillText(label, x + 4, Math.max(20, y - 6));
                     }
                     ctx.restore();

@@ -2,7 +2,23 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Camera, Settings, Smartphone, AlertTriangle } from 'lucide-react';
 import type { TagConfig, FolderConfig } from '../../../types';
-import type { CamFormState } from '../../../components/modals/CameraFormModal';
+
+export interface CamFormState {
+  id: string;
+  url: string;
+  record: boolean;
+  lazyHLS: boolean;
+  tokenAuth: boolean;
+  transport: string;
+  retentionDays: number;
+  tags: string[];
+  folderId: string;
+  comment: string;
+  simPhone: string;
+  simICCID: string;
+  disabled: boolean;
+  disableReason: string;
+}
 
 interface V2CameraFormModalProps {
   isEditing: boolean;
@@ -28,7 +44,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
 
   const toggleTag = (tagId: string) => {
     const newTags = camForm.tags.includes(tagId)
-      ? camForm.tags.filter((id) => id !== tagId)
+      ? camForm.tags.filter((id: string) => id !== tagId)
       : [...camForm.tags, tagId];
     setCamForm({ ...camForm, tags: newTags });
   };

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, WifiOff } from 'lucide-react';
-import { MetadataOverlay } from '../../../components/MetadataOverlay';
-import type { MetadataPayload } from '../../../components/MetadataOverlay';
+import { V2MetadataOverlay } from './V2MetadataOverlay';
+import type { MetadataPayload } from '../../../types';
 
 interface WebRTCPlayerV2Props {
   streamId: string;
@@ -164,7 +164,7 @@ export const WebRTCPlayerV2: React.FC<WebRTCPlayerV2Props> = ({
 
       {/* Render AI Bounding Boxes overlay synchronized with video element */}
       {showMetadata && localMetadata && (
-        <MetadataOverlay metadata={localMetadata} videoRef={videoRef} />
+        <V2MetadataOverlay metadata={localMetadata} videoRef={videoRef} />
       )}
 
       {loading && !error && (

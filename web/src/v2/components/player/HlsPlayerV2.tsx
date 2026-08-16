@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { Loader2, WifiOff } from 'lucide-react';
-import { MetadataOverlay } from '../../../components/MetadataOverlay';
-import type { MetadataPayload } from '../../../components/MetadataOverlay';
+import { V2MetadataOverlay } from './V2MetadataOverlay';
+import type { MetadataPayload } from '../../../types';
 
 interface HlsPlayerV2Props {
   streamId: string;
@@ -131,7 +131,7 @@ export const HlsPlayerV2: React.FC<HlsPlayerV2Props> = ({
       />
 
       {showMetadata && localMetadata && (
-        <MetadataOverlay metadata={localMetadata} videoRef={videoRef} />
+        <V2MetadataOverlay metadata={localMetadata} videoRef={videoRef} />
       )}
 
       {loading && !error && (

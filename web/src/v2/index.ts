@@ -1,10 +1,6 @@
 // Styles
 import './styles/v2.css';
 
-// Context
-export { UiVariantProvider, useUiVariant } from './context/UiVariantContext';
-export type { UiVariant } from './context/UiVariantContext';
-
 // Core
 export { globalPlayerOrchestrator, PlayerOrchestrator } from './core/orchestrator';
 export type { StreamingProtocol } from './core/orchestrator';
@@ -18,7 +14,6 @@ export { useSurveillanceLayout } from './hooks/useSurveillanceLayout';
 
 // Components
 export { V2Layout } from './components/layout/V2Layout';
-export { UiVariantToggle } from './components/common/UiVariantToggle';
 export { UniversalCameraPlayer } from './components/player/UniversalCameraPlayer';
 export { WebCodecsPlayerV2 } from './components/player/WebCodecsPlayerV2';
 export { WebRTCPlayerV2 } from './components/player/WebRTCPlayerV2';
@@ -40,4 +35,3 @@ export { V2UserManagerModal } from './components/modals/V2UserManagerModal';
 export { AiOverlay } from './ai/AiOverlay';
 export { globalInferenceClient } from './ai/inference-client';
 export { useCameraAiDetection } from './hooks/useCameraAiDetection';
-

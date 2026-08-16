@@ -77,3 +77,20 @@ export interface ServerStats {
   numGC?: number;
   numCPU?: number;
 }
+
+export interface DetectedObject {
+  class?: string;
+  className?: string;
+  confidence: number;
+  box?: [number, number, number, number];
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  trackId?: number;
+}
+
+export interface MetadataPayload {
+  timestamp: number;
+  objects: DetectedObject[];
+}
