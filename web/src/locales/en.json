@@ -16,10 +16,17 @@
   },
   "login": {
     "title": "RUSEON Core",
-    "placeholder": "Password...",
-    "button": "Login",
-    "error": "Invalid password",
-    "subtitle": "Enter your password to access the system"
+    "subtitle": "Next-Gen Video Surveillance & AI Stream Engine",
+    "username": "Username",
+    "usernamePlaceholder": "Enter your username...",
+    "password": "Password",
+    "passwordPlaceholder": "Enter your password...",
+    "button": "Sign In to Console",
+    "signingIn": "Signing In...",
+    "invalidCredentials": "Invalid username or password. Please verify credentials.",
+    "networkError": "Network error. Unable to connect to server.",
+    "securityNotice": "Protected by JWT & Argon2id encryption",
+    "systemOnline": "Engine Online"
   },
   "dashboard": {
     "systemInfo": "System Information",

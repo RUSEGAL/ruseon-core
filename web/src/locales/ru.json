@@ -16,10 +16,17 @@
   },
   "login": {
     "title": "RUSEON Core",
-    "placeholder": "Пароль...",
-    "button": "Войти",
-    "error": "Неверный пароль",
-    "subtitle": "Введите пароль для доступа к системе"
+    "subtitle": "Видеонаблюдение нового поколения и ИИ-стриминг",
+    "username": "Имя пользователя",
+    "usernamePlaceholder": "Введите ваш логин...",
+    "password": "Пароль",
+    "passwordPlaceholder": "Введите ваш пароль...",
+    "button": "Войти в систему",
+    "signingIn": "Авторизация...",
+    "invalidCredentials": "Неверный логин или пароль. Пожалуйста, проверьте данные.",
+    "networkError": "Ошибка соединения. Сервер временно недоступен.",
+    "securityNotice": "Защищено протоколами шифрования JWT & Argon2id",
+    "systemOnline": "Сервер онлайн"
   },
   "dashboard": {
     "systemInfo": "Системная информация",
