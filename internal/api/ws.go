@@ -133,6 +133,7 @@ func (h *Handler) StreamWS(c *gin.Context) {
 
 	annexBHeader := []byte{0x00, 0x00, 0x00, 0x01}
 	syncedKeyFrame := false
+	var packetBuf []byte
 
 	// Annex-B reusable packet buffer
 	for {
@@ -168,36 +169,42 @@ func (h *Handler) StreamWS(c *gin.Context) {
 			}
 
 			// Packet structure: [0x02][IsKeyFrame 1B][Timestamp 8B][Payload...]
-			packet := make([]byte, 1+1+8+totalPayloadLen)
-			packet[0] = 0x02
-			if frame.IsKeyFrame {
-				packet[1] = 0x01
+			reqLen := 1 + 1 + 8 + totalPayloadLen
+			if cap(packetBuf) < reqLen {
+				packetBuf = make([]byte, reqLen)
 			} else {
-				packet[1] = 0x00
+				packetBuf = packetBuf[:reqLen]
+			}
+
+			packetBuf[0] = 0x02
+			if frame.IsKeyFrame {
+				packetBuf[1] = 0x01
+			} else {
+				packetBuf[1] = 0x00
 			}
 
 			tsMicro := frame.Timestamp.Microseconds()
 			if tsMicro < 0 {
 				tsMicro = 0
 			}
-			binary.BigEndian.PutUint64(packet[2:10], uint64(tsMicro)) //nolint:gosec // tsMicro >= 0
+			binary.BigEndian.PutUint64(packetBuf[2:10], uint64(tsMicro)) //nolint:gosec // tsMicro >= 0
 
 			writePos := 10
 			for _, nalu := range frame.NALUs {
-				copy(packet[writePos:], annexBHeader)
+				copy(packetBuf[writePos:], annexBHeader)
 				writePos += len(annexBHeader)
-				copy(packet[writePos:], nalu)
+				copy(packetBuf[writePos:], nalu)
 				writePos += len(nalu)
 			}
 
 			if err := conn.SetWriteDeadline(time.Now().Add(3 * time.Second)); err != nil {
 				return
 			}
-			if err := conn.WriteMessage(websocket.BinaryMessage, packet); err != nil {
+			if err := conn.WriteMessage(websocket.BinaryMessage, packetBuf); err != nil {
 				return
 			}
 
-			st.AddBytesSent(uint64(len(packet)))
+			st.AddBytesSent(uint64(len(packetBuf)))
 		}
 	}
 }

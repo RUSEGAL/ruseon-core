@@ -28,7 +28,7 @@ func BenchmarkGetPlaylist(b *testing.B) {
 	})
 }
 
-// BenchmarkGetSegment эмулирует Thundering Herd к Muxer'у
+// BenchmarkGetSegment эмулирует legacy запрос к Muxer'у с копированием
 func BenchmarkGetSegment(b *testing.B) {
 	muxer := &Muxer{
 		segments: []*Segment{
@@ -45,3 +45,26 @@ func BenchmarkGetSegment(b *testing.B) {
 		}
 	})
 }
+
+// BenchmarkAcquireSegment эмулирует Zero-Copy запрос к Muxer'у с ARC Release
+func BenchmarkAcquireSegment(b *testing.B) {
+	muxer := &Muxer{
+		segments: []*Segment{
+			{Name: "stream_1.ts", Duration: 2 * time.Second, Data: make([]byte, 1024*1024)}, // 1MB segment
+		},
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			seg, _ := muxer.AcquireSegment("stream_1.ts")
+			if seg != nil {
+				_ = seg.Data
+				seg.Release()
+			}
+		}
+	})
+}
+
