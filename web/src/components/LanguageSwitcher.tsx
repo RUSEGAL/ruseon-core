@@ -1,25 +1,69 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { Globe } from 'lucide-react';
 
 export const LanguageSwitcher: React.FC = () => {
   const { i18n } = useTranslation();
+  const currentLang = i18n.language.startsWith('ru') ? 'ru' : 'en';
 
-  const toggleLanguage = () => {
-    const newLang = i18n.language.startsWith('ru') ? 'en' : 'ru';
-    i18n.changeLanguage(newLang);
+  const setLanguage = (lang: 'ru' | 'en') => {
+    i18n.changeLanguage(lang);
   };
 
   return (
-    <button
-      onClick={toggleLanguage}
-      className="btn btn-secondary"
-      style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '8px 12px' }}
-      title="Switch Language"
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        background: 'rgba(0, 0, 0, 0.45)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        borderRadius: '8px',
+        padding: '2px',
+        gap: '2px',
+      }}
     >
-      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-      </svg>
-      {i18n.language.startsWith('ru') ? 'RU' : 'EN'}
-    </button>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '0 4px', color: '#818cf8' }}>
+        <Globe size={13} />
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setLanguage('ru')}
+        style={{
+          border: 'none',
+          borderRadius: '6px',
+          padding: '4px 8px',
+          background: currentLang === 'ru' ? 'rgba(99, 102, 241, 0.3)' : 'transparent',
+          color: currentLang === 'ru' ? '#e0e7ff' : '#64748b',
+          fontSize: '0.74rem',
+          fontWeight: 700,
+          cursor: 'pointer',
+          transition: 'all 0.15s ease',
+        }}
+        title="Русский язык"
+      >
+        RU
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setLanguage('en')}
+        style={{
+          border: 'none',
+          borderRadius: '6px',
+          padding: '4px 8px',
+          background: currentLang === 'en' ? 'rgba(99, 102, 241, 0.3)' : 'transparent',
+          color: currentLang === 'en' ? '#e0e7ff' : '#64748b',
+          fontSize: '0.74rem',
+          fontWeight: 700,
+          cursor: 'pointer',
+          transition: 'all 0.15s ease',
+        }}
+        title="English"
+      >
+        EN
+      </button>
+    </div>
   );
 };
+
