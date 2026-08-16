@@ -20,7 +20,7 @@ export const UiVariantProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch {
       // Fallback
     }
-    return 'classic';
+    return 'v2';
   });
 
   const setUiVariant = (variant: UiVariant) => {
