@@ -217,6 +217,7 @@ func (m *Muxer) run() {
 			}
 			// Берем буфер из пула, избегая частых аллокаций гигантских слайсов
 			currentBuf = bufferPool.Get().(*bytes.Buffer)
+			currentBuf.Reset()
 			var t mpegts.Codec
 			if vps != nil {
 				t = &mpegts.CodecH265{}
@@ -331,15 +332,14 @@ func (m *Muxer) watchdog() {
 				if len(m.segments) > 0 {
 					lastSeg := m.segments[len(m.segments)-1]
 					m.seqCount++
+					dataCopy := make([]byte, len(lastSeg.Data))
+					copy(dataCopy, lastSeg.Data)
 					seg := &Segment{
 						Name:            fmt.Sprintf("stream_%d.ts", m.seqCount),
 						Duration:        lastSeg.Duration,
-						Data:            lastSeg.Data,
-						buf:             lastSeg.buf,
+						Data:            dataCopy,
+						buf:             nil,
 						IsDiscontinuity: true, // Сигнал для плеера, что PTS может прыгнуть
-					}
-					if lastSeg.buf != nil {
-						lastSeg.Retain()
 					}
 					seg.refCount.Store(1)
 					m.segments = append(m.segments, seg)
