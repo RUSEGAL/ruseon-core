@@ -16,10 +16,17 @@
   },
   "login": {
     "title": "RUSEON Core",
-    "placeholder": "Пароль...",
-    "button": "Войти",
-    "error": "Неверный пароль",
-    "subtitle": "Введите пароль для доступа к системе"
+    "subtitle": "Видеонаблюдение нового поколения и ИИ-стриминг",
+    "username": "Имя пользователя",
+    "usernamePlaceholder": "Введите ваш логин...",
+    "password": "Пароль",
+    "passwordPlaceholder": "Введите ваш пароль...",
+    "button": "Войти в систему",
+    "signingIn": "Авторизация...",
+    "invalidCredentials": "Неверный логин или пароль. Пожалуйста, проверьте данные.",
+    "networkError": "Ошибка соединения. Сервер временно недоступен.",
+    "securityNotice": "Защищено протоколами шифрования JWT & Argon2id",
+    "systemOnline": "Сервер онлайн"
   },
   "dashboard": {
     "systemInfo": "Системная информация",
@@ -171,6 +178,214 @@
       "operator": "Оператор",
       "viewer": "Зритель",
       "service": "Сервис"
+    }
+  },
+  "v2": {
+    "nav": {
+      "overview": "Обзор",
+      "surveillance": "Сетка наблюдения",
+      "archive": "Архив и таймлайн",
+      "ai_events": "ИИ-аналитика",
+      "topology": "Топология и метрики",
+      "settings": "Настройки камер"
+    },
+    "header": {
+      "liveCameras": "Онлайн",
+      "ram": "ОЗУ",
+      "goroutines": "Горутины",
+      "users": "Пользователи",
+      "logs": "Логи",
+      "logout": "Выйти"
+    },
+    "ai": {
+      "title": "Клиентский ИИ-движок (Browser-side WebGPU)",
+      "subtitle": "Инференс выполняется локально на вашей видеокарте без передачи видео на сервер.",
+      "webgpu_active": "WebGPU Акселерация активна",
+      "wasm_active": "CPU WASM режим",
+      "recommended": "Рекомендованный профиль:",
+      "auto": "Авто-определение",
+      "auto_desc": "Автоматически подбирает модель под видеокарту устройства (сейчас:",
+      "active_model": "Активная модель в памяти:",
+      "loading": "загрузка...",
+      "cache": "Кеш:",
+      "instant_start": "Cache API (мгновенный старт)",
+      "models": {
+        "nano": {
+          "name": "YOLOv11-Nano (5.8 МБ)",
+          "desc": "Минимальное потребление батареи и трафика. Подходит для мобильных и слабых ПК."
+        },
+        "small": {
+          "name": "YOLOv11-Small (20.1 МБ)",
+          "desc": "Оптимальный баланс высокой точности и скорости. Быстрая детекция на ультрабуках и встроенной графике."
+        },
+        "medium": {
+          "name": "YOLOv11-Medium (41.2 МБ)",
+          "desc": "Максимальная точность. Различает мелкие объекты вдалеке, людей под любым углом и в сложной одежде."
+        }
+      }
+    },
+    "surveillance": {
+      "searchPlaceholder": "Поиск по ID, названию, тегам...",
+      "allCameras": "Все камеры",
+      "gridAuto": "Авто",
+      "fullscreen": "На весь экран",
+      "noCameras": "Нет доступных камер для отображения.",
+      "offline": "Офлайн",
+      "disabled": "Отключена",
+      "live": "LIVE",
+      "webrtc": "WebRTC",
+      "webcodecs": "WebCodecs",
+      "hls": "HLS",
+      "snapshot": "Snapshot"
+    },
+    "settings": {
+      "title": "Управление камерами и ресурсами",
+      "folders": "Папки",
+      "tags": "Теги",
+      "addCamera": "Добавить камеру",
+      "legacyUiTitle": "Отображение интерфейса",
+      "legacyUiDesc": "Переключение между современным Next-Gen V2 и классическим Legacy интерфейсом (v1).",
+      "switchToClassic": "Переключить на Classic UI (v1)",
+      "switchToV2": "Переключить на Next-Gen UI (v2)",
+      "table": {
+        "camera": "Камера",
+        "folder": "Папка",
+        "tags": "Теги",
+        "status": "Статус",
+        "protocol": "Протокол",
+        "recording": "Запись",
+        "sim": "SIM / Связь",
+        "actions": "Действия"
+      }
+    },
+    "dashboard": {
+      "onlineCameras": "ОНЛАЙН КАМЕРЫ",
+      "continuousRecording": "НЕПРЕРЫВНАЯ ЗАПИСЬ",
+      "activeStreams": "активных потоков",
+      "totalIngestTraffic": "ВХОДЯЩИЙ ТРАФИК",
+      "totalFramesProcessed": "ОБРАБОТАНО КАДРОВ",
+      "livePreview": "Предпросмотр активных камер",
+      "openGrid": "Перейти в сетку наблюдения"
+    },
+    "topology": {
+      "title": "Топология среды выполнения и профилирование Go",
+      "camerasConfigured": "камер настроено",
+      "goRuntime": "Go Runtime и выделение памяти",
+      "activeGoroutines": "Активные горутины",
+      "goleakCertified": "Утечки горутин отсутствуют (goleak certified)",
+      "badgerDb": "Движок хранилища BadgerDB",
+      "lsmActive": "LSM Активен",
+      "subMillisecond": "Субмиллисекундный индекс состояния и метаданных",
+      "sys": "Sys",
+      "gcRuns": "Запусков GC"
+    },
+    "aiEvents": {
+      "title": "Поток метаданных ИИ (gRPC / WebVTT)",
+      "allCameras": "Все камеры",
+      "filterPlaceholder": "Фильтр класса (person, car)...",
+      "thTime": "Время",
+      "thCamera": "Камера",
+      "thClass": "Класс объекта",
+      "thConfidence": "Уверенность",
+      "thBox": "Координаты [X, Y, W, H]"
+    },
+    "archive": {
+      "title": "Архив и таймлайн",
+      "selectCamera": "Камера",
+      "recording": "(Идет запись)",
+      "availableSegments": "Доступно сегментов:",
+      "noRecordings": "Записи не найдены за",
+      "stepBack": "-10 сек",
+      "stepForward": "+10 сек",
+      "play": "Воспроизведение",
+      "pause": "Пауза",
+      "selectRange": "Выбрать отрезок",
+      "cancelSelection": "Сбросить выбор",
+      "export": "Экспорт",
+      "cursor": "Курсор:",
+      "continuousFmp4": "Непрерывная fMP4",
+      "aiEventMotion": "ИИ-событие / Движение",
+      "segment": "Сегмент:"
+    },
+    "modals": {
+      "cameraDetails": {
+        "title": "Параметры и телеметрия камеры",
+        "telemetryTab": "Телеметрия и URL",
+        "cellularTab": "SIM, Состояние и Теги",
+        "historyTab": "История",
+        "stateLabel": "Состояние камеры:",
+        "directUrls": "Прямые потоки и эндпоинты",
+        "generateToken": "Создать временную ссылку с токеном",
+        "simInfo": "Информация о SIM-карте",
+        "cellularQuota": "Месячная квота сотовой связи",
+        "used": "Израсходовано",
+        "limit": "Лимит",
+        "tagsAndNotes": "Привязанные теги и заметки",
+        "note": "Заметка",
+        "disableHistory": "История отключений",
+        "noDisableEvents": "Нет записей об отключениях",
+        "recordHistory": "История непрерывной записи",
+        "noRecordEvents": "История записи пуста"
+      },
+      "cameraForm": {
+        "addTitle": "Добавление новой камеры",
+        "editTitle": "Редактирование камеры",
+        "generalTab": "Основные параметры",
+        "cellularTab": "SIM, Состояние и Теги",
+        "recordDesc": "Запись входящих H.264/H.265 фрагментов в индексированный таймлайн архив",
+        "lazyDesc": "Транскодирование и сборка HLS только при подключении активных зрителей",
+        "tokenAuth": "Требовать токен авторизации для воспроизведения",
+        "tokenAuthDesc": "Обязательная валидация JWT токена для HLS и WebRTC эндпоинтов",
+        "stateControl": "Состояние активности камеры",
+        "reasonsLabel": "Причина отключения камеры:"
+      },
+      "folders": {
+        "title": "Управление папками и локациями",
+        "placeholder": "Название новой папки..."
+      },
+      "tags": {
+        "title": "Управление тегами камер",
+        "placeholder": "Имя тега..."
+      },
+      "users": {
+        "title": "Управление пользователями (RBAC)"
+      },
+      "logs": {
+        "title": "Системный журнал в реальном времени (SSE)",
+        "showing": "Отображается",
+        "events": "событий",
+        "resume": "Возобновить",
+        "pause": "Пауза",
+        "copied": "Скопировано",
+        "copy": "Копировать",
+        "clear": "Очистить",
+        "searchPlaceholder": "Поиск в логах...",
+        "autoScroll": "Авто-прокрутка",
+        "empty": "Ожидание системных логов сервера..."
+      },
+      "stats": {
+        "title": "Системная диагностика и Go Runtime",
+        "goroutines": "АКТИВНЫЕ ГОРУТИНЫ",
+        "cpuCores": "ЛОГИЧЕСКИЕ ЯДРА CPU",
+        "heapAlloc": "ВЫДЕЛЕННАЯ ПАМЯТЬ (HEAP)",
+        "sysMemory": "СИСТЕМНАЯ ПАМЯТЬ (SYS)",
+        "heapObjects": "ОБЪЕКТЫ В ПАМЯТИ",
+        "gcRuns": "СБОРКА МУСОРА (GC)",
+        "backupTitle": "Полная резервная копия конфигурации",
+        "backupDesc": "Экспорт или импорт всей базы камер, папок, тегов и пользователей в формате JSON.",
+        "downloadBackup": "Скачать JSON бэкап",
+        "uploadBackup": "Загрузить JSON бэкап"
+      },
+      "export": {
+        "title": "Экспорт архивного отрезка",
+        "date": "Дата",
+        "interval": "Временной интервал",
+        "duration": "Длительность",
+        "estimatedSize": "Расчетный размер",
+        "target": "Формат экспорта",
+        "exporting": "Экспорт...",
+        "startExport": "Начать экспорт"
+      }
     }
   }
 }

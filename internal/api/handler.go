@@ -528,10 +528,18 @@ func (h *Handler) GetHLSSegment(c *gin.Context) {
 	}
 
 	muxer := st.WakeUpHLSMuxer()
-	data, mimeType := muxer.GetSegment(segment)
-	if data == nil {
+	seg, mimeType := muxer.AcquireSegment(segment)
+	if seg == nil {
 		c.String(http.StatusNotFound, "Segment not found")
 		return
+	}
+	defer seg.Release()
+
+	var data []byte
+	if mimeType == "text/vtt" {
+		data = seg.VTTData
+	} else {
+		data = seg.Data
 	}
 
 	c.Header("Content-Type", mimeType)

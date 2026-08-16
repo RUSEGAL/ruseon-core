@@ -2,6 +2,7 @@ import { LayoutGrid, List, Plus, LogOut, Tag, Terminal, Folder, Users } from 'lu
 import { Logo } from './Logo';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { UiVariantToggle } from '../v2/components/common/UiVariantToggle';
 
 interface HeaderProps {
   viewMode: 'grid' | 'list';
@@ -44,6 +45,7 @@ export function Header({ viewMode, setViewMode, onOpenAdd, onOpenTags, onOpenFol
             <List size={16} /> {t('nav.list')}
           </div>
         </div>
+        <UiVariantToggle />
         <LanguageSwitcher />
         
         {isAdmin && (

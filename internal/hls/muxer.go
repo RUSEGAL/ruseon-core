@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,13 +23,38 @@ type Segment struct {
 	Duration        time.Duration
 	Data            []byte
 	buf             *bytes.Buffer // ссылка для возврата в пул
+	refCount        atomic.Int32  // Reference counter для Zero-Copy
 	IsDiscontinuity bool
 	VTTData         []byte
+}
+
+// Retain увеличивает счетчик ссылок на сегмент.
+func (s *Segment) Retain() {
+	s.refCount.Add(1)
+}
+
+// Release уменьшает счетчик ссылок. Когда счетчик падает до 0, буфер возвращается в sync.Pool.
+func (s *Segment) Release() {
+	if s.refCount.Add(-1) == 0 {
+		if s.buf != nil {
+			s.buf.Reset()
+			bufferPool.Put(s.buf)
+			s.buf = nil
+			s.Data = nil
+		}
+	}
 }
 
 var bufferPool = sync.Pool{
 	New: func() interface{} {
 		return bytes.NewBuffer(make([]byte, 0, 1024*1024))
+	},
+}
+
+var playlistPool = sync.Pool{
+	New: func() interface{} {
+		buf := make([]byte, 0, 1024)
+		return &buf
 	},
 }
 
@@ -169,16 +195,14 @@ func (m *Muxer) run() {
 				IsDiscontinuity: m.needsDiscontinuity,
 				VTTData:         vttBuf.Bytes(),
 			}
+			seg.refCount.Store(1)
 			m.needsDiscontinuity = false
 			m.segments = append(m.segments, seg)
 			// Оставляем в памяти только последние 5 сегментов (окно Live в 10 секунд)
 			if len(m.segments) > 5 {
 				oldSeg := m.segments[0]
 				m.segments = m.segments[1:]
-				if oldSeg.buf != nil {
-					oldSeg.buf.Reset()
-					bufferPool.Put(oldSeg.buf)
-				}
+				oldSeg.Release()
 			}
 			m.mu.Unlock()
 
@@ -193,6 +217,7 @@ func (m *Muxer) run() {
 			}
 			// Берем буфер из пула, избегая частых аллокаций гигантских слайсов
 			currentBuf = bufferPool.Get().(*bytes.Buffer)
+			currentBuf.Reset()
 			var t mpegts.Codec
 			if vps != nil {
 				t = &mpegts.CodecH265{}
@@ -269,12 +294,18 @@ func (m *Muxer) readMetadata() {
 	}
 }
 
-// Stop останавливает работу Muxer'а.
+// Stop останавливает работу Muxer'а и очищает оставшиеся сегменты.
 func (m *Muxer) Stop() {
 	if m.unsubscribe != nil {
 		m.unsubscribe()
 	}
 	m.cancel()
+	m.mu.Lock()
+	for _, seg := range m.segments {
+		seg.Release()
+	}
+	m.segments = nil
+	m.mu.Unlock()
 }
 
 // watchdog следит за поступлением новых кадров. Если кадров нет больше 5 секунд (обрыв связи),
@@ -301,15 +332,21 @@ func (m *Muxer) watchdog() {
 				if len(m.segments) > 0 {
 					lastSeg := m.segments[len(m.segments)-1]
 					m.seqCount++
+					dataCopy := make([]byte, len(lastSeg.Data))
+					copy(dataCopy, lastSeg.Data)
 					seg := &Segment{
 						Name:            fmt.Sprintf("stream_%d.ts", m.seqCount),
 						Duration:        lastSeg.Duration,
-						Data:            lastSeg.Data,
+						Data:            dataCopy,
+						buf:             nil,
 						IsDiscontinuity: true, // Сигнал для плеера, что PTS может прыгнуть
 					}
+					seg.refCount.Store(1)
 					m.segments = append(m.segments, seg)
 					if len(m.segments) > 5 {
+						oldSeg := m.segments[0]
 						m.segments = m.segments[1:]
+						oldSeg.Release()
 					}
 					// Сбрасываем таймер, чтобы следующий дубликат добавился еще через 5 секунд
 					m.lastFrameTime.Store(time.Now().UnixNano())
@@ -323,7 +360,7 @@ func (m *Muxer) watchdog() {
 	}
 }
 
-// GetPlaylist генерирует M3U8 манифест.
+// GetPlaylist генерирует M3U8 манифест со сверхнизким числом аллокаций.
 func (m *Muxer) GetPlaylist() string {
 	// В режиме Lazy HLS при первом запуске сегментов еще нет.
 	// Ждем до 5 секунд, пока сгенерируется хотя бы один сегмент,
@@ -341,9 +378,10 @@ func (m *Muxer) GetPlaylist() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var buf bytes.Buffer
-	buf.WriteString("#EXTM3U\n")
-	buf.WriteString("#EXT-X-VERSION:3\n")
+	pBuf := playlistPool.Get().(*[]byte)
+	buf := (*pBuf)[:0]
+
+	buf = append(buf, "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:"...)
 
 	maxDuration := 2
 	for _, seg := range m.segments {
@@ -352,23 +390,34 @@ func (m *Muxer) GetPlaylist() string {
 			maxDuration = d
 		}
 	}
-	buf.WriteString(fmt.Sprintf("#EXT-X-TARGETDURATION:%d\n", maxDuration+1))
+	buf = strconv.AppendInt(buf, int64(maxDuration+1), 10)
+	buf = append(buf, '\n')
 
 	if len(m.segments) > 0 {
 		seq := m.seqCount - uint64(len(m.segments)) + 1
-		buf.WriteString(fmt.Sprintf("#EXT-X-MEDIA-SEQUENCE:%d\n", seq))
+		buf = append(buf, "#EXT-X-MEDIA-SEQUENCE:"...)
+		buf = strconv.AppendUint(buf, seq, 10)
+		buf = append(buf, '\n')
 	}
 
 	for _, seg := range m.segments {
 		if seg.IsDiscontinuity {
-			buf.WriteString("#EXT-X-DISCONTINUITY\n")
+			buf = append(buf, "#EXT-X-DISCONTINUITY\n"...)
 		}
-		buf.WriteString(fmt.Sprintf("#EXTINF:%.3f,\n", seg.Duration.Seconds()))
-		buf.WriteString(seg.Name)
-		buf.WriteByte('\n')
+		buf = append(buf, "#EXTINF:"...)
+		buf = strconv.AppendFloat(buf, seg.Duration.Seconds(), 'f', 3, 64)
+		buf = append(buf, ",\n"...)
+		buf = append(buf, seg.Name...)
+		buf = append(buf, '\n')
 	}
 
-	return buf.String()
+	res := string(buf)
+	if cap(buf) > 4096 {
+		buf = make([]byte, 0, 1024)
+	}
+	*pBuf = buf
+	playlistPool.Put(pBuf)
+	return res
 }
 
 // GetSubsPlaylist генерирует M3U8 манифест для субтитров (WebVTT).
@@ -376,9 +425,10 @@ func (m *Muxer) GetSubsPlaylist() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var buf bytes.Buffer
-	buf.WriteString("#EXTM3U\n")
-	buf.WriteString("#EXT-X-VERSION:3\n")
+	pBuf := playlistPool.Get().(*[]byte)
+	buf := (*pBuf)[:0]
+
+	buf = append(buf, "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:"...)
 
 	maxDuration := 2
 	for _, seg := range m.segments {
@@ -387,29 +437,40 @@ func (m *Muxer) GetSubsPlaylist() string {
 			maxDuration = d
 		}
 	}
-	buf.WriteString(fmt.Sprintf("#EXT-X-TARGETDURATION:%d\n", maxDuration+1))
+	buf = strconv.AppendInt(buf, int64(maxDuration+1), 10)
+	buf = append(buf, '\n')
 
 	if len(m.segments) > 0 {
 		seq := m.seqCount - uint64(len(m.segments)) + 1
-		buf.WriteString(fmt.Sprintf("#EXT-X-MEDIA-SEQUENCE:%d\n", seq))
+		buf = append(buf, "#EXT-X-MEDIA-SEQUENCE:"...)
+		buf = strconv.AppendUint(buf, seq, 10)
+		buf = append(buf, '\n')
 	}
 
 	for _, seg := range m.segments {
 		if seg.IsDiscontinuity {
-			buf.WriteString("#EXT-X-DISCONTINUITY\n")
+			buf = append(buf, "#EXT-X-DISCONTINUITY\n"...)
 		}
-		buf.WriteString(fmt.Sprintf("#EXTINF:%.3f,\n", seg.Duration.Seconds()))
-		// Меняем .ts на .vtt
-		vttName := seg.Name[:len(seg.Name)-3] + ".vtt"
-		buf.WriteString(vttName)
-		buf.WriteByte('\n')
+		buf = append(buf, "#EXTINF:"...)
+		buf = strconv.AppendFloat(buf, seg.Duration.Seconds(), 'f', 3, 64)
+		buf = append(buf, ",\n"...)
+		if len(seg.Name) > 3 {
+			buf = append(buf, seg.Name[:len(seg.Name)-3]...)
+		}
+		buf = append(buf, ".vtt\n"...)
 	}
 
-	return buf.String()
+	res := string(buf)
+	if cap(buf) > 4096 {
+		buf = make([]byte, 0, 1024)
+	}
+	*pBuf = buf
+	playlistPool.Put(pBuf)
+	return res
 }
 
-// GetSegment возвращает данные TS или VTT сегмента по его имени.
-func (m *Muxer) GetSegment(name string) ([]byte, string) {
+// AcquireSegment возвращает сегмент без копирования памяти с атомарным захватом ссылки (Zero-Alloc, Zero-Copy).
+func (m *Muxer) AcquireSegment(name string) (*Segment, string) {
 	isVTT := len(name) > 4 && name[len(name)-4:] == ".vtt"
 	tsName := name
 	if isVTT {
@@ -420,13 +481,30 @@ func (m *Muxer) GetSegment(name string) ([]byte, string) {
 	defer m.mu.RUnlock()
 	for _, seg := range m.segments {
 		if seg.Name == tsName {
+			seg.Retain()
 			if isVTT {
-				return seg.VTTData, "text/vtt"
+				return seg, "text/vtt"
 			}
-			resp := make([]byte, len(seg.Data))
-			copy(resp, seg.Data)
-			return resp, "video/mp2t"
+			return seg, "video/mp2t"
 		}
 	}
 	return nil, ""
 }
+
+// GetSegment возвращает данные TS или VTT сегмента (для обратной совместимости).
+func (m *Muxer) GetSegment(name string) ([]byte, string) {
+	seg, mimeType := m.AcquireSegment(name)
+	if seg == nil {
+		return nil, ""
+	}
+	defer seg.Release()
+	if mimeType == "text/vtt" {
+		resp := make([]byte, len(seg.VTTData))
+		copy(resp, seg.VTTData)
+		return resp, mimeType
+	}
+	resp := make([]byte, len(seg.Data))
+	copy(resp, seg.Data)
+	return resp, mimeType
+}
+

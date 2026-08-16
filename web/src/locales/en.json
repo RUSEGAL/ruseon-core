@@ -16,10 +16,17 @@
   },
   "login": {
     "title": "RUSEON Core",
-    "placeholder": "Password...",
-    "button": "Login",
-    "error": "Invalid password",
-    "subtitle": "Enter your password to access the system"
+    "subtitle": "Next-Gen Video Surveillance & AI Stream Engine",
+    "username": "Username",
+    "usernamePlaceholder": "Enter your username...",
+    "password": "Password",
+    "passwordPlaceholder": "Enter your password...",
+    "button": "Sign In to Console",
+    "signingIn": "Signing In...",
+    "invalidCredentials": "Invalid username or password. Please verify credentials.",
+    "networkError": "Network error. Unable to connect to server.",
+    "securityNotice": "Protected by JWT & Argon2id encryption",
+    "systemOnline": "Engine Online"
   },
   "dashboard": {
     "systemInfo": "System Information",
@@ -171,6 +178,214 @@
       "operator": "Operator",
       "viewer": "Viewer",
       "service": "Service"
+    }
+  },
+  "v2": {
+    "nav": {
+      "overview": "Overview",
+      "surveillance": "Surveillance Grid",
+      "archive": "Archive & Timeline",
+      "ai_events": "AI Analytics",
+      "topology": "Topology & Stats",
+      "settings": "Camera Settings"
+    },
+    "header": {
+      "liveCameras": "Live",
+      "ram": "RAM",
+      "goroutines": "Goroutines",
+      "users": "Users",
+      "logs": "Logs",
+      "logout": "Logout"
+    },
+    "ai": {
+      "title": "Client AI Engine (Browser-side WebGPU)",
+      "subtitle": "Inference is executed locally on your GPU without sending video to the server.",
+      "webgpu_active": "WebGPU Acceleration Active",
+      "wasm_active": "CPU WASM Fallback",
+      "recommended": "Recommended Profile:",
+      "auto": "Auto Detect",
+      "auto_desc": "Automatically selects the optimal model for your GPU (currently:",
+      "active_model": "Active Model in Memory:",
+      "loading": "loading...",
+      "cache": "Cache:",
+      "instant_start": "Cache API (Instant Start)",
+      "models": {
+        "nano": {
+          "name": "YOLOv11-Nano (5.8 MB)",
+          "desc": "Minimal battery and bandwidth consumption. Recommended for mobile devices and entry-level PCs."
+        },
+        "small": {
+          "name": "YOLOv11-Small (20.1 MB)",
+          "desc": "Optimal balance of high accuracy and speed. Fast detection on laptops and integrated GPUs."
+        },
+        "medium": {
+          "name": "YOLOv11-Medium (41.2 MB)",
+          "desc": "Maximum precision. Detects distant small objects, people at any angle and complex environments."
+        }
+      }
+    },
+    "surveillance": {
+      "searchPlaceholder": "Search ID, name, tags...",
+      "allCameras": "All Cameras",
+      "gridAuto": "Auto",
+      "fullscreen": "Fullscreen",
+      "noCameras": "No cameras available for display.",
+      "offline": "Offline",
+      "disabled": "Disabled",
+      "live": "LIVE",
+      "webrtc": "WebRTC",
+      "webcodecs": "WebCodecs",
+      "hls": "HLS",
+      "snapshot": "Snapshot"
+    },
+    "settings": {
+      "title": "Camera & Resource Management",
+      "folders": "Folders",
+      "tags": "Tags",
+      "addCamera": "Add Camera",
+      "legacyUiTitle": "Interface Appearance",
+      "legacyUiDesc": "Switch between modern Next-Gen V2 and legacy Classic UI (v1).",
+      "switchToClassic": "Switch to Classic UI (v1)",
+      "switchToV2": "Switch to Next-Gen UI (v2)",
+      "table": {
+        "camera": "Camera",
+        "folder": "Folder",
+        "tags": "Tags",
+        "status": "Status",
+        "protocol": "Protocol",
+        "recording": "Recording",
+        "sim": "SIM / Comms",
+        "actions": "Actions"
+      }
+    },
+    "dashboard": {
+      "onlineCameras": "ONLINE CAMERAS",
+      "continuousRecording": "CONTINUOUS RECORDING",
+      "activeStreams": "active streams",
+      "totalIngestTraffic": "TOTAL INGEST TRAFFIC",
+      "totalFramesProcessed": "TOTAL FRAMES PROCESSED",
+      "livePreview": "Live Camera Feeds Preview",
+      "openGrid": "Open Full Surveillance Grid"
+    },
+    "topology": {
+      "title": "System Runtime Topology & Go Profiling",
+      "camerasConfigured": "cameras configured",
+      "goRuntime": "Go Runtime & Memory Alloc",
+      "activeGoroutines": "Active Goroutines",
+      "goleakCertified": "Zero goroutine leaks (goleak certified)",
+      "badgerDb": "BadgerDB Storage Engine",
+      "lsmActive": "LSM Active",
+      "subMillisecond": "Sub-millisecond state & metadata index",
+      "sys": "Sys",
+      "gcRuns": "GC Runs"
+    },
+    "aiEvents": {
+      "title": "AI Metadata Stream (gRPC / WebVTT)",
+      "allCameras": "All Cameras",
+      "filterPlaceholder": "Filter class (person, car)...",
+      "thTime": "Time",
+      "thCamera": "Camera",
+      "thClass": "Detected Class",
+      "thConfidence": "Confidence",
+      "thBox": "Bounding Box [X, Y, W, H]"
+    },
+    "archive": {
+      "title": "Archive & Timeline",
+      "selectCamera": "Camera",
+      "recording": "(Recording)",
+      "availableSegments": "Available Segments:",
+      "noRecordings": "No recordings found for",
+      "stepBack": "-10s",
+      "stepForward": "+10s",
+      "play": "Play",
+      "pause": "Pause",
+      "selectRange": "Select Range",
+      "cancelSelection": "Cancel Selection",
+      "export": "Export",
+      "cursor": "Cursor:",
+      "continuousFmp4": "Continuous fMP4",
+      "aiEventMotion": "AI Event / Motion",
+      "segment": "Segment:"
+    },
+    "modals": {
+      "cameraDetails": {
+        "title": "Camera Telemetry & Details",
+        "telemetryTab": "Telemetry & URLs",
+        "cellularTab": "SIM, State & Tags",
+        "historyTab": "History",
+        "stateLabel": "Camera State:",
+        "directUrls": "Direct Streaming & Ingest Endpoints",
+        "generateToken": "Generate Shareable Token URL",
+        "simInfo": "SIM Card Info",
+        "cellularQuota": "Monthly Cellular Quota",
+        "used": "Used",
+        "limit": "Limit",
+        "tagsAndNotes": "Assigned Tags & Notes",
+        "note": "Note",
+        "disableHistory": "Disable Events History",
+        "noDisableEvents": "No disable events recorded",
+        "recordHistory": "Continuous Recording History",
+        "noRecordEvents": "No recording status changes"
+      },
+      "cameraForm": {
+        "addTitle": "Add New Camera",
+        "editTitle": "Edit Camera",
+        "generalTab": "General Parameters",
+        "cellularTab": "SIM, State & Tags",
+        "recordDesc": "Record incoming H.264/H.265 chunks into indexed timeline archive",
+        "lazyDesc": "Only transcode/package HLS when viewers are actively connected",
+        "tokenAuth": "Require Token Authentication for Playback",
+        "tokenAuthDesc": "Enforce JWT token validation for HLS and WebRTC endpoints",
+        "stateControl": "Camera Activity State",
+        "reasonsLabel": "Camera Disable Reason:"
+      },
+      "folders": {
+        "title": "Folder & Location Management",
+        "placeholder": "New folder name..."
+      },
+      "tags": {
+        "title": "Tag Management",
+        "placeholder": "Tag name..."
+      },
+      "users": {
+        "title": "User Management (RBAC)"
+      },
+      "logs": {
+        "title": "Live System Logs Stream (SSE)",
+        "showing": "Showing",
+        "events": "events",
+        "resume": "Resume",
+        "pause": "Pause",
+        "copied": "Copied",
+        "copy": "Copy",
+        "clear": "Clear",
+        "searchPlaceholder": "Search in logs...",
+        "autoScroll": "Auto-scroll",
+        "empty": "Waiting for server logs..."
+      },
+      "stats": {
+        "title": "System Diagnostics & Go Runtime",
+        "goroutines": "ACTIVE GOROUTINES",
+        "cpuCores": "LOGICAL CPU CORES",
+        "heapAlloc": "TOTAL HEAP ALLOC",
+        "sysMemory": "SYSTEM MEMORY (SYS)",
+        "heapObjects": "HEAP OBJECTS COUNT",
+        "gcRuns": "GARBAGE COLLECTIONS",
+        "backupTitle": "Full System Configuration Backup",
+        "backupDesc": "Export or import the entire database of camera streams, folders, tags, and users in JSON format.",
+        "downloadBackup": "Download JSON Backup",
+        "uploadBackup": "Upload JSON Backup"
+      },
+      "export": {
+        "title": "Export Archive Range",
+        "date": "Date",
+        "interval": "Time Interval",
+        "duration": "Duration",
+        "estimatedSize": "Estimated Size",
+        "target": "Export Target",
+        "exporting": "Exporting...",
+        "startExport": "Start Export"
+      }
     }
   }
 }
