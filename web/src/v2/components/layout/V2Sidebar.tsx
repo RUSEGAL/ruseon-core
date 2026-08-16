@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { Logo } from '../../../components/Logo';
 import {
   Grid,
   Film,
@@ -8,7 +9,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Shield,
   Layers,
 } from 'lucide-react';
 
@@ -46,24 +46,21 @@ export const V2Sidebar: React.FC<V2SidebarProps> = ({
           style={{
             width: '32px',
             height: '32px',
-            borderRadius: '8px',
-            background: 'linear-gradient(135deg, #6366f1 0%, #38bdf8 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 0 12px rgba(99, 102, 241, 0.5)',
             flexShrink: 0,
           }}
         >
-          <Shield size={18} color="#fff" />
+          <Logo size={30} />
         </div>
         {!collapsed && (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontWeight: 700, fontSize: '0.95rem', letterSpacing: '-0.3px', color: '#f8fafc' }}>
               RUSEON Core
             </span>
-            <span style={{ fontSize: '0.65rem', color: '#6366f1', fontWeight: 600 }}>
-              NEXT-GEN V2
+            <span style={{ fontSize: '0.65rem', color: '#818cf8', fontWeight: 700, letterSpacing: '0.5px' }}>
+              NEXT-GEN
             </span>
           </div>
         )}
