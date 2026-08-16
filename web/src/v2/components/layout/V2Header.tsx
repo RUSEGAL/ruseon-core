@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ServerStats } from '../../../types';
-import { UiVariantToggle } from '../common/UiVariantToggle';
 import { LanguageSwitcher } from '../../../components/LanguageSwitcher';
 import { Activity, LogOut, Cpu, Radio, Terminal, Users } from 'lucide-react';
 
@@ -142,8 +141,6 @@ export const V2Header: React.FC<V2HeaderProps> = ({
         )}
 
         <LanguageSwitcher />
-
-        <UiVariantToggle />
 
         <button
           onClick={onLogout}

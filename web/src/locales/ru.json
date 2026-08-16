@@ -243,6 +243,10 @@
       "folders": "Папки",
       "tags": "Теги",
       "addCamera": "Добавить камеру",
+      "legacyUiTitle": "Отображение интерфейса",
+      "legacyUiDesc": "Переключение между современным Next-Gen V2 и классическим Legacy интерфейсом (v1).",
+      "switchToClassic": "Переключить на Classic UI (v1)",
+      "switchToV2": "Переключить на Next-Gen UI (v2)",
       "table": {
         "camera": "Камера",
         "folder": "Папка",

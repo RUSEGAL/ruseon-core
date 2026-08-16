@@ -12,9 +12,11 @@ import {
   Terminal,
   Info,
   Phone,
+  Layout,
 } from 'lucide-react';
 
 import { AiDetectionSettingsCard } from '../settings/AiDetectionSettingsCard';
+import { UiVariantToggle } from '../common/UiVariantToggle';
 
 interface SettingsViewProps {
   cameras: CameraInfo[];
@@ -390,6 +392,55 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Advanced / Legacy UI Preference */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '14px 18px',
+          background: 'rgba(0, 0, 0, 0.25)',
+          border: '1px solid rgba(255, 255, 255, 0.05)',
+          borderRadius: '12px',
+          marginTop: '0.5rem',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              background: 'rgba(255, 255, 255, 0.04)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#64748b',
+            }}
+          >
+            <Layout size={16} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#94a3b8' }}>
+              {t('v2.settings.legacyUiTitle', 'Interface Appearance')}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+              {t('v2.settings.legacyUiDesc', 'Switch between modern Next-Gen V2 and legacy Classic UI (v1).')}
+            </div>
+          </div>
+        </div>
+
+        <UiVariantToggle
+          style={{
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            color: '#94a3b8',
+            padding: '6px 12px',
+            fontSize: '0.74rem',
+          }}
+        />
       </div>
     </div>
   );

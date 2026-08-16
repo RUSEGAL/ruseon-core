@@ -243,6 +243,10 @@
       "folders": "Folders",
       "tags": "Tags",
       "addCamera": "Add Camera",
+      "legacyUiTitle": "Interface Appearance",
+      "legacyUiDesc": "Switch between modern Next-Gen V2 and legacy Classic UI (v1).",
+      "switchToClassic": "Switch to Classic UI (v1)",
+      "switchToV2": "Switch to Next-Gen UI (v2)",
       "table": {
         "camera": "Camera",
         "folder": "Folder",
