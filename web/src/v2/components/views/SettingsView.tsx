@@ -235,10 +235,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           }}
                         >
                           {cam.disableReason === 'payment'
-                            ? 'За неуплату'
+                            ? t('cameras.details.reasons.payment', 'Payment')
                             : cam.disableReason === 'requested'
-                            ? 'По требованию'
-                            : 'Тех. причины'}
+                            ? t('cameras.details.reasons.requested', 'Requested')
+                            : t('cameras.details.reasons.technical', 'Technical')}
                         </span>
                       )}
                     </div>
@@ -305,10 +305,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <td style={{ padding: '10px' }}>
                     {cam.record ? (
                       <span style={{ color: '#10b981', fontWeight: 600 }}>
-                        Rec ({cam.retentionDays || 'Default'}d)
+                        {t('filters.recording', 'Rec')} ({cam.retentionDays || 'Default'}d)
                       </span>
                     ) : (
-                      <span style={{ color: '#64748b' }}>Off</span>
+                      <span style={{ color: '#64748b' }}>{t('filters.notRecording', 'Off')}</span>
                     )}
                   </td>
 
@@ -345,7 +345,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           color: '#38bdf8',
                           cursor: 'pointer',
                         }}
-                        title="View Stream Details & Direct URLs"
+                        title={t('cameras.details.telemetry', 'View Stream Details & Direct URLs')}
                       >
                         <Info size={14} />
                       </button>
@@ -361,7 +361,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             color: '#a5b4fc',
                             cursor: 'pointer',
                           }}
-                          title="Edit Configuration"
+                          title={t('cameras.edit', 'Edit Configuration')}
                         >
                           <Edit2 size={14} />
                         </button>
@@ -378,7 +378,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             color: '#ef4444',
                             cursor: 'pointer',
                           }}
-                          title="Delete Camera"
+                          title={t('cameras.delete', 'Delete Camera')}
                         >
                           <Trash2 size={14} />
                         </button>

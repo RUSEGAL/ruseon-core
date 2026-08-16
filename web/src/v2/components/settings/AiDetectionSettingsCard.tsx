@@ -194,12 +194,12 @@ export const AiDetectionSettingsCard: React.FC = () => {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
             <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '0.84rem' }}>
-              YOLOv11-Nano (5.8 МБ)
+              {t('v2.ai.models.nano.name', 'YOLOv11-Nano (5.8 MB)')}
             </div>
             {preference === 'nano' && <CheckCircle2 size={15} color="#38bdf8" />}
           </div>
           <p style={{ fontSize: '0.73rem', color: '#94a3b8', margin: 0, lineHeight: 1.35 }}>
-            {AI_MODELS_INFO.nano.description}
+            {t('v2.ai.models.nano.desc', AI_MODELS_INFO.nano.description)}
           </p>
         </div>
 
@@ -217,12 +217,12 @@ export const AiDetectionSettingsCard: React.FC = () => {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
             <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '0.84rem' }}>
-              YOLOv11-Small (20.1 МБ)
+              {t('v2.ai.models.small.name', 'YOLOv11-Small (20.1 MB)')}
             </div>
             {preference === 'small' && <CheckCircle2 size={15} color="#38bdf8" />}
           </div>
           <p style={{ fontSize: '0.73rem', color: '#94a3b8', margin: 0, lineHeight: 1.35 }}>
-            {AI_MODELS_INFO.small.description}
+            {t('v2.ai.models.small.desc', AI_MODELS_INFO.small.description)}
           </p>
         </div>
 
@@ -240,12 +240,12 @@ export const AiDetectionSettingsCard: React.FC = () => {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
             <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '0.84rem' }}>
-              YOLOv11-Medium (41.2 МБ)
+              {t('v2.ai.models.medium.name', 'YOLOv11-Medium (41.2 MB)')}
             </div>
             {preference === 'medium' && <CheckCircle2 size={15} color="#38bdf8" />}
           </div>
           <p style={{ fontSize: '0.73rem', color: '#94a3b8', margin: 0, lineHeight: 1.35 }}>
-            {AI_MODELS_INFO.medium.description}
+            {t('v2.ai.models.medium.desc', AI_MODELS_INFO.medium.description)}
           </p>
         </div>
       </div>
@@ -254,7 +254,7 @@ export const AiDetectionSettingsCard: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#64748b' }}>
         <div>
           {t('v2.ai.active_model', 'Active Model in Memory:')}{' '}
-          <strong style={{ color: '#e2e8f0' }}>{AI_MODELS_INFO[activeTier].name}</strong>
+          <strong style={{ color: '#e2e8f0' }}>{t(`v2.ai.models.${activeTier}.name`, AI_MODELS_INFO[activeTier].name)}</strong>
           {isSwitching && <span style={{ color: '#fbbf24', marginLeft: '6px' }}>({t('v2.ai.loading', 'loading...')})</span>}
         </div>
         <div>

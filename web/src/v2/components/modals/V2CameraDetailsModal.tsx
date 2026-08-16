@@ -193,7 +193,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                 )}
               </div>
               <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
-                Codec: {detailsCam.codec || 'Auto'} | Transport: {detailsCam.transport?.toUpperCase() || 'TCP'}
+                {t('cameras.codec', 'Codec')}: {detailsCam.codec || 'Auto'} | {t('cameras.transport', 'Transport')}: {detailsCam.transport?.toUpperCase() || 'TCP'}
               </div>
             </div>
           </div>
@@ -210,7 +210,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                 className={`v2-modal-tab ${activeTab === 'cellular' ? 'active' : ''}`}
                 onClick={() => setActiveTab('cellular')}
               >
-                {t('v2.modals.cameraDetails.cellularTab', 'Cellular & Tags')}
+                {t('v2.modals.cameraDetails.cellularTab', 'SIM, State & Tags')}
               </button>
               <button
                 className={`v2-modal-tab ${activeTab === 'history' ? 'active' : ''}`}
@@ -251,7 +251,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', color: '#94a3b8' }}>
             <Power size={14} color="#6366f1" />
-            <span>{t('cameras.status.online', 'State')}:</span>
+            <span>{t('v2.modals.cameraDetails.stateLabel', 'Camera State:')}</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

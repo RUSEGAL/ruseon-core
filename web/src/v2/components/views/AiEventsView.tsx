@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Cpu, Search } from 'lucide-react';
 import type { CameraInfo } from '../../../types';
 
@@ -16,6 +17,7 @@ interface MockAiEvent {
 }
 
 export const AiEventsView: React.FC<AiEventsViewProps> = ({ cameras }) => {
+  const { t } = useTranslation();
   const [selectedCam, setSelectedCam] = useState<string>('all');
   const [searchLabel, setSearchLabel] = useState<string>('');
 
@@ -38,7 +40,7 @@ export const AiEventsView: React.FC<AiEventsViewProps> = ({ cameras }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Cpu size={18} color="#6366f1" />
           <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#f8fafc' }}>
-            AI Metadata Stream (gRPC / WebVTT)
+            {t('v2.aiEvents.title', 'AI Metadata Stream (gRPC / WebVTT)')}
           </h2>
         </div>
 
@@ -55,7 +57,7 @@ export const AiEventsView: React.FC<AiEventsViewProps> = ({ cameras }) => {
               fontSize: '0.8rem',
             }}
           >
-            <option value="all">All Cameras</option>
+            <option value="all">{t('v2.aiEvents.allCameras', 'All Cameras')}</option>
             {cameras.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.id}
@@ -77,7 +79,7 @@ export const AiEventsView: React.FC<AiEventsViewProps> = ({ cameras }) => {
             <Search size={13} color="#94a3b8" />
             <input
               type="text"
-              placeholder="Filter class (person, car)..."
+              placeholder={t('v2.aiEvents.filterPlaceholder', 'Filter class (person, car)...')}
               value={searchLabel}
               onChange={(e) => setSearchLabel(e.target.value)}
               style={{
@@ -97,11 +99,11 @@ export const AiEventsView: React.FC<AiEventsViewProps> = ({ cameras }) => {
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--v2-card-border)', color: '#94a3b8' }}>
-              <th style={{ padding: '10px' }}>Time</th>
-              <th style={{ padding: '10px' }}>Camera</th>
-              <th style={{ padding: '10px' }}>Detected Class</th>
-              <th style={{ padding: '10px' }}>Confidence</th>
-              <th style={{ padding: '10px' }}>Bounding Box [X, Y, W, H]</th>
+              <th style={{ padding: '10px' }}>{t('v2.aiEvents.thTime', 'Time')}</th>
+              <th style={{ padding: '10px' }}>{t('v2.aiEvents.thCamera', 'Camera')}</th>
+              <th style={{ padding: '10px' }}>{t('v2.aiEvents.thClass', 'Detected Class')}</th>
+              <th style={{ padding: '10px' }}>{t('v2.aiEvents.thConfidence', 'Confidence')}</th>
+              <th style={{ padding: '10px' }}>{t('v2.aiEvents.thBox', 'Bounding Box [X, Y, W, H]')}</th>
             </tr>
           </thead>
           <tbody>

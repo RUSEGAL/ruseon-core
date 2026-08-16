@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { CameraInfo } from '../../../types';
 import type {
   ArchiveSegment,
@@ -23,6 +24,7 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({
   cameras,
   initialCameraId,
 }) => {
+  const { t } = useTranslation();
   const [selectedCamId, setSelectedCamId] = useState<string>(() => {
     return initialCameraId || (cameras.length > 0 ? cameras[0].id : '');
   });
@@ -127,7 +129,7 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({
             >
               {cameras.map((c) => (
                 <option key={c.id} value={c.id} style={{ background: '#0d111a' }}>
-                  {c.id} {c.record ? '(Recording)' : ''}
+                  {c.id} {c.record ? t('v2.archive.recording', '(Recording)') : ''}
                 </option>
               ))}
             </select>
@@ -156,7 +158,7 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({
 
         {/* Status */}
         <div style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'flex', gap: '8px' }}>
-          <span>Available Segments: <strong>{daySegments.length}</strong></span>
+          <span>{t('v2.archive.availableSegments', 'Available Segments:')} <strong>{daySegments.length}</strong></span>
         </div>
       </div>
 
@@ -179,7 +181,7 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({
           <UniversalCameraPlayer
             key={selectedFile}
             cameraId={selectedCamId}
-            cameraName={`${selectedCamId} (Archive: ${selectedFile})`}
+            cameraName={`${selectedCamId} (${t('nav.archive', 'Archive')}: ${selectedFile})`}
             sourceUrl={`/hls/${selectedCamId}/archive.m3u8?file=${encodeURIComponent(selectedFile)}`}
             isLive={false}
             autoPlay={isPlaying}
@@ -195,7 +197,7 @@ export const ArchiveView: React.FC<ArchiveViewProps> = ({
             }}
           >
             <Film size={36} />
-            <span>No recordings found for {selectedDate}</span>
+            <span>{t('v2.archive.noRecordings', 'No recordings found for')} {selectedDate}</span>
           </div>
         )}
       </div>

@@ -201,7 +201,21 @@
       "active_model": "Active Model in Memory:",
       "loading": "loading...",
       "cache": "Cache:",
-      "instant_start": "Cache API (Instant Start)"
+      "instant_start": "Cache API (Instant Start)",
+      "models": {
+        "nano": {
+          "name": "YOLOv11-Nano (5.8 MB)",
+          "desc": "Minimal battery and bandwidth consumption. Recommended for mobile devices and entry-level PCs."
+        },
+        "small": {
+          "name": "YOLOv11-Small (20.1 MB)",
+          "desc": "Optimal balance of high accuracy and speed. Fast detection on laptops and integrated GPUs."
+        },
+        "medium": {
+          "name": "YOLOv11-Medium (41.2 MB)",
+          "desc": "Maximum precision. Detects distant small objects, people at any angle and complex environments."
+        }
+      }
     },
     "surveillance": {
       "searchPlaceholder": "Search ID, name, tags...",
@@ -242,27 +256,80 @@
       "livePreview": "Live Camera Feeds Preview",
       "openGrid": "Open Full Surveillance Grid"
     },
+    "topology": {
+      "title": "System Runtime Topology & Go Profiling",
+      "camerasConfigured": "cameras configured",
+      "goRuntime": "Go Runtime & Memory Alloc",
+      "activeGoroutines": "Active Goroutines",
+      "goleakCertified": "Zero goroutine leaks (goleak certified)",
+      "badgerDb": "BadgerDB Storage Engine",
+      "lsmActive": "LSM Active",
+      "subMillisecond": "Sub-millisecond state & metadata index",
+      "sys": "Sys",
+      "gcRuns": "GC Runs"
+    },
+    "aiEvents": {
+      "title": "AI Metadata Stream (gRPC / WebVTT)",
+      "allCameras": "All Cameras",
+      "filterPlaceholder": "Filter class (person, car)...",
+      "thTime": "Time",
+      "thCamera": "Camera",
+      "thClass": "Detected Class",
+      "thConfidence": "Confidence",
+      "thBox": "Bounding Box [X, Y, W, H]"
+    },
+    "archive": {
+      "title": "Archive & Timeline",
+      "selectCamera": "Camera",
+      "recording": "(Recording)",
+      "availableSegments": "Available Segments:",
+      "noRecordings": "No recordings found for",
+      "stepBack": "-10s",
+      "stepForward": "+10s",
+      "play": "Play",
+      "pause": "Pause",
+      "selectRange": "Select Range",
+      "cancelSelection": "Cancel Selection",
+      "export": "Export",
+      "cursor": "Cursor:",
+      "continuousFmp4": "Continuous fMP4",
+      "aiEventMotion": "AI Event / Motion",
+      "segment": "Segment:"
+    },
     "modals": {
       "cameraDetails": {
         "title": "Camera Telemetry & Details",
-        "tabs": {
-          "telemetry": "Telemetry",
-          "cellular": "SIM & Cellular",
-          "stream": "Stream Control"
-        },
-        "tokenSection": "Temporary Access Token",
-        "generate": "Generate Token",
-        "expires": "Expires in:",
-        "copied": "Copied!"
+        "telemetryTab": "Telemetry & URLs",
+        "cellularTab": "SIM, State & Tags",
+        "historyTab": "History",
+        "stateLabel": "Camera State:",
+        "directUrls": "Direct Streaming & Ingest Endpoints",
+        "generateToken": "Generate Shareable Token URL",
+        "simInfo": "SIM Card Info",
+        "cellularQuota": "Monthly Cellular Quota",
+        "used": "Used",
+        "limit": "Limit",
+        "tagsAndNotes": "Assigned Tags & Notes",
+        "note": "Note",
+        "disableHistory": "Disable Events History",
+        "noDisableEvents": "No disable events recorded",
+        "recordHistory": "Continuous Recording History",
+        "noRecordEvents": "No recording status changes"
       },
       "cameraForm": {
         "addTitle": "Add New Camera",
         "editTitle": "Edit Camera",
-        "generalTab": "General",
-        "cellularTab": "Cellular, State & Tags"
+        "generalTab": "General Parameters",
+        "cellularTab": "SIM, State & Tags",
+        "recordDesc": "Record incoming H.264/H.265 chunks into indexed timeline archive",
+        "lazyDesc": "Only transcode/package HLS when viewers are actively connected",
+        "tokenAuth": "Require Token Authentication for Playback",
+        "tokenAuthDesc": "Enforce JWT token validation for HLS and WebRTC endpoints",
+        "stateControl": "Camera Activity State",
+        "reasonsLabel": "Camera Disable Reason:"
       },
       "folders": {
-        "title": "Folder Management",
+        "title": "Folder & Location Management",
         "placeholder": "New folder name..."
       },
       "tags": {
@@ -273,16 +340,40 @@
         "title": "User Management (RBAC)"
       },
       "logs": {
-        "title": "Live System Logs Stream"
+        "title": "Live System Logs Stream (SSE)",
+        "showing": "Showing",
+        "events": "events",
+        "resume": "Resume",
+        "pause": "Pause",
+        "copied": "Copied",
+        "copy": "Copy",
+        "clear": "Clear",
+        "searchPlaceholder": "Search in logs...",
+        "autoScroll": "Auto-scroll",
+        "empty": "Waiting for server logs..."
       },
       "stats": {
-        "title": "Detailed System Metrics"
+        "title": "System Diagnostics & Go Runtime",
+        "goroutines": "ACTIVE GOROUTINES",
+        "cpuCores": "LOGICAL CPU CORES",
+        "heapAlloc": "TOTAL HEAP ALLOC",
+        "sysMemory": "SYSTEM MEMORY (SYS)",
+        "heapObjects": "HEAP OBJECTS COUNT",
+        "gcRuns": "GARBAGE COLLECTIONS",
+        "backupTitle": "Full System Configuration Backup",
+        "backupDesc": "Export or import the entire database of camera streams, folders, tags, and users in JSON format.",
+        "downloadBackup": "Download JSON Backup",
+        "uploadBackup": "Upload JSON Backup"
       },
       "export": {
-        "title": "Export Archive Video",
-        "start": "Start Time",
-        "end": "End Time",
-        "download": "Download MP4 Clip"
+        "title": "Export Archive Range",
+        "date": "Date",
+        "interval": "Time Interval",
+        "duration": "Duration",
+        "estimatedSize": "Estimated Size",
+        "target": "Export Target",
+        "exporting": "Exporting...",
+        "startExport": "Start Export"
       }
     }
   }

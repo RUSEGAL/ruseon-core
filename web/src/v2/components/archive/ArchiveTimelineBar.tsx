@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   DaySecSegment,
   TimelineZoomLevel,
@@ -25,6 +26,7 @@ export const ArchiveTimelineBar: React.FC<ArchiveTimelineBarProps> = ({
   rangeEndSec,
   zoomLevel = '24h',
 }) => {
+  const { t } = useTranslation();
   const trackRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [hoverSec, setHoverSec] = useState<number | null>(null);
@@ -105,7 +107,7 @@ export const ArchiveTimelineBar: React.FC<ArchiveTimelineBarProps> = ({
           </span>
           {hoverSec !== null && (
             <span style={{ color: '#6366f1', fontSize: '0.72rem' }}>
-              Cursor: {formatDaySecondsToTime(hoverSec)}
+              {t('v2.archive.cursor', 'Cursor:')} {formatDaySecondsToTime(hoverSec)}
             </span>
           )}
         </div>
@@ -113,11 +115,11 @@ export const ArchiveTimelineBar: React.FC<ArchiveTimelineBarProps> = ({
         <div style={{ display: 'flex', gap: '12px', fontSize: '0.72rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <div style={{ width: '8px', height: '8px', background: '#10b981', borderRadius: '2px' }} />
-            <span>Continuous fMP4</span>
+            <span>{t('v2.archive.continuousFmp4', 'Continuous fMP4')}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <div style={{ width: '8px', height: '8px', background: '#f59e0b', borderRadius: '2px' }} />
-            <span>AI Event / Motion</span>
+            <span>{t('v2.archive.aiEventMotion', 'AI Event / Motion')}</span>
           </div>
         </div>
       </div>
@@ -163,7 +165,7 @@ export const ArchiveTimelineBar: React.FC<ArchiveTimelineBarProps> = ({
                 left: `${startPct}%`,
                 width: `${widthPct}%`,
               }}
-              title={`Segment: ${formatDaySecondsToTime(seg.startSec)} - ${formatDaySecondsToTime(seg.endSec)}`}
+              title={`${t('v2.archive.segment', 'Segment:')} ${formatDaySecondsToTime(seg.startSec)} - ${formatDaySecondsToTime(seg.endSec)}`}
             />
           );
         })}

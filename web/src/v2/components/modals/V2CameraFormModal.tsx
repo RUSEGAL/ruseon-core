@@ -74,7 +74,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                 className={`v2-modal-tab ${activeTab === 'general' ? 'active' : ''}`}
                 onClick={() => setActiveTab('general')}
               >
-                <Settings size={13} />
+                <Settings size={14} style={{ flexShrink: 0 }} />
                 <span>{t('v2.modals.cameraForm.generalTab', 'General')}</span>
               </button>
               <button
@@ -82,7 +82,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                 className={`v2-modal-tab ${activeTab === 'cellular' ? 'active' : ''}`}
                 onClick={() => setActiveTab('cellular')}
               >
-                <Smartphone size={13} />
+                <Smartphone size={14} style={{ flexShrink: 0 }} />
                 <span>{t('v2.modals.cameraForm.cellularTab', 'Cellular, State & Tags')}</span>
               </button>
             </div>
@@ -109,16 +109,16 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
           <div className="v2-modal-body" style={{ minHeight: '360px' }}>
             {activeTab === 'general' && (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
                   <div className="v2-form-group">
-                    <label className="v2-form-label">{t('cameras.id', 'Camera Identifier (ID)')}</label>
+                    <label className="v2-form-label">{t('cameras.id', 'Camera Identifier')} *</label>
                     <input
                       type="text"
                       className="v2-input"
                       value={camForm.id}
                       onChange={(e) => setCamForm({ ...camForm, id: e.target.value })}
-                      disabled={isEditing}
                       placeholder="e.g. entrance-cam-01"
+                      disabled={isEditing}
                       required
                     />
                   </div>
@@ -128,49 +128,48 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                     <select
                       className="v2-input"
                       value={camForm.transport || 'tcp'}
-                      onChange={(e) => setCamForm({ ...camForm, transport: e.target.value })}
+                      onChange={(e) => setCamForm({ ...camForm, transport: e.target.value as 'tcp' | 'udp' })}
                     >
-                      <option value="tcp" style={{ background: '#0d111a' }}>TCP (Interleaved)</option>
-                      <option value="udp" style={{ background: '#0d111a' }}>UDP (Low Latency)</option>
+                      <option value="tcp">TCP (Reliable, Interleaved)</option>
+                      <option value="udp">UDP (Low-latency / Cellular)</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="v2-form-group">
-                  <label className="v2-form-label">{t('cameras.url', 'RTSP Stream Source URL')}</label>
+                  <label className="v2-form-label">{t('cameras.url', 'Source RTSP Stream URL')} *</label>
                   <input
                     type="text"
                     className="v2-input"
                     value={camForm.url}
                     onChange={(e) => setCamForm({ ...camForm, url: e.target.value })}
-                    placeholder="rtsp://user:pass@192.168.1.100:554/live"
+                    placeholder="rtsp://admin:pass@192.168.1.100:554/stream1"
                     required
                   />
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="v2-form-group">
-                    <label className="v2-form-label">{t('cameras.retention', 'fMP4 Retention (Days)')}</label>
+                    <label className="v2-form-label">{t('cameras.retention', 'Archive Retention (Days)')}</label>
                     <input
                       type="number"
-                      min={1}
-                      max={365}
                       className="v2-input"
+                      min={0}
                       value={camForm.retentionDays || 7}
-                      onChange={(e) => setCamForm({ ...camForm, retentionDays: Number(e.target.value) })}
+                      onChange={(e) => setCamForm({ ...camForm, retentionDays: parseInt(e.target.value) || 0 })}
                     />
                   </div>
 
                   <div className="v2-form-group">
-                    <label className="v2-form-label">{t('folders.title', 'Assigned Folder / Location')}</label>
+                    <label className="v2-form-label">{t('v2.settings.folders', 'Assigned Folder')}</label>
                     <select
                       className="v2-input"
                       value={camForm.folderId || ''}
                       onChange={(e) => setCamForm({ ...camForm, folderId: e.target.value })}
                     >
-                      <option value="" style={{ background: '#0d111a' }}>{t('folders.unassigned', 'Unassigned')}</option>
+                      <option value="">{t('folders.noFolder', 'No Folder (Unassigned)')}</option>
                       {folders.map((f) => (
-                        <option key={f.id} value={f.id} style={{ background: '#0d111a' }}>
+                        <option key={f.id} value={f.id}>
                           {f.name}
                         </option>
                       ))}
@@ -181,10 +180,10 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                 {/* Toggles */}
                 <div
                   style={{
-                    background: 'rgba(0,0,0,0.3)',
-                    padding: '12px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
                     borderRadius: '10px',
-                    border: '1px solid rgba(255,255,255,0.06)',
+                    padding: '12px',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '10px',
@@ -202,7 +201,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                         {t('cameras.record', 'Continuous fMP4 Recording')}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                        Record incoming H.264/H.265 chunks into indexed timeline archive
+                        {t('v2.modals.cameraForm.recordDesc', 'Record incoming H.264/H.265 chunks into indexed timeline archive')}
                       </div>
                     </div>
                   </label>
@@ -219,7 +218,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                         {t('cameras.lazy', 'On-Demand Lazy HLS')}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                        Only transcode/package HLS when viewers are actively connected
+                        {t('v2.modals.cameraForm.lazyDesc', 'Only transcode/package HLS when viewers are actively connected')}
                       </div>
                     </div>
                   </label>
@@ -233,10 +232,10 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                     />
                     <div>
                       <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f8fafc' }}>
-                        Require Token Authentication for Playback
+                        {t('v2.modals.cameraForm.tokenAuth', 'Require Token Authentication for Playback')}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                        Enforce JWT token validation for HLS and WebRTC endpoints
+                        {t('v2.modals.cameraForm.tokenAuthDesc', 'Enforce JWT token validation for HLS and WebRTC endpoints')}
                       </div>
                     </div>
                   </label>
@@ -263,7 +262,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <AlertTriangle size={18} color={camForm.disabled ? '#ef4444' : '#10b981'} />
                       <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#f8fafc' }}>
-                        {t('cameras.status.disabled', 'Disabled')} / {t('cameras.status.online', 'Active')}
+                        {t('v2.modals.cameraForm.stateControl', 'Camera Activity State')}
                       </span>
                     </div>
 
@@ -275,7 +274,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                         style={{ accentColor: '#ef4444', width: '16px', height: '16px' }}
                       />
                       <span style={{ fontSize: '0.8rem', fontWeight: 600, color: camForm.disabled ? '#fca5a5' : '#94a3b8' }}>
-                        {camForm.disabled ? t('cameras.status.disabled', 'Disabled') : t('cameras.status.online', 'Online')}
+                        {camForm.disabled ? t('cameras.status.disabled', 'Disabled') : t('cameras.status.online', 'Active')}
                       </span>
                     </label>
                   </div>
@@ -283,7 +282,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                   {camForm.disabled && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       <label className="v2-form-label" style={{ color: '#fca5a5' }}>
-                        {t('cameras.details.reasons.technical', 'Reason')}:
+                        {t('v2.modals.cameraForm.reasonsLabel', 'Reason:')}
                       </label>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {DISABLE_REASONS.map((r) => {

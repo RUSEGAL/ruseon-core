@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Play,
   Pause,
@@ -31,6 +32,8 @@ export const ArchivePlaybackBar: React.FC<ArchivePlaybackBarProps> = ({
   isRangeSelecting,
   onOpenExport,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div
       style={{
@@ -59,7 +62,7 @@ export const ArchivePlaybackBar: React.FC<ArchivePlaybackBarProps> = ({
             gap: '4px',
             fontSize: '0.75rem',
           }}
-          title="Step back 10 seconds"
+          title={t('v2.archive.stepBack', '-10s')}
         >
           <RotateCcw size={14} />
           <span>-10s</span>
@@ -80,7 +83,7 @@ export const ArchivePlaybackBar: React.FC<ArchivePlaybackBarProps> = ({
             justifyContent: 'center',
             boxShadow: '0 0 12px rgba(99, 102, 241, 0.4)',
           }}
-          title={isPlaying ? 'Pause' : 'Play'}
+          title={isPlaying ? t('v2.archive.pause', 'Pause') : t('v2.archive.play', 'Play')}
         >
           {isPlaying ? <Pause size={18} /> : <Play size={18} style={{ marginLeft: '2px' }} />}
         </button>
@@ -99,7 +102,7 @@ export const ArchivePlaybackBar: React.FC<ArchivePlaybackBarProps> = ({
             gap: '4px',
             fontSize: '0.75rem',
           }}
-          title="Step forward 10 seconds"
+          title={t('v2.archive.stepForward', '+10s')}
         >
           <RotateCw size={14} />
           <span>+10s</span>
@@ -157,10 +160,10 @@ export const ArchivePlaybackBar: React.FC<ArchivePlaybackBarProps> = ({
             alignItems: 'center',
             gap: '6px',
           }}
-          title="Select Range on Timeline"
+          title={t('v2.archive.selectRange', 'Select Range')}
         >
           <Scissors size={14} />
-          <span>{isRangeSelecting ? 'Cancel Selection' : 'Select Range'}</span>
+          <span>{isRangeSelecting ? t('v2.archive.cancelSelection', 'Cancel Selection') : t('v2.archive.selectRange', 'Select Range')}</span>
         </button>
 
         <button
@@ -178,10 +181,10 @@ export const ArchivePlaybackBar: React.FC<ArchivePlaybackBarProps> = ({
             alignItems: 'center',
             gap: '6px',
           }}
-          title="Export Range"
+          title={t('v2.archive.export', 'Export')}
         >
           <Download size={14} />
-          <span>Export</span>
+          <span>{t('v2.archive.export', 'Export')}</span>
         </button>
       </div>
     </div>
