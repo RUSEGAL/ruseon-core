@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Tag, Plus, Trash2, Edit2, Check } from 'lucide-react';
 import type { TagConfig } from '../../../types';
 
@@ -26,6 +27,7 @@ export const V2TagManagerModal: React.FC<V2TagManagerModalProps> = ({
   onClose,
   onTagsChange,
 }) => {
+  const { t } = useTranslation();
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#6366f1');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -125,7 +127,7 @@ export const V2TagManagerModal: React.FC<V2TagManagerModalProps> = ({
               <Tag size={18} color="#10b981" />
             </div>
             <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
-              Tag Manager ({tags.length})
+              {t('v2.modals.tags.title', 'Tag Management')} ({tags.length})
             </h3>
           </div>
 
@@ -160,13 +162,13 @@ export const V2TagManagerModal: React.FC<V2TagManagerModalProps> = ({
             }}
           >
             <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#94a3b8' }}>
-              CREATE NEW TAG
+              {t('tags.add', 'Create Tag')}
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
                 type="text"
                 className="v2-input"
-                placeholder="Tag name (e.g. Warehouse, PTZ, Perimeter)"
+                placeholder={t('v2.modals.tags.placeholder', 'Tag name...')}
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
                 style={{ flex: 1 }}
@@ -174,13 +176,13 @@ export const V2TagManagerModal: React.FC<V2TagManagerModalProps> = ({
               />
               <button type="submit" className="v2-btn-primary">
                 <Plus size={15} />
-                <span>Add</span>
+                <span>{t('tags.add', 'Add')}</span>
               </button>
             </div>
 
             {/* Color Palette Chips */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Color:</span>
+              <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{t('tags.color', 'Color')}:</span>
               <div style={{ display: 'flex', gap: '6px' }}>
                 {PRESET_COLORS.map((col) => (
                   <div
@@ -206,7 +208,7 @@ export const V2TagManagerModal: React.FC<V2TagManagerModalProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '280px', overflowY: 'auto' }}>
             {tags.length === 0 ? (
               <div style={{ textAlign: 'center', color: '#64748b', fontSize: '0.8rem', padding: '1rem' }}>
-                No tags created yet.
+                {t('tags.noTags', 'No tags created yet.')}
               </div>
             ) : (
               tags.map((tag) => {
@@ -294,7 +296,7 @@ export const V2TagManagerModal: React.FC<V2TagManagerModalProps> = ({
                               color: '#a5b4fc',
                               cursor: 'pointer',
                             }}
-                            title="Edit"
+                            title={t('cameras.edit', 'Edit')}
                           >
                             <Edit2 size={13} />
                           </button>
@@ -308,7 +310,7 @@ export const V2TagManagerModal: React.FC<V2TagManagerModalProps> = ({
                               color: '#ef4444',
                               cursor: 'pointer',
                             }}
-                            title="Delete"
+                            title={t('cameras.delete', 'Delete')}
                           >
                             <Trash2 size={13} />
                           </button>
@@ -325,7 +327,7 @@ export const V2TagManagerModal: React.FC<V2TagManagerModalProps> = ({
         {/* Footer */}
         <div className="v2-modal-footer">
           <button className="v2-btn-secondary" onClick={onClose}>
-            Done
+            {t('cameras.cancel', 'Done')}
           </button>
         </div>
       </div>

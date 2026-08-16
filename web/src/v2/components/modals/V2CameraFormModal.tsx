@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Camera, Settings, Smartphone, AlertTriangle } from 'lucide-react';
 import type { TagConfig, FolderConfig } from '../../../types';
 import type { CamFormState } from '../../../components/modals/CameraFormModal';
@@ -22,6 +23,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
   onSave,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'general' | 'cellular'>('general');
 
   const toggleTag = (tagId: string) => {
@@ -32,9 +34,9 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
   };
 
   const DISABLE_REASONS = [
-    { value: 'technical', label: 'Технические причины (Technical Issue)' },
-    { value: 'payment', label: 'Отключено за неуплату (Unpaid Bill)' },
-    { value: 'requested', label: 'По требованию (Requested by User)' },
+    { value: 'technical', label: t('cameras.details.reasons.technical', 'Technical') },
+    { value: 'payment', label: t('cameras.details.reasons.payment', 'Payment') },
+    { value: 'requested', label: t('cameras.details.reasons.requested', 'Requested') },
   ];
 
   return (
@@ -61,7 +63,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
               <Camera size={18} color="#818cf8" />
             </div>
             <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
-              {isEditing ? `Edit Camera: ${camForm.id}` : 'Add New Camera'}
+              {isEditing ? `${t('v2.modals.cameraForm.editTitle', 'Edit Camera')}: ${camForm.id}` : t('v2.modals.cameraForm.addTitle', 'Add New Camera')}
             </h3>
           </div>
 
@@ -73,7 +75,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                 onClick={() => setActiveTab('general')}
               >
                 <Settings size={13} />
-                <span>General</span>
+                <span>{t('v2.modals.cameraForm.generalTab', 'General')}</span>
               </button>
               <button
                 type="button"
@@ -81,7 +83,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                 onClick={() => setActiveTab('cellular')}
               >
                 <Smartphone size={13} />
-                <span>Cellular, State & Tags</span>
+                <span>{t('v2.modals.cameraForm.cellularTab', 'Cellular, State & Tags')}</span>
               </button>
             </div>
 
@@ -109,7 +111,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="v2-form-group">
-                    <label className="v2-form-label">Camera Identifier (ID)</label>
+                    <label className="v2-form-label">{t('cameras.id', 'Camera Identifier (ID)')}</label>
                     <input
                       type="text"
                       className="v2-input"
@@ -122,20 +124,20 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                   </div>
 
                   <div className="v2-form-group">
-                    <label className="v2-form-label">RTSP Transport</label>
+                    <label className="v2-form-label">{t('cameras.transport', 'RTSP Transport')}</label>
                     <select
                       className="v2-input"
                       value={camForm.transport || 'tcp'}
                       onChange={(e) => setCamForm({ ...camForm, transport: e.target.value })}
                     >
-                      <option value="tcp" style={{ background: '#0d111a' }}>TCP (Interleaved - Recommended)</option>
+                      <option value="tcp" style={{ background: '#0d111a' }}>TCP (Interleaved)</option>
                       <option value="udp" style={{ background: '#0d111a' }}>UDP (Low Latency)</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="v2-form-group">
-                  <label className="v2-form-label">RTSP Stream Source URL</label>
+                  <label className="v2-form-label">{t('cameras.url', 'RTSP Stream Source URL')}</label>
                   <input
                     type="text"
                     className="v2-input"
@@ -148,7 +150,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="v2-form-group">
-                    <label className="v2-form-label">fMP4 Retention (Days)</label>
+                    <label className="v2-form-label">{t('cameras.retention', 'fMP4 Retention (Days)')}</label>
                     <input
                       type="number"
                       min={1}
@@ -160,13 +162,13 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                   </div>
 
                   <div className="v2-form-group">
-                    <label className="v2-form-label">Assigned Folder / Location</label>
+                    <label className="v2-form-label">{t('folders.title', 'Assigned Folder / Location')}</label>
                     <select
                       className="v2-input"
                       value={camForm.folderId || ''}
                       onChange={(e) => setCamForm({ ...camForm, folderId: e.target.value })}
                     >
-                      <option value="" style={{ background: '#0d111a' }}>Unassigned</option>
+                      <option value="" style={{ background: '#0d111a' }}>{t('folders.unassigned', 'Unassigned')}</option>
                       {folders.map((f) => (
                         <option key={f.id} value={f.id} style={{ background: '#0d111a' }}>
                           {f.name}
@@ -197,7 +199,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                     />
                     <div>
                       <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f8fafc' }}>
-                        Continuous fMP4 Recording
+                        {t('cameras.record', 'Continuous fMP4 Recording')}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
                         Record incoming H.264/H.265 chunks into indexed timeline archive
@@ -214,7 +216,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                     />
                     <div>
                       <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f8fafc' }}>
-                        On-Demand Lazy HLS
+                        {t('cameras.lazy', 'On-Demand Lazy HLS')}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
                         Only transcode/package HLS when viewers are actively connected
@@ -261,7 +263,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <AlertTriangle size={18} color={camForm.disabled ? '#ef4444' : '#10b981'} />
                       <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#f8fafc' }}>
-                        Состояние активности камеры (State Control)
+                        {t('cameras.status.disabled', 'Disabled')} / {t('cameras.status.online', 'Active')}
                       </span>
                     </div>
 
@@ -273,7 +275,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                         style={{ accentColor: '#ef4444', width: '16px', height: '16px' }}
                       />
                       <span style={{ fontSize: '0.8rem', fontWeight: 600, color: camForm.disabled ? '#fca5a5' : '#94a3b8' }}>
-                        {camForm.disabled ? 'Отключено (Disabled)' : 'Включено (Active)'}
+                        {camForm.disabled ? t('cameras.status.disabled', 'Disabled') : t('cameras.status.online', 'Online')}
                       </span>
                     </label>
                   </div>
@@ -281,7 +283,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                   {camForm.disabled && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       <label className="v2-form-label" style={{ color: '#fca5a5' }}>
-                        Причина отключения камеры:
+                        {t('cameras.details.reasons.technical', 'Reason')}:
                       </label>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {DISABLE_REASONS.map((r) => {
@@ -314,7 +316,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="v2-form-group">
-                    <label className="v2-form-label">SIM Phone Number</label>
+                    <label className="v2-form-label">{t('cameras.simPhone', 'SIM Phone Number')}</label>
                     <input
                       type="text"
                       className="v2-input"
@@ -325,7 +327,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                   </div>
 
                   <div className="v2-form-group">
-                    <label className="v2-form-label">SIM ICCID Serial</label>
+                    <label className="v2-form-label">{t('cameras.simIccid', 'SIM ICCID Serial')}</label>
                     <input
                       type="text"
                       className="v2-input"
@@ -337,7 +339,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                 </div>
 
                 <div className="v2-form-group">
-                  <label className="v2-form-label">Tags Categorization</label>
+                  <label className="v2-form-label">{t('tags.title', 'Tags')}</label>
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     {globalTags.map((tag) => {
                       const isSelected = camForm.tags.includes(tag.id);
@@ -365,7 +367,7 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
                 </div>
 
                 <div className="v2-form-group">
-                  <label className="v2-form-label">Notes & Description</label>
+                  <label className="v2-form-label">{t('cameras.comment', 'Comment')}</label>
                   <textarea
                     className="v2-input"
                     rows={2}
@@ -381,10 +383,10 @@ export const V2CameraFormModal: React.FC<V2CameraFormModalProps> = ({
           {/* Footer */}
           <div className="v2-modal-footer">
             <button type="button" className="v2-btn-secondary" onClick={onClose}>
-              Cancel
+              {t('cameras.cancel', 'Cancel')}
             </button>
             <button type="submit" className="v2-btn-primary">
-              {isEditing ? 'Save Changes' : 'Create Camera'}
+              {isEditing ? t('cameras.save', 'Save Changes') : t('cameras.add', 'Create Camera')}
             </button>
           </div>
         </form>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Users, Plus, Trash2, Edit2, Key, Shield, User as UserIcon } from 'lucide-react';
 
 interface User {
@@ -15,6 +16,7 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
   token,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -141,13 +143,13 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
   const getRoleBadge = (role: string) => {
     switch (role) {
       case 'admin':
-        return { bg: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', label: 'ADMINISTRATOR' };
+        return { bg: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', label: t('users.roles.admin', 'ADMINISTRATOR') };
       case 'operator':
-        return { bg: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', label: 'OPERATOR' };
+        return { bg: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', label: t('users.roles.operator', 'OPERATOR') };
       case 'service':
-        return { bg: 'rgba(99, 102, 241, 0.2)', color: '#a5b4fc', label: 'SERVICE ACCOUNT' };
+        return { bg: 'rgba(99, 102, 241, 0.2)', color: '#a5b4fc', label: t('users.roles.service', 'SERVICE ACCOUNT') };
       default:
-        return { bg: 'rgba(16, 185, 129, 0.2)', color: '#10b981', label: 'VIEWER' };
+        return { bg: 'rgba(16, 185, 129, 0.2)', color: '#10b981', label: t('users.roles.viewer', 'VIEWER') };
     }
   };
 
@@ -175,7 +177,7 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
               <Users size={18} color="#818cf8" />
             </div>
             <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
-              User Access & RBAC Management
+              {t('v2.modals.users.title', 'User Access & RBAC Management')}
             </h3>
           </div>
 
@@ -210,16 +212,16 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
             }}
           >
             <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>
-              CREATE NEW USER ACCOUNT
+              {t('users.common.add', 'Create User')}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr auto', gap: '8px', alignItems: 'flex-end' }}>
               <div className="v2-form-group">
-                <label className="v2-form-label">Username</label>
+                <label className="v2-form-label">{t('users.username', 'Username')}</label>
                 <input
                   type="text"
                   className="v2-input"
-                  placeholder="e.g. security_guard"
+                  placeholder={t('users.usernamePlaceholder', 'e.g. security_guard')}
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
                   required
@@ -227,11 +229,11 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
               </div>
 
               <div className="v2-form-group">
-                <label className="v2-form-label">Password</label>
+                <label className="v2-form-label">{t('users.password', 'Password')}</label>
                 <input
                   type="password"
                   className="v2-input"
-                  placeholder="Min 6 characters"
+                  placeholder={t('users.passwordPlaceholder', 'Password...')}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
@@ -239,22 +241,22 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
               </div>
 
               <div className="v2-form-group">
-                <label className="v2-form-label">Role</label>
+                <label className="v2-form-label">{t('users.role', 'Role')}</label>
                 <select
                   className="v2-input"
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value as any)}
                 >
-                  <option value="viewer" style={{ background: '#0d111a' }}>Viewer</option>
-                  <option value="operator" style={{ background: '#0d111a' }}>Operator</option>
-                  <option value="admin" style={{ background: '#0d111a' }}>Admin</option>
-                  <option value="service" style={{ background: '#0d111a' }}>Service</option>
+                  <option value="viewer" style={{ background: '#0d111a' }}>{t('users.roles.viewer', 'Viewer')}</option>
+                  <option value="operator" style={{ background: '#0d111a' }}>{t('users.roles.operator', 'Operator')}</option>
+                  <option value="admin" style={{ background: '#0d111a' }}>{t('users.roles.admin', 'Admin')}</option>
+                  <option value="service" style={{ background: '#0d111a' }}>{t('users.roles.service', 'Service')}</option>
                 </select>
               </div>
 
               <button type="submit" className="v2-btn-primary" style={{ height: '36px' }}>
                 <Plus size={14} />
-                <span>Add</span>
+                <span>{t('users.common.add', 'Add')}</span>
               </button>
             </div>
           </form>
@@ -287,10 +289,10 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
               </div>
               <div style={{ display: 'flex', gap: '6px', alignSelf: 'flex-end' }}>
                 <button className="v2-btn-primary" onClick={handleResetPassword}>
-                  Save
+                  {t('users.common.save', 'Save')}
                 </button>
                 <button className="v2-btn-secondary" onClick={() => setResetPassUser(null)}>
-                  Cancel
+                  {t('users.common.cancel', 'Cancel')}
                 </button>
               </div>
             </div>
@@ -299,9 +301,9 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
           {/* User List Table */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '300px', overflowY: 'auto' }}>
             {loading ? (
-              <div style={{ textAlign: 'center', color: '#64748b', padding: '1rem' }}>Loading users...</div>
+              <div style={{ textAlign: 'center', color: '#64748b', padding: '1rem' }}>{t('v2.ai.loading', 'Loading users...')}</div>
             ) : users.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#64748b', padding: '1rem' }}>No users found.</div>
+              <div style={{ textAlign: 'center', color: '#64748b', padding: '1rem' }}>{t('users.noUsers', 'No users found.')}</div>
             ) : (
               users.map((u) => {
                 const badge = getRoleBadge(u.role);
@@ -351,13 +353,13 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
                             onChange={(e) => setEditRole(e.target.value as any)}
                             style={{ padding: '3px 8px', fontSize: '0.75rem' }}
                           >
-                            <option value="viewer" style={{ background: '#0d111a' }}>Viewer</option>
-                            <option value="operator" style={{ background: '#0d111a' }}>Operator</option>
-                            <option value="admin" style={{ background: '#0d111a' }}>Admin</option>
-                            <option value="service" style={{ background: '#0d111a' }}>Service</option>
+                            <option value="viewer" style={{ background: '#0d111a' }}>{t('users.roles.viewer', 'Viewer')}</option>
+                            <option value="operator" style={{ background: '#0d111a' }}>{t('users.roles.operator', 'Operator')}</option>
+                            <option value="admin" style={{ background: '#0d111a' }}>{t('users.roles.admin', 'Admin')}</option>
+                            <option value="service" style={{ background: '#0d111a' }}>{t('users.roles.service', 'Service')}</option>
                           </select>
                           <button className="v2-btn-primary" style={{ padding: '3px 8px', fontSize: '0.75rem' }} onClick={handleUpdateRole}>
-                            Save
+                            {t('users.common.save', 'Save')}
                           </button>
                         </div>
                       ) : (
@@ -389,7 +391,7 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
                             color: '#f59e0b',
                             cursor: 'pointer',
                           }}
-                          title="Reset Password"
+                          title={t('users.password', 'Reset Password')}
                         >
                           <Key size={13} />
                         </button>
@@ -407,7 +409,7 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
                             color: '#a5b4fc',
                             cursor: 'pointer',
                           }}
-                          title="Change Role"
+                          title={t('users.common.edit', 'Change Role')}
                         >
                           <Edit2 size={13} />
                         </button>
@@ -422,7 +424,7 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
                             color: '#ef4444',
                             cursor: 'pointer',
                           }}
-                          title="Delete User"
+                          title={t('users.common.delete', 'Delete User')}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -438,7 +440,7 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
         {/* Footer */}
         <div className="v2-modal-footer">
           <button className="v2-btn-secondary" onClick={onClose}>
-            Close
+            {t('cameras.cancel', 'Close')}
           </button>
         </div>
       </div>

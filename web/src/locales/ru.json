@@ -232,6 +232,58 @@
         "sim": "SIM / Связь",
         "actions": "Действия"
       }
+    },
+    "dashboard": {
+      "onlineCameras": "ОНЛАЙН КАМЕРЫ",
+      "continuousRecording": "НЕПРЕРЫВНАЯ ЗАПИСЬ",
+      "activeStreams": "активных потоков",
+      "totalIngestTraffic": "ВХОДЯЩИЙ ТРАФИК",
+      "totalFramesProcessed": "ОБРАБОТАНО КАДРОВ",
+      "livePreview": "Предпросмотр активных камер",
+      "openGrid": "Перейти в сетку наблюдения"
+    },
+    "modals": {
+      "cameraDetails": {
+        "title": "Параметры и телеметрия камеры",
+        "tabs": {
+          "telemetry": "Телеметрия",
+          "cellular": "SIM и Сеть",
+          "stream": "Управление потоком"
+        },
+        "tokenSection": "Временный токен доступа",
+        "generate": "Сгенерировать токен",
+        "expires": "Срок действия:",
+        "copied": "Скопировано!"
+      },
+      "cameraForm": {
+        "addTitle": "Добавление камеры",
+        "editTitle": "Редактирование камеры",
+        "generalTab": "Основные настройки",
+        "cellularTab": "SIM, Состояние и Теги"
+      },
+      "folders": {
+        "title": "Управление папками",
+        "placeholder": "Название новой папки..."
+      },
+      "tags": {
+        "title": "Управление тегами",
+        "placeholder": "Имя тега..."
+      },
+      "users": {
+        "title": "Управление пользователями (RBAC)"
+      },
+      "logs": {
+        "title": "Системный журнал в реальном времени"
+      },
+      "stats": {
+        "title": "Детальная системная телеметрия"
+      },
+      "export": {
+        "title": "Экспорт архивного видео",
+        "start": "Время начала",
+        "end": "Время окончания",
+        "download": "Скачать MP4 отрезок"
+      }
     }
   }
 }

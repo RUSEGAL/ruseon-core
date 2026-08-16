@@ -232,6 +232,58 @@
         "sim": "SIM / Comms",
         "actions": "Actions"
       }
+    },
+    "dashboard": {
+      "onlineCameras": "ONLINE CAMERAS",
+      "continuousRecording": "CONTINUOUS RECORDING",
+      "activeStreams": "active streams",
+      "totalIngestTraffic": "TOTAL INGEST TRAFFIC",
+      "totalFramesProcessed": "TOTAL FRAMES PROCESSED",
+      "livePreview": "Live Camera Feeds Preview",
+      "openGrid": "Open Full Surveillance Grid"
+    },
+    "modals": {
+      "cameraDetails": {
+        "title": "Camera Telemetry & Details",
+        "tabs": {
+          "telemetry": "Telemetry",
+          "cellular": "SIM & Cellular",
+          "stream": "Stream Control"
+        },
+        "tokenSection": "Temporary Access Token",
+        "generate": "Generate Token",
+        "expires": "Expires in:",
+        "copied": "Copied!"
+      },
+      "cameraForm": {
+        "addTitle": "Add New Camera",
+        "editTitle": "Edit Camera",
+        "generalTab": "General",
+        "cellularTab": "Cellular, State & Tags"
+      },
+      "folders": {
+        "title": "Folder Management",
+        "placeholder": "New folder name..."
+      },
+      "tags": {
+        "title": "Tag Management",
+        "placeholder": "Tag name..."
+      },
+      "users": {
+        "title": "User Management (RBAC)"
+      },
+      "logs": {
+        "title": "Live System Logs Stream"
+      },
+      "stats": {
+        "title": "Detailed System Metrics"
+      },
+      "export": {
+        "title": "Export Archive Video",
+        "start": "Start Time",
+        "end": "End Time",
+        "download": "Download MP4 Clip"
+      }
     }
   }
 }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { CameraInfo, ServerStats } from '../../../types';
 import { UniversalCameraPlayer } from '../player/UniversalCameraPlayer';
 import { Activity, Radio, HardDrive, Cpu, ArrowUpRight } from 'lucide-react';
@@ -14,6 +15,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   stats,
   onNavigateToSurveillance,
 }) => {
+  const { t } = useTranslation();
   const onlineCameras = cameras.filter((c) => c.state === 'online');
   const recordingCameras = cameras.filter((c) => c.record);
 
@@ -46,7 +48,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         >
           <div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
-              ONLINE CAMERAS
+              {t('v2.dashboard.onlineCameras', 'ONLINE CAMERAS')}
             </div>
             <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#10b981', marginTop: '4px' }}>
               {onlineCameras.length}{' '}
@@ -80,11 +82,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         >
           <div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
-              CONTINUOUS RECORDING
+              {t('v2.dashboard.continuousRecording', 'CONTINUOUS RECORDING')}
             </div>
             <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#ef4444', marginTop: '4px' }}>
               {recordingCameras.length}{' '}
-              <span style={{ fontSize: '0.9rem', color: '#64748b' }}>active streams</span>
+              <span style={{ fontSize: '0.9rem', color: '#64748b' }}>{t('v2.dashboard.activeStreams', 'active streams')}</span>
             </div>
           </div>
           <div
@@ -114,7 +116,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         >
           <div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
-              TOTAL INGEST TRAFFIC
+              {t('v2.dashboard.totalIngestTraffic', 'TOTAL INGEST TRAFFIC')}
             </div>
             <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#6366f1', marginTop: '4px' }}>
               {stats?.totalBytes ? formatTraffic(stats.totalBytes) : '0 MB'}
@@ -147,7 +149,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         >
           <div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
-              TOTAL FRAMES PROCESSED
+              {t('v2.dashboard.totalFramesProcessed', 'TOTAL FRAMES PROCESSED')}
             </div>
             <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#38bdf8', marginTop: '4px' }}>
               {stats?.totalFrames ? stats.totalFrames.toLocaleString() : '0'}
@@ -173,7 +175,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
-            Live Camera Feeds Preview
+            {t('v2.dashboard.livePreview', 'Live Camera Feeds Preview')}
           </h2>
           <button
             onClick={onNavigateToSurveillance}
@@ -189,7 +191,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               gap: '4px',
             }}
           >
-            <span>Open Full Surveillance Grid</span>
+            <span>{t('v2.dashboard.openGrid', 'Open Full Surveillance Grid')}</span>
             <ArrowUpRight size={14} />
           </button>
         </div>

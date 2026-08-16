@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   X,
   Radio,
@@ -33,6 +34,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
   onClose,
   onCameraUpdated,
 }) => {
+  const { t } = useTranslation();
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [tokenExpires, setTokenExpires] = useState<number>(3600);
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
@@ -111,12 +113,12 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
   const getDisableReasonLabel = (reason: string | undefined) => {
     switch (reason) {
       case 'payment':
-        return 'Отключено за неуплату';
+        return t('cameras.details.reasons.payment', 'Отключено за неуплату');
       case 'requested':
-        return 'Отключено по требованию';
+        return t('cameras.details.reasons.requested', 'Отключено по требованию');
       case 'technical':
       default:
-        return 'Отключено по тех. причинам';
+        return t('cameras.details.reasons.technical', 'Отключено по тех. причинам');
     }
   };
 
@@ -172,8 +174,8 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                   {detailsCam.disabled
                     ? getDisableReasonLabel(detailsCam.disableReason)
                     : isOnline
-                    ? 'ONLINE'
-                    : 'OFFLINE'}
+                    ? t('cameras.status.online', 'ONLINE')
+                    : t('cameras.status.offline', 'OFFLINE')}
                 </span>
                 {detailsCam.record && (
                   <span
@@ -202,19 +204,19 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                 className={`v2-modal-tab ${activeTab === 'telemetry' ? 'active' : ''}`}
                 onClick={() => setActiveTab('telemetry')}
               >
-                Telemetry & URLs
+                {t('v2.modals.cameraDetails.telemetryTab', 'Telemetry & URLs')}
               </button>
               <button
                 className={`v2-modal-tab ${activeTab === 'cellular' ? 'active' : ''}`}
                 onClick={() => setActiveTab('cellular')}
               >
-                Cellular & Tags
+                {t('v2.modals.cameraDetails.cellularTab', 'Cellular & Tags')}
               </button>
               <button
                 className={`v2-modal-tab ${activeTab === 'history' ? 'active' : ''}`}
                 onClick={() => setActiveTab('history')}
               >
-                History
+                {t('v2.modals.cameraDetails.historyTab', 'History')}
               </button>
             </div>
 
@@ -249,7 +251,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', color: '#94a3b8' }}>
             <Power size={14} color="#6366f1" />
-            <span>Состояние камеры:</span>
+            <span>{t('cameras.status.online', 'State')}:</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -268,7 +270,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                 cursor: detailsCam.disabled ? 'pointer' : 'default',
               }}
             >
-              ✓ Включено (Active)
+              ✓ {t('cameras.status.online', 'Online')}
             </button>
 
             <button
@@ -286,7 +288,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              Тех. причины
+              {t('cameras.details.reasons.technical', 'Technical')}
             </button>
 
             <button
@@ -304,7 +306,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              За неуплату
+              {t('cameras.details.reasons.payment', 'Payment')}
             </button>
 
             <button
@@ -322,7 +324,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              По требованию
+              {t('cameras.details.reasons.requested', 'Requested')}
             </button>
           </div>
         </div>
@@ -347,7 +349,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                     border: '1px solid rgba(255,255,255,0.06)',
                   }}
                 >
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>LIVE BITRATE</div>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{t('cameras.details.bitrate', 'LIVE BITRATE')}</div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#38bdf8', marginTop: '3px' }}>
                     {isOnline ? formatBitrate(currentBitrate) : '0 kbps'}
                   </div>
@@ -361,7 +363,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                     border: '1px solid rgba(255,255,255,0.06)',
                   }}
                 >
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>FRAME RATE</div>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{t('cameras.details.fps', 'FRAME RATE')}</div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#10b981', marginTop: '3px' }}>
                     {isOnline && currentFps ? `${currentFps.toFixed(1)} fps` : '0 fps'}
                   </div>
@@ -375,7 +377,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                     border: '1px solid rgba(255,255,255,0.06)',
                   }}
                 >
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>UPTIME</div>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{t('cameras.details.uptime', 'UPTIME')}</div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#a5b4fc', marginTop: '3px' }}>
                     {detailsCam.uptime ? formatUptime(detailsCam.uptime) : '0s'}
                   </div>
@@ -389,7 +391,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                     border: '1px solid rgba(255,255,255,0.06)',
                   }}
                 >
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>PROCESSED FRAMES</div>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{t('v2.dashboard.totalFramesProcessed', 'PROCESSED FRAMES')}</div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f8fafc', marginTop: '3px' }}>
                     {(detailsCam.frames || 0).toLocaleString()}
                   </div>
@@ -403,7 +405,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                     border: '1px solid rgba(255,255,255,0.06)',
                   }}
                 >
-                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>DATA INGEST (IN)</div>
+                  <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{t('v2.dashboard.totalIngestTraffic', 'DATA INGEST (IN)')}</div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f8fafc', marginTop: '3px' }}>
                     {formatBytes(detailsCam.bytesReceived || 0)}
                   </div>
@@ -424,12 +426,12 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
               >
                 <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Server size={15} color="#6366f1" />
-                  <span>Direct Streaming & Ingest Endpoints</span>
+                  <span>{t('v2.modals.cameraDetails.directUrls', 'Direct Streaming & Ingest Endpoints')}</span>
                 </div>
 
                 {/* RTSP Direct */}
                 <div className="v2-form-group">
-                  <label className="v2-form-label">RTSP Ingest Source URL</label>
+                  <label className="v2-form-label">{t('cameras.url', 'RTSP Ingest Source URL')}</label>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <input
                       readOnly
@@ -448,7 +450,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
 
                 {/* HLS Direct */}
                 <div className="v2-form-group">
-                  <label className="v2-form-label">HLS Stream Playlist (.m3u8)</label>
+                  <label className="v2-form-label">{t('cameras.details.hlsUrl', 'HLS Stream Playlist (.m3u8)')}</label>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <input
                       readOnly
@@ -472,7 +474,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
 
                 {/* WebRTC WHEP */}
                 <div className="v2-form-group">
-                  <label className="v2-form-label">WebRTC WHEP Ultra-Low Latency Endpoint</label>
+                  <label className="v2-form-label">{t('cameras.details.webrtcUrl', 'WebRTC WHEP Ultra-Low Latency Endpoint')}</label>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <input
                       readOnly
@@ -509,7 +511,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
               >
                 <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Zap size={15} color="#f59e0b" />
-                  <span>Generate Shareable Token URL</span>
+                  <span>{t('v2.modals.cameraDetails.generateToken', 'Generate Shareable Token URL')}</span>
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -519,14 +521,14 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                     className="v2-input"
                     style={{ flex: 1, cursor: 'pointer' }}
                   >
-                    <option value={3600}>Valid for 1 Hour</option>
-                    <option value={86400}>Valid for 24 Hours</option>
-                    <option value={604800}>Valid for 7 Days</option>
-                    <option value={2592000}>Valid for 30 Days</option>
+                    <option value={3600}>{t('cameras.details.valid1h', 'Valid for 1 Hour')}</option>
+                    <option value={86400}>{t('cameras.details.valid24h', 'Valid for 24 Hours')}</option>
+                    <option value={604800}>{t('cameras.details.valid7d', 'Valid for 7 Days')}</option>
+                    <option value={2592000}>{t('cameras.details.valid30d', 'Valid for 30 Days')}</option>
                   </select>
 
                   <button className="v2-btn-primary" onClick={handleGenerateToken}>
-                    Generate Token
+                    {t('v2.modals.cameraDetails.generateToken', 'Generate Token')}
                   </button>
                 </div>
 
@@ -578,18 +580,18 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8' }}>
                     <Phone size={18} />
-                    <span style={{ fontWeight: 600 }}>SIM Card Info</span>
+                    <span style={{ fontWeight: 600 }}>{t('v2.modals.cameraDetails.simInfo', 'SIM Card Info')}</span>
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Phone Number</div>
+                    <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>{t('cameras.simPhone', 'Phone Number')}</div>
                     <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc', marginTop: '2px' }}>
-                      {detailsCam.simPhone || 'Not Configured'}
+                      {detailsCam.simPhone || t('cameras.details.notConfigured', 'Not Configured')}
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>ICCID Serial</div>
+                    <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>{t('cameras.simIccid', 'ICCID Serial')}</div>
                     <div style={{ fontSize: '0.9rem', fontFamily: 'monospace', color: '#a5b4fc', marginTop: '2px' }}>
-                      {detailsCam.simICCID || 'Not Configured'}
+                      {detailsCam.simICCID || t('cameras.details.notConfigured', 'Not Configured')}
                     </div>
                   </div>
                 </div>
@@ -608,12 +610,12 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981' }}>
                     <Activity size={18} />
-                    <span style={{ fontWeight: 600 }}>Monthly Cellular Quota</span>
+                    <span style={{ fontWeight: 600 }}>{t('v2.modals.cameraDetails.cellularQuota', 'Monthly Cellular Quota')}</span>
                   </div>
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#94a3b8' }}>
-                      <span>Used: {formatBytes(trafficUsed)}</span>
-                      <span>Limit: {formatBytes(trafficLimit)}</span>
+                      <span>{t('v2.modals.cameraDetails.used', 'Used')}: {formatBytes(trafficUsed)}</span>
+                      <span>{t('v2.modals.cameraDetails.limit', 'Limit')}: {formatBytes(trafficLimit)}</span>
                     </div>
                     <div
                       style={{
@@ -650,7 +652,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#a5b4fc' }}>
                   <TagIcon size={18} />
-                  <span style={{ fontWeight: 600 }}>Assigned Tags & Notes</span>
+                  <span style={{ fontWeight: 600 }}>{t('tags.title', 'Assigned Tags & Notes')}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {detailsCam.tags && detailsCam.tags.length > 0 ? (
@@ -675,12 +677,12 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                       );
                     })
                   ) : (
-                    <span style={{ color: '#64748b', fontSize: '0.8rem' }}>No tags assigned</span>
+                    <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{t('tags.noTags', 'No tags assigned')}</span>
                   )}
                 </div>
                 {detailsCam.comment && (
                   <div style={{ marginTop: '8px', fontSize: '0.82rem', color: '#94a3b8' }}>
-                    <strong>Note:</strong> {detailsCam.comment}
+                    <strong>{t('cameras.comment', 'Note')}:</strong> {detailsCam.comment}
                   </div>
                 )}
               </div>
@@ -703,7 +705,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
               >
                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Clock size={16} />
-                  <span>Disable Events History</span>
+                  <span>{t('v2.modals.cameraDetails.disableHistory', 'Disable Events History')}</span>
                 </div>
                 {detailsCam.disableHistory && detailsCam.disableHistory.length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '300px', overflowY: 'auto' }}>
@@ -727,7 +729,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                     ))}
                   </div>
                 ) : (
-                  <span style={{ color: '#64748b', fontSize: '0.8rem' }}>No disable events recorded</span>
+                  <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{t('v2.modals.cameraDetails.noDisableEvents', 'No disable events recorded')}</span>
                 )}
               </div>
 
@@ -745,7 +747,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
               >
                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <HardDrive size={16} />
-                  <span>Continuous Recording History</span>
+                  <span>{t('v2.modals.cameraDetails.recordHistory', 'Continuous Recording History')}</span>
                 </div>
                 {detailsCam.recordHistory && detailsCam.recordHistory.length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '300px', overflowY: 'auto' }}>
@@ -778,7 +780,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
                     ))}
                   </div>
                 ) : (
-                  <span style={{ color: '#64748b', fontSize: '0.8rem' }}>No recording status changes</span>
+                  <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{t('v2.modals.cameraDetails.noRecordEvents', 'No recording status changes')}</span>
                 )}
               </div>
             </div>
@@ -788,7 +790,7 @@ export const V2CameraDetailsModal: React.FC<V2CameraDetailsModalProps> = ({
         {/* Footer */}
         <div className="v2-modal-footer">
           <button className="v2-btn-secondary" onClick={onClose}>
-            Close
+            {t('cameras.cancel', 'Close')}
           </button>
         </div>
       </div>

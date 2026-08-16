@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Folder, Plus, Trash2, Edit2, Check } from 'lucide-react';
 import type { FolderConfig } from '../../../types';
 
@@ -15,6 +16,7 @@ export const V2FolderManagerModal: React.FC<V2FolderManagerModalProps> = ({
   onClose,
   onFoldersChange,
 }) => {
+  const { t } = useTranslation();
   const [newFolderName, setNewFolderName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -109,7 +111,7 @@ export const V2FolderManagerModal: React.FC<V2FolderManagerModalProps> = ({
               <Folder size={18} color="#818cf8" />
             </div>
             <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
-              Folder & Location Manager ({folders.length})
+              {t('v2.modals.folders.title', 'Folder Management')} ({folders.length})
             </h3>
           </div>
 
@@ -144,13 +146,13 @@ export const V2FolderManagerModal: React.FC<V2FolderManagerModalProps> = ({
             }}
           >
             <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#94a3b8' }}>
-              CREATE NEW FOLDER
+              {t('folders.add', 'Create folder')}
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
                 type="text"
                 className="v2-input"
-                placeholder="Folder name (e.g. Main Building, Warehouse 3, Parking)"
+                placeholder={t('v2.modals.folders.placeholder', 'Folder name...')}
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
                 style={{ flex: 1 }}
@@ -158,7 +160,7 @@ export const V2FolderManagerModal: React.FC<V2FolderManagerModalProps> = ({
               />
               <button type="submit" className="v2-btn-primary">
                 <Plus size={15} />
-                <span>Create</span>
+                <span>{t('folders.add', 'Create')}</span>
               </button>
             </div>
           </form>
@@ -167,7 +169,7 @@ export const V2FolderManagerModal: React.FC<V2FolderManagerModalProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '280px', overflowY: 'auto' }}>
             {folders.length === 0 ? (
               <div style={{ textAlign: 'center', color: '#64748b', fontSize: '0.8rem', padding: '1rem' }}>
-                No folders created yet.
+                {t('folders.noFolders', 'No folders created yet.')}
               </div>
             ) : (
               folders.map((folder) => {
@@ -222,7 +224,7 @@ export const V2FolderManagerModal: React.FC<V2FolderManagerModalProps> = ({
                               color: '#a5b4fc',
                               cursor: 'pointer',
                             }}
-                            title="Rename"
+                            title={t('cameras.edit', 'Edit')}
                           >
                             <Edit2 size={13} />
                           </button>
@@ -236,7 +238,7 @@ export const V2FolderManagerModal: React.FC<V2FolderManagerModalProps> = ({
                               color: '#ef4444',
                               cursor: 'pointer',
                             }}
-                            title="Delete"
+                            title={t('cameras.delete', 'Delete')}
                           >
                             <Trash2 size={13} />
                           </button>
@@ -253,7 +255,7 @@ export const V2FolderManagerModal: React.FC<V2FolderManagerModalProps> = ({
         {/* Footer */}
         <div className="v2-modal-footer">
           <button className="v2-btn-secondary" onClick={onClose}>
-            Done
+            {t('cameras.cancel', 'Done')}
           </button>
         </div>
       </div>

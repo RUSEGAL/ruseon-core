@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Download, Scissors, Loader2 } from 'lucide-react';
 import {
   formatDaySecondsToTime,
@@ -21,6 +22,7 @@ export const RangeExportModal: React.FC<RangeExportModalProps> = ({
   endSec,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const [rangeStart] = useState(startSec);
   const [rangeEnd] = useState(endSec);
   const [exporting, setExporting] = useState(false);
@@ -99,7 +101,7 @@ export const RangeExportModal: React.FC<RangeExportModalProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Scissors size={18} color="#6366f1" />
             <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#f8fafc' }}>
-              Export Archive Range
+              {t('v2.modals.export.title', 'Export Archive Range')}
             </h3>
           </div>
           <button
@@ -123,32 +125,32 @@ export const RangeExportModal: React.FC<RangeExportModalProps> = ({
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-            <span style={{ color: '#94a3b8' }}>Camera ID:</span>
+            <span style={{ color: '#94a3b8' }}>{t('cameras.id', 'Camera ID')}:</span>
             <span style={{ fontWeight: 600, color: '#f1f5f9' }}>{cameraId}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-            <span style={{ color: '#94a3b8' }}>Date:</span>
+            <span style={{ color: '#94a3b8' }}>{t('v2.modals.export.date', 'Date')}:</span>
             <span style={{ fontWeight: 600, color: '#f1f5f9' }}>{selectedDate}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-            <span style={{ color: '#94a3b8' }}>Time Interval:</span>
+            <span style={{ color: '#94a3b8' }}>{t('v2.modals.export.interval', 'Time Interval')}:</span>
             <span style={{ fontWeight: 600, color: '#a5b4fc' }}>
               {formatDaySecondsToTime(rangeStart)} → {formatDaySecondsToTime(rangeEnd)}
             </span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-            <span style={{ color: '#94a3b8' }}>Duration:</span>
+            <span style={{ color: '#94a3b8' }}>{t('v2.modals.export.duration', 'Duration')}:</span>
             <span style={{ fontWeight: 600, color: '#10b981' }}>{formatDuration(durationSec)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-            <span style={{ color: '#94a3b8' }}>Estimated Size:</span>
+            <span style={{ color: '#94a3b8' }}>{t('v2.modals.export.estimatedSize', 'Estimated Size')}:</span>
             <span style={{ fontWeight: 600, color: '#f1f5f9' }}>{formatBytes(estimatedBytes)}</span>
           </div>
         </div>
 
         {/* Format Selector */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Export Target:</label>
+          <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{t('v2.modals.export.target', 'Export Target')}:</label>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               onClick={() => setExportFormat('mp4')}
@@ -201,7 +203,7 @@ export const RangeExportModal: React.FC<RangeExportModalProps> = ({
               cursor: 'pointer',
             }}
           >
-            Cancel
+            {t('cameras.cancel', 'Cancel')}
           </button>
           <button
             onClick={handleExport}
@@ -223,12 +225,12 @@ export const RangeExportModal: React.FC<RangeExportModalProps> = ({
             {exporting ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                <span>Exporting...</span>
+                <span>{t('v2.modals.export.exporting', 'Exporting...')}</span>
               </>
             ) : (
               <>
                 <Download size={16} />
-                <span>Start Export</span>
+                <span>{t('v2.modals.export.startExport', 'Start Export')}</span>
               </>
             )}
           </button>

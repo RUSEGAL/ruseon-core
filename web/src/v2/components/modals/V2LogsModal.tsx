@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Terminal, Trash2, Play, Pause, Copy, Check, Filter } from 'lucide-react';
 
 interface V2LogsModalProps {
@@ -14,6 +15,7 @@ interface LogEntry {
 }
 
 export const V2LogsModal: React.FC<V2LogsModalProps> = ({ onClose }) => {
+  const { t } = useTranslation();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [levelFilter, setLevelFilter] = useState<string>('all');
   const [isPaused, setIsPaused] = useState(false);
@@ -153,10 +155,10 @@ export const V2LogsModal: React.FC<V2LogsModalProps> = ({ onClose }) => {
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#f8fafc' }}>
-                Live Server Logs Stream (SSE)
+                {t('v2.modals.logs.title', 'Live Server Logs Stream (SSE)')}
               </h3>
               <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                Showing {filteredLogs.length} events (Buffer: {logs.length}/800)
+                {t('v2.modals.logs.showing', 'Showing')} {filteredLogs.length} {t('v2.modals.logs.events', 'events')} (Buffer: {logs.length}/800)
               </div>
             </div>
           </div>
@@ -168,7 +170,7 @@ export const V2LogsModal: React.FC<V2LogsModalProps> = ({ onClose }) => {
               style={{ padding: '6px 12px', fontSize: '0.75rem' }}
             >
               {isPaused ? <Play size={13} color="#10b981" /> : <Pause size={13} color="#f59e0b" />}
-              <span>{isPaused ? 'Resume' : 'Pause'}</span>
+              <span>{isPaused ? t('v2.modals.logs.resume', 'Resume') : t('v2.modals.logs.pause', 'Pause')}</span>
             </button>
 
             <button
@@ -177,13 +179,14 @@ export const V2LogsModal: React.FC<V2LogsModalProps> = ({ onClose }) => {
               style={{ padding: '6px 12px', fontSize: '0.75rem' }}
             >
               {copied ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
-              <span>{copied ? 'Copied' : 'Copy'}</span>
+              <span>{copied ? t('v2.modals.logs.copied', 'Copied') : t('v2.modals.logs.copy', 'Copy')}</span>
             </button>
 
             <button
               onClick={() => setLogs([])}
               className="v2-btn-danger"
               style={{ padding: '6px 10px', fontSize: '0.75rem' }}
+              title={t('v2.modals.logs.clear', 'Clear')}
             >
               <Trash2 size={13} />
             </button>
@@ -246,7 +249,7 @@ export const V2LogsModal: React.FC<V2LogsModalProps> = ({ onClose }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <input
               type="text"
-              placeholder="Search in logs..."
+              placeholder={t('v2.modals.logs.searchPlaceholder', 'Search in logs...')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
@@ -268,7 +271,7 @@ export const V2LogsModal: React.FC<V2LogsModalProps> = ({ onClose }) => {
                 onChange={(e) => setAutoScroll(e.target.checked)}
                 style={{ accentColor: '#6366f1' }}
               />
-              <span>Auto-scroll</span>
+              <span>{t('v2.modals.logs.autoScroll', 'Auto-scroll')}</span>
             </label>
           </div>
         </div>
@@ -278,7 +281,7 @@ export const V2LogsModal: React.FC<V2LogsModalProps> = ({ onClose }) => {
           <div className="v2-terminal">
             {filteredLogs.length === 0 ? (
               <div style={{ color: '#64748b', textAlign: 'center', padding: '2rem' }}>
-                Waiting for server logs or no logs match current filter...
+                {t('v2.modals.logs.empty', 'Waiting for server logs or no logs match current filter...')}
               </div>
             ) : (
               filteredLogs.map((log, index) => {
