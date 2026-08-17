@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -38,9 +39,9 @@ func (m *mockPushMetadataServer) Context() context.Context {
 	return context.Background()
 }
 
-func (m *mockPushMetadataServer) SetHeader(metadata.MD) error { return nil }
+func (m *mockPushMetadataServer) SetHeader(metadata.MD) error  { return nil }
 func (m *mockPushMetadataServer) SendHeader(metadata.MD) error { return nil }
-func (m *mockPushMetadataServer) SetTrailer(metadata.MD) { }
+func (m *mockPushMetadataServer) SetTrailer(metadata.MD)       {}
 
 func TestServer_PushMetadata(t *testing.T) {
 	manager := stream.NewManager()
@@ -48,7 +49,7 @@ func TestServer_PushMetadata(t *testing.T) {
 
 	// Добавляем тестовый стрим
 	manager.AddStream("cam_test", "rtsp://test", false, true, "tcp")
-	
+
 	st, exists := manager.GetStream("cam_test")
 	if !exists {
 		t.Fatal("stream not created")
@@ -99,17 +100,27 @@ func TestServer_PushMetadata(t *testing.T) {
 
 type mockStreamFramesServer struct {
 	grpc.ServerStream
-	ctx  context.Context
-	req  *pb.StreamRequest
-	resp []*pb.FrameResponse
+	ctx       context.Context
+	req       *pb.StreamRequest
+	resp      []*pb.FrameResponse
+	ready     chan struct{}
+	readyOnce sync.Once
+	sent      chan struct{}
+	sentOnce  sync.Once
 }
 
 func (m *mockStreamFramesServer) Send(resp *pb.FrameResponse) error {
 	m.resp = append(m.resp, resp)
+	if m.sent != nil {
+		m.sentOnce.Do(func() { close(m.sent) })
+	}
 	return nil
 }
 
 func (m *mockStreamFramesServer) Context() context.Context {
+	if m.ready != nil {
+		m.readyOnce.Do(func() { close(m.ready) })
+	}
 	if m.ctx == nil {
 		return context.Background()
 	}
@@ -132,10 +143,14 @@ func TestServer_StreamFrames(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ready := make(chan struct{})
+	sent := make(chan struct{})
 
 	mockSrv := &mockStreamFramesServer{
-		ctx: ctx,
-		req: &pb.StreamRequest{CameraId: "cam_yolo"},
+		ctx:   ctx,
+		req:   &pb.StreamRequest{CameraId: "cam_yolo"},
+		ready: ready,
+		sent:  sent,
 	}
 
 	done := make(chan struct{})
@@ -148,6 +163,14 @@ func TestServer_StreamFrames(t *testing.T) {
 		close(done)
 	}()
 
+	// Wait until StreamFrames has created its RingBuffer reader and entered the
+	// request loop. Writing before this point makes the test race subscription.
+	select {
+	case <-ready:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for StreamFrames subscription")
+	}
+
 	// Пишем первый кадр
 	rb.Write(&buffer.Frame{
 		IsKeyFrame: true,
@@ -155,8 +178,11 @@ func TestServer_StreamFrames(t *testing.T) {
 		NALUs:      [][]byte{{0x05, 0x06}},
 	})
 
-	// Даем время на обработку
-	time.Sleep(50 * time.Millisecond)
+	select {
+	case <-sent:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for StreamFrames response")
+	}
 
 	// Отменяем контекст, чтобы выйти из цикла в StreamFrames
 	cancel()
