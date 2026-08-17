@@ -151,11 +151,7 @@ func (s *Stream) run() {
 	}
 
 	log.Info().Str("id", s.ID).Msg("Starting stream processing")
-	for {
-		if s.ctx.Err() != nil {
-			break
-		}
-
+	for s.ctx.Err() == nil {
 		log.Info().Str("id", s.ID).Str("url", s.URL).Msg("Connecting to RTSP")
 
 		s.rtspMu.Lock()

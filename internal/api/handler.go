@@ -235,7 +235,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 		for _, cam := range cams {
 			stats := streamMap[cam.ID]
 
-			var state models.CameraState = models.StateOffline
+			state := models.StateOffline
 			var uptime, bytesReceived, bytesSent, frames, keyFrames, reconnects uint64
 			var lastFrameTime, lastKeyTime int64
 			var bitrate float64

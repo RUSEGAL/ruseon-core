@@ -103,7 +103,7 @@ func getFileIndex(path string) (*FileIndex, error) {
 				_, _ = io.ReadFull(f, mdatData)
 				
 				// Парсим Part
-				var combined []byte
+				combined := make([]byte, 0, len(moofData)+len(mdatData))
 				combined = append(combined, moofData...)
 				combined = append(combined, mdatData...)
 				
@@ -160,13 +160,13 @@ func GenerateHLSPlaylist(recordDir, cameraID, filename string) (string, error) {
 			maxDurSec = dur
 		}
 	}
-	buf.WriteString(fmt.Sprintf("#EXT-X-TARGETDURATION:%d\n", maxDurSec))
+	fmt.Fprintf(&buf, "#EXT-X-TARGETDURATION:%d\n", maxDurSec)
 	buf.WriteString("#EXT-X-MEDIA-SEQUENCE:0\n")
 
 	for i, p := range idx.Parts {
 		durSec := float64(p.Duration) / 90000.0
-		buf.WriteString(fmt.Sprintf("#EXTINF:%.3f,\n", durSec))
-		buf.WriteString(fmt.Sprintf("segment.ts?file=%s&seq=%d\n", filename, i))
+		fmt.Fprintf(&buf, "#EXTINF:%.3f,\n", durSec)
+		fmt.Fprintf(&buf, "segment.ts?file=%s&seq=%d\n", filename, i)
 	}
 	
 	buf.WriteString("#EXT-X-ENDLIST\n")
@@ -218,7 +218,7 @@ func GenerateHLSSegment(recordDir, cameraID, filename string, seq int) ([]byte, 
 	mdatData := make([]byte, mdatSize)
 	_, _ = io.ReadFull(f, mdatData)
 	
-	var combined []byte
+	combined := make([]byte, 0, len(moofData)+len(mdatData))
 	combined = append(combined, moofData...)
 	combined = append(combined, mdatData...)
 	
