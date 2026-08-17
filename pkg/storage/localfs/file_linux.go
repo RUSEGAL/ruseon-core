@@ -32,7 +32,7 @@ func (fw *FileWrapper) Write(p []byte) (n int, err error) {
 	fw.offset += int64(n)
 
 	if fw.offset-fw.lastSync >= fw.chunkSize {
-		fd := int(fw.File.Fd())
+		fd := int(fw.Fd())
 
 		// Сначала дожидаемся и очищаем предыдущий чанк (N-2)
 		if fw.lastSync > fw.lastDrop {
@@ -51,15 +51,15 @@ func (fw *FileWrapper) Write(p []byte) (n int, err error) {
 
 func (fw *FileWrapper) Close() error {
 	remain := fw.offset - fw.lastDrop
-	fd := int(fw.File.Fd())
+	fd := int(fw.Fd())
 
 	if remain > 0 {
 		_ = unix.SyncFileRange(fd, fw.lastDrop, remain, unix.SYNC_FILE_RANGE_WAIT_BEFORE|unix.SYNC_FILE_RANGE_WRITE|unix.SYNC_FILE_RANGE_WAIT_AFTER)
 	}
 
 	// Фиксируем метаданные (размер файла) через полноценный fsync
-	if err := fw.File.Sync(); err != nil {
-		fw.File.Close()
+	if err := fw.Sync(); err != nil {
+		_ = fw.File.Close()
 		return err
 	}
 
