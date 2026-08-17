@@ -84,13 +84,13 @@ func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, e
 
 	videoTrack, err := webrtc.NewTrackLocalStaticSample(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264}, "video", "pion")
 	if err != nil {
-		pc.Close()
+		_ = pc.Close()
 		return "", err
 	}
 
 	rtpSender, err := pc.AddTrack(videoTrack)
 	if err != nil {
-		pc.Close()
+		_ = pc.Close()
 		return "", err
 	}
 
@@ -114,7 +114,7 @@ func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, e
 		if connectionState == webrtc.ICEConnectionStateClosed ||
 			connectionState == webrtc.ICEConnectionStateFailed ||
 			connectionState == webrtc.ICEConnectionStateDisconnected {
-			pc.Close()
+			_ = pc.Close()
 			cancelPump()
 		}
 	})
@@ -147,20 +147,20 @@ func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, e
 	})
 
 	if err := pc.SetRemoteDescription(offer); err != nil {
-		pc.Close()
+		_ = pc.Close()
 		return "", err
 	}
 
 	answer, err := pc.CreateAnswer(nil)
 	if err != nil {
-		pc.Close()
+		_ = pc.Close()
 		return "", err
 	}
 
 	gatherComplete := webrtc.GatheringCompletePromise(pc)
 
 	if err := pc.SetLocalDescription(answer); err != nil {
-		pc.Close()
+		_ = pc.Close()
 		return "", err
 	}
 

@@ -119,11 +119,7 @@ func (m *Muxer) run() {
 	// Читаем параметры кодека из буфера
 	vps, sps, pps := m.ringBuffer.GetParams()
 
-	for {
-		if m.ctx.Err() != nil {
-			break
-		}
-
+	for m.ctx.Err() == nil {
 		if sps == nil || pps == nil {
 			vps, sps, pps = m.ringBuffer.GetParams()
 		}
@@ -145,7 +141,7 @@ func (m *Muxer) run() {
 			segmentStartPts := int64(segmentStart * 90000 / time.Second)
 			var vttBuf bytes.Buffer
 			vttBuf.WriteString("WEBVTT\n")
-			vttBuf.WriteString(fmt.Sprintf("X-TIMESTAMP-MAP=MPEGTS:%d,LOCAL:00:00:00.000\n\n", segmentStartPts))
+			fmt.Fprintf(&vttBuf, "X-TIMESTAMP-MAP=MPEGTS:%d,LOCAL:00:00:00.000\n\n", segmentStartPts)
 
 			for _, req := range meta {
 				var localPts int64
@@ -179,7 +175,7 @@ func (m *Muxer) run() {
 					hrEnd++
 				}
 
-				vttBuf.WriteString(fmt.Sprintf("%02d:%02d:%02d.%03d --> %02d:%02d:%02d.%03d\n", hr, minutes, sec, ms, hrEnd, minEnd, secEnd, msEnd))
+				fmt.Fprintf(&vttBuf, "%02d:%02d:%02d.%03d --> %02d:%02d:%02d.%03d\n", hr, minutes, sec, ms, hrEnd, minEnd, secEnd, msEnd)
 				data, _ := json.Marshal(req)
 				vttBuf.Write(data)
 				vttBuf.WriteString("\n\n")

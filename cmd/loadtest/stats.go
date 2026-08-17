@@ -36,7 +36,8 @@ func NewLatencySampler(expectedSamples int) *LatencySampler {
 // Add добавляет замер задержки.
 func (s *LatencySampler) Add(d time.Duration) {
 	ms := float64(d.Nanoseconds()) / 1e6
-	us := uint64(d.Microseconds()) //nolint:gosec
+	// #nosec G115 -- non-negative duration
+	us := uint64(d.Microseconds())
 
 	s.count.Add(1)
 	s.sumMs.Add(us)

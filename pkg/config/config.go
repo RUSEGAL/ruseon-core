@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"os"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
@@ -116,7 +117,7 @@ type CameraConfig struct {
 
 // Load считывает конфигурацию из файла.
 func Load(path string) (*Config, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(filepath.Clean(path)) // #nosec G304
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +153,7 @@ func Load(path string) (*Config, error) {
 
 // Save сохраняет текущую конфигурацию в файл.
 func (c *Config) Save(path string) error {
-	file, err := os.Create(path)
+	file, err := os.Create(filepath.Clean(path)) // #nosec G304
 	if err != nil {
 		return err
 	}

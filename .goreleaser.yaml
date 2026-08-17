@@ -5,7 +5,7 @@ project_name: ruseon-core
 before:
   hooks:
     - go mod tidy
-    - npm --prefix ./web install
+    - npm --prefix ./web ci
     - npm --prefix ./web run build
 
 builds:
@@ -42,6 +42,12 @@ archives:
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
+
+checksum:
+  name_template: 'checksums.txt'
+
+sboms:
+  - artifacts: archive
 
 dockers:
   - image_templates:

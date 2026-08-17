@@ -151,11 +151,7 @@ func (s *Stream) run() {
 	}
 
 	log.Info().Str("id", s.ID).Msg("Starting stream processing")
-	for {
-		if s.ctx.Err() != nil {
-			break
-		}
-
+	for s.ctx.Err() == nil {
 		log.Info().Str("id", s.ID).Str("url", s.URL).Msg("Connecting to RTSP")
 
 		s.rtspMu.Lock()
@@ -168,7 +164,8 @@ func (s *Stream) run() {
 			for _, n := range nalus {
 				size += len(n)
 			}
-			s.bytesReceived.Add(uint64(size)) //nolint:gosec
+			// #nosec G115 -- size of frame payload is non-negative
+			s.bytesReceived.Add(uint64(size))
 			s.metricNetRxBytes.Add(float64(size))
 			
 			s.lastFrameTime.Store(time.Now().Unix())

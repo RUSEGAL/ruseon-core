@@ -16,7 +16,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26'
+          go-version: '1.26.0'
 
       - name: Build mock Frontend for go:embed
         run: mkdir -p web/dist && touch web/dist/index.html
@@ -29,7 +29,7 @@ jobs:
           sleep 3 # Wait for server to start
 
       - name: Run k6 Load Test
-        run: docker run --rm --network host --user $(id -u):$(id -g) -v $(pwd):/app -w /app grafana/k6:latest run --summary-export=summary.json tests/performance/k6_load.js
+        run: docker run --rm --network host --user $(id -u):$(id -g) -v $(pwd):/app -w /app grafana/k6:1.8.1 run --summary-export=summary.json tests/performance/k6_load.js
 
       - name: Stop RUSEON Server
         run: pkill -f server || true

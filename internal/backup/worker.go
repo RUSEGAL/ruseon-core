@@ -23,7 +23,7 @@ type Worker struct {
 
 // NewWorker создает новый воркер для бэкапов.
 func NewWorker(store registry.StateStore, backupDir string, interval time.Duration, retentionDays int) *Worker {
-	if err := os.MkdirAll(backupDir, 0755); err != nil {
+	if err := os.MkdirAll(backupDir, 0750); err != nil {
 		log.Error().Err(err).Msg("Failed to create backup directory")
 	}
 	return &Worker{
@@ -62,7 +62,7 @@ func (w *Worker) Run(ctx context.Context) {
 func (w *Worker) doBackup() {
 	filename := filepath.Join(w.backupDir, fmt.Sprintf("badger_backup_%s.bak", time.Now().Format("2006-01-02_15-04-05")))
 	
-	f, err := os.Create(filename)
+	f, err := os.Create(filepath.Clean(filename)) // #nosec G304
 	if err != nil {
 		log.Error().Err(err).Str("file", filename).Msg("Failed to create backup file")
 		return

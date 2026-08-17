@@ -469,7 +469,7 @@ func runAPIWorker(ctx context.Context, baseURL, token string, wg *sync.WaitGroup
 			}
 		} else {
 			data, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
+			_ = resp.Body.Close()
 
 			apiLatencySampler.Add(lat)
 
@@ -538,7 +538,7 @@ func runHLSViewer(ctx context.Context, baseURL string, camIDs []string, wg *sync
 			}
 
 			body, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
 				cntHLSErr.Add(1)
 				continue
@@ -575,7 +575,7 @@ func runHLSViewer(ctx context.Context, baseURL string, camIDs []string, wg *sync
 					}
 
 					segData, _ := io.ReadAll(segResp.Body)
-					segResp.Body.Close()
+					_ = segResp.Body.Close()
 
 					if segResp.StatusCode == http.StatusOK {
 						hlsSegmentSampler.Add(time.Since(tSeg))
@@ -637,7 +637,8 @@ func runWebRTCViewer(ctx context.Context, baseURL string, camIDs []string, engin
 				return
 			}
 			cntWebRTCRTPPackets.Add(1)
-			cntWebRTCBytesRx.Add(uint64(n)) //nolint:gosec
+			// #nosec G115 -- packet size is non-negative
+			cntWebRTCBytesRx.Add(uint64(n))
 		}
 	})
 
@@ -870,7 +871,7 @@ func main() {
 
 	tmpRecDir := filepath.Join(os.TempDir(), fmt.Sprintf("ruseon_loadtest_%d", time.Now().UnixNano()))
 	if useRealDisk {
-		_ = os.MkdirAll(tmpRecDir, 0755)
+		_ = os.MkdirAll(tmpRecDir, 0750)
 		registry.RegisterBlobStore(localfs.NewLocalFS(tmpRecDir))
 		fmt.Printf("[setup] BlobStore : real disk (%s)\n", tmpRecDir)
 		defer os.RemoveAll(tmpRecDir)
@@ -1056,7 +1057,8 @@ func main() {
 		_ = filepath.Walk(tmpRecDir, func(_ string, info os.FileInfo, err error) error {
 			if err == nil && info != nil && !info.IsDir() {
 				diskFilesCreated++
-				diskBytesWritten += uint64(info.Size()) //nolint:gosec
+				// #nosec G115 -- file size is non-negative
+				diskBytesWritten += uint64(info.Size())
 			}
 			return nil
 		})
@@ -1262,7 +1264,7 @@ func freeAddr() (string, error) {
 		return "", err
 	}
 	addr := l.Addr().String()
-	l.Close()
+	_ = l.Close()
 	return addr, nil
 }
 

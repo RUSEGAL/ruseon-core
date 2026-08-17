@@ -42,7 +42,7 @@ func (h *Handler) GetModel(c *gin.Context) {
 	}
 
 	modelsDir := filepath.Join("data", "models")
-	_ = os.MkdirAll(modelsDir, 0755)
+	_ = os.MkdirAll(modelsDir, 0750)
 	modelPath := filepath.Join(modelsDir, filename)
 
 	// 1. Fast path: Serve from local disk cache if already downloaded (> 4MB)
@@ -94,7 +94,7 @@ func (h *Handler) GetModel(c *gin.Context) {
 		log.Info().Str("filename", filename).Str("url", finalURL).Msg("Saving AI model to local disk cache...")
 
 		tmpFile := modelPath + ".tmp"
-		f, err := os.Create(tmpFile)
+		f, err := os.Create(filepath.Clean(tmpFile)) // #nosec G304
 		if err != nil {
 			return nil, fmt.Errorf("failed to create local model file: %w", err)
 		}
