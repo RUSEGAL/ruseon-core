@@ -84,17 +84,20 @@ func (h *Handler) StreamWS(c *gin.Context) {
 	headerBuf[1] = codecType
 	offset := 2
 
-	binary.BigEndian.PutUint16(headerBuf[offset:], uint16(len(vps))) //nolint:gosec // validated <= 0xFFFF
+	// #nosec G115 -- parameter set length is validated <= 0xFFFF
+	binary.BigEndian.PutUint16(headerBuf[offset:], uint16(len(vps)))
 	offset += 2
 	copy(headerBuf[offset:], vps)
 	offset += len(vps)
 
-	binary.BigEndian.PutUint16(headerBuf[offset:], uint16(len(sps))) //nolint:gosec // validated <= 0xFFFF
+	// #nosec G115 -- parameter set length is validated <= 0xFFFF
+	binary.BigEndian.PutUint16(headerBuf[offset:], uint16(len(sps)))
 	offset += 2
 	copy(headerBuf[offset:], sps)
 	offset += len(sps)
 
-	binary.BigEndian.PutUint16(headerBuf[offset:], uint16(len(pps))) //nolint:gosec // validated <= 0xFFFF
+	// #nosec G115 -- parameter set length is validated <= 0xFFFF
+	binary.BigEndian.PutUint16(headerBuf[offset:], uint16(len(pps)))
 	offset += 2
 	copy(headerBuf[offset:], pps)
 
@@ -187,7 +190,8 @@ func (h *Handler) StreamWS(c *gin.Context) {
 			if tsMicro < 0 {
 				tsMicro = 0
 			}
-			binary.BigEndian.PutUint64(packetBuf[2:10], uint64(tsMicro)) //nolint:gosec // tsMicro >= 0
+			// #nosec G115 -- tsMicro is clamped >= 0
+			binary.BigEndian.PutUint64(packetBuf[2:10], uint64(tsMicro))
 
 			writePos := 10
 			for _, nalu := range frame.NALUs {
@@ -204,6 +208,7 @@ func (h *Handler) StreamWS(c *gin.Context) {
 				return
 			}
 
+			// #nosec G115 -- packetBuf length is non-negative
 			st.AddBytesSent(uint64(len(packetBuf)))
 		}
 	}

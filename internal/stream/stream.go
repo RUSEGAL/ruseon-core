@@ -168,7 +168,8 @@ func (s *Stream) run() {
 			for _, n := range nalus {
 				size += len(n)
 			}
-			s.bytesReceived.Add(uint64(size)) //nolint:gosec
+			// #nosec G115 -- size of frame payload is non-negative
+			s.bytesReceived.Add(uint64(size))
 			s.metricNetRxBytes.Add(float64(size))
 			
 			s.lastFrameTime.Store(time.Now().Unix())

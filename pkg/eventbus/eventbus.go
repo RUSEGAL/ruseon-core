@@ -81,9 +81,8 @@ func (b *EventBus) Publish(topic string, cameraID string, data any) {
 	}
 
 	h := fnv.New32a()
-	h.Write([]byte(key))
-	//nolint:gosec // len(b.workers) is always positive, safe to convert
-	workerID := int(h.Sum32() % uint32(len(b.workers)))
+	_, _ = h.Write([]byte(key))
+	workerID := int(h.Sum32() % uint32(len(b.workers))) // #nosec G115
 
 	// Non-blocking send (Drop-Newest)
 	select {

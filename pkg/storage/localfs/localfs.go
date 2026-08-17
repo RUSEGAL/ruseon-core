@@ -43,10 +43,10 @@ func (l *LocalFS) Write(path string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(fp), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(fp), 0750); err != nil {
 		return err
 	}
-	return os.WriteFile(fp, data, 0600)
+	return os.WriteFile(fp, data, 0600) // #nosec G304
 }
 
 func (l *LocalFS) Read(path string) ([]byte, error) {
@@ -54,7 +54,7 @@ func (l *LocalFS) Read(path string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return os.ReadFile(fp)
+	return os.ReadFile(fp) // #nosec G304
 }
 
 func (l *LocalFS) Delete(path string) error {
@@ -86,10 +86,10 @@ func (l *LocalFS) Create(path string) (registry.WriteSeekCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(fp), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(fp), 0750); err != nil {
 		return nil, err
 	}
-	f, err := os.Create(fp)
+	f, err := os.Create(fp) // #nosec G304
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (l *LocalFS) Open(path string) (io.ReadSeekCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return os.Open(fp)
+	return os.Open(fp) // #nosec G304
 }
 
 func (l *LocalFS) MkdirAll(path string) error {
@@ -109,7 +109,7 @@ func (l *LocalFS) MkdirAll(path string) error {
 	if err != nil {
 		return err
 	}
-	return os.MkdirAll(fp, 0755)
+	return os.MkdirAll(fp, 0750)
 }
 
 func (l *LocalFS) Rename(oldPath, newPath string) error {

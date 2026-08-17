@@ -61,7 +61,7 @@ func (r *Recorder) run() {
 
 	closeAndRename := func() {
 		if file != nil {
-			file.Close()
+			_ = file.Close()
 			recordEndTime := time.Now()
 			finalFilename := filepath.Join(filepath.Dir(currentFilename), fmt.Sprintf("%s_to_%s.mp4", recordStartTime.Format("2006-01-02_15-04-05"), recordEndTime.Format("15-04-05")))
 			_ = registry.CurrentBlobStore.Rename(currentFilename, finalFilename)
@@ -136,7 +136,7 @@ func (r *Recorder) run() {
 			// Считаем примерный объем записанного в байтах по размеру сэмплов
 			var size uint32
 			for _, s := range partSamples {
-				size += uint32(len(s.Payload)) //nolint:gosec
+				size += uint32(len(s.Payload)) // #nosec G115 -- payload length fits within uint32
 			}
 			metrics.DiskWriteBytesTotal.WithLabelValues(r.streamID).Add(float64(size))
 
@@ -225,7 +225,7 @@ func (r *Recorder) run() {
 
 		// Устанавливаем Duration для предыдущего сэмпла
 		if pendingSample != nil {
-			pendingSample.Duration = uint32(currentPts - lastPts) //nolint:gosec
+			pendingSample.Duration = uint32(currentPts - lastPts) // #nosec G115 -- duration fits within uint32
 			partSamples = append(partSamples, pendingSample)
 		}
 
@@ -265,7 +265,7 @@ func (r *Recorder) run() {
 			// Считаем примерный объем записанного в байтах по размеру сэмплов
 			var size uint32
 			for _, s := range partSamples {
-				size += uint32(len(s.Payload)) //nolint:gosec
+				size += uint32(len(s.Payload)) // #nosec G115 -- payload length fits within uint32
 			}
 			metrics.DiskWriteBytesTotal.WithLabelValues(r.streamID).Add(float64(size))
 
@@ -276,7 +276,7 @@ func (r *Recorder) run() {
 
 			partSamples = partSamples[:0]
 			seq++
-			partStartBaseTime = uint64(currentPts) //nolint:gosec
+			partStartBaseTime = uint64(currentPts) // #nosec G115 -- currentPts is non-negative
 		}
 	}
 ExitLoop:
