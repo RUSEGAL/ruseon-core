@@ -15,8 +15,10 @@ import (
 
 // ValidateFMP4File проверяет структурную целостность fMP4 файла:
 // 1. Размер файла не менее 32 байт.
-// 2. Наличие валидного блока инициализации (moov).
-// 3. Наличие хотя бы одного медиа-фрагмента (moof + mdat).
+// 2. Все box'ы корректно укладываются в физический размер файла (box.offset + box.size <= fileSize).
+// 3. Файл завершается ровно по границе box'ов (нет оборванных trailing данных).
+// 4. Наличие валидного блока инициализации (moov).
+// 5. Наличие хотя бы одного медиа-фрагмента (moof + mdat).
 func ValidateFMP4File(path string) (bool, error) {
 	file, err := registry.CurrentBlobStore.Open(path)
 	if err != nil {
@@ -28,21 +30,31 @@ func ValidateFMP4File(path string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if stat.Size() < 32 {
-		return false, fmt.Errorf("fMP4 file size too small: %d bytes", stat.Size())
+	fileSize := stat.Size()
+	if fileSize < 32 {
+		return false, fmt.Errorf("fMP4 file size too small: %d bytes", fileSize)
 	}
 
+	var currentOffset int64
 	var hasMoov, hasMoof, hasMdat bool
-	for {
+
+	for currentOffset < fileSize {
+		if currentOffset+8 > fileSize {
+			return false, fmt.Errorf("truncated box header at offset %d (file size %d)", currentOffset, fileSize)
+		}
+
 		var header [8]byte
 		if _, err := io.ReadFull(file, header[:]); err != nil {
-			break
+			return false, fmt.Errorf("failed to read box header at offset %d: %w", currentOffset, err)
 		}
-		size := binary.BigEndian.Uint32(header[0:4])
+		size := int64(binary.BigEndian.Uint32(header[0:4]))
 		boxType := string(header[4:8])
 
 		if size < 8 {
-			break
+			return false, fmt.Errorf("invalid box size %d for box '%s' at offset %d", size, boxType, currentOffset)
+		}
+		if currentOffset+size > fileSize {
+			return false, fmt.Errorf("box '%s' at offset %d declares size %d which exceeds file size %d", boxType, currentOffset, size, fileSize)
 		}
 
 		switch boxType {
@@ -54,10 +66,9 @@ func ValidateFMP4File(path string) (bool, error) {
 			hasMdat = true
 		}
 
-		// #nosec G115 -- box size fits into int64
-		remaining := int64(size) - 8
-		if _, err := file.Seek(remaining, io.SeekCurrent); err != nil {
-			break
+		currentOffset += size
+		if _, err := file.Seek(size-8, io.SeekCurrent); err != nil {
+			return false, fmt.Errorf("failed to seek past box '%s': %w", boxType, err)
 		}
 	}
 
