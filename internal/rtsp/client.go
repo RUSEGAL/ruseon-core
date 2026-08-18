@@ -126,6 +126,8 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 	releaseSemaphore()
 
 
+	tsUnwrapper := NewTimestampUnwrapper()
+
 	// Ищем видео трек (H264 или H265) и подписываемся на него
 	for _, media := range session.Medias {
 		for _, forma := range media.Formats {
@@ -145,7 +147,8 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 					nalus, err := rtpDec.Decode(pkt)
 					if err == nil && len(nalus) > 0 {
 						isKeyFrame := false
-						pts := time.Duration(pkt.Timestamp) * time.Second / 90000
+						unwrappedTS := tsUnwrapper.Unwrap(pkt.Timestamp)
+						pts := time.Duration(unwrappedTS * uint64(time.Second) / 90000) // #nosec G115 -- unwrapped timestamp fits within int64 duration
 
 						for _, nalu := range nalus {
 							if len(nalu) > 0 {
@@ -174,7 +177,8 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 					nalus, err := rtpDec.Decode(pkt)
 					if err == nil && len(nalus) > 0 {
 						isKeyFrame := false
-						pts := time.Duration(pkt.Timestamp) * time.Second / 90000
+						unwrappedTS := tsUnwrapper.Unwrap(pkt.Timestamp)
+						pts := time.Duration(unwrappedTS * uint64(time.Second) / 90000) // #nosec G115 -- unwrapped timestamp fits within int64 duration
 
 						for _, nalu := range nalus {
 							if len(nalu) > 0 {

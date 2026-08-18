@@ -137,6 +137,66 @@ func TestMuxer_BoundedStopWithIdleStream(t *testing.T) {
 	}
 }
 
+func TestMuxer_DynamicCodecChange_Discontinuity(t *testing.T) {
+	rb := buffer.NewRingBuffer(10)
+	defer rb.Close()
+
+	// Initial SPS/PPS (e.g. 1080p)
+	sps1 := []byte{0x67, 0x42, 0x00, 0x0a, 0xf8, 0x41, 0xa2}
+	pps1 := []byte{0x68, 0xce, 0x38, 0x80}
+	rb.SetParams(nil, sps1, pps1)
+
+	muxer := NewMuxer("test_codec_change", rb, nil, nil)
+	muxer.targetDuration = 100 * time.Millisecond
+	defer muxer.Stop()
+
+	time.Sleep(50 * time.Millisecond)
+
+	// 1. First segment with SPS1
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: true,
+		Timestamp:  0,
+		NALUs:      [][]byte{{0x65, 0x01}},
+	})
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: false,
+		Timestamp:  50 * time.Millisecond,
+		NALUs:      [][]byte{{0x41, 0x02}},
+	})
+	// Trigger first segment close
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: true,
+		Timestamp:  150 * time.Millisecond,
+		NALUs:      [][]byte{{0x65, 0x03}},
+	})
+
+	time.Sleep(50 * time.Millisecond)
+
+	// 2. Camera changes SPS/PPS on the fly (e.g. resolution change to 720p)
+	sps2 := []byte{0x67, 0x42, 0x00, 0x1f, 0xf8, 0x41, 0xa2} // different profile/level
+	rb.SetParams(nil, sps2, pps1)
+
+	// Write keyframe with new SPS parameters
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: false,
+		Timestamp:  200 * time.Millisecond,
+		NALUs:      [][]byte{{0x41, 0x04}},
+	})
+	// Trigger second segment close
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: true,
+		Timestamp:  300 * time.Millisecond,
+		NALUs:      [][]byte{{0x65, 0x05}},
+	})
+
+	time.Sleep(100 * time.Millisecond)
+
+	playlist := muxer.GetPlaylist()
+	if !strings.Contains(playlist, "#EXT-X-DISCONTINUITY") {
+		t.Fatalf("expected playlist to contain #EXT-X-DISCONTINUITY on codec param change, got:\n%s", playlist)
+	}
+}
+
 func BenchmarkMuxer_GetPlaylist(b *testing.B) {
 	rb := buffer.NewRingBuffer(10)
 	defer rb.Close()

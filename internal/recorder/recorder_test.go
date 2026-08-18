@@ -106,6 +106,70 @@ func TestRecorder_EmptySegmentCleaned(t *testing.T) {
 	}
 }
 
+func TestRecorder_TimestampRegression_And_BFrames(t *testing.T) {
+	tempDir := t.TempDir()
+	rb := buffer.NewRingBuffer(10)
+	
+	sps := []byte{0x67, 0x42, 0x00, 0x0a, 0xf8, 0x41, 0xa2}
+	pps := []byte{0x68, 0xce, 0x38, 0x80}
+	rb.SetParams(nil, sps, pps)
+
+	r := NewRecorder("cam_bframe", rb, tempDir, nil)
+	time.Sleep(50 * time.Millisecond)
+
+	// 1. Keyframe at PTS = 1s
+	rb.Write(&buffer.Frame{
+		Timestamp:  1 * time.Second,
+		IsKeyFrame: true,
+		NALUs:      [][]byte{{0x05, 0x01, 0x02, 0x03}},
+	})
+
+	// 2. Forward P-frame at PTS = 1.08s
+	time.Sleep(10 * time.Millisecond)
+	rb.Write(&buffer.Frame{
+		Timestamp:  1080 * time.Millisecond,
+		IsKeyFrame: false,
+		NALUs:      [][]byte{{0x01, 0x04}},
+	})
+
+	// 3. Reordered B-frame (backward regression in PTS = 1.04s)
+	time.Sleep(10 * time.Millisecond)
+	rb.Write(&buffer.Frame{
+		Timestamp:  1040 * time.Millisecond, // PTS < lastPts
+		IsKeyFrame: false,
+		NALUs:      [][]byte{{0x01, 0x05}},
+	})
+
+	// 4. Another Keyframe at PTS = 2s
+	time.Sleep(10 * time.Millisecond)
+	rb.Write(&buffer.Frame{
+		Timestamp:  2 * time.Second,
+		IsKeyFrame: true,
+		NALUs:      [][]byte{{0x05, 0x06}},
+	})
+
+	time.Sleep(100 * time.Millisecond)
+	r.Stop()
+	rb.Close()
+
+	// Verify the generated file is structurally valid and can be validated
+	camDir := filepath.Join(tempDir, "cam_bframe")
+	entries, err := os.ReadDir(camDir)
+	if err != nil || len(entries) == 0 {
+		t.Fatalf("expected recorded files in %s, err: %v", camDir, err)
+	}
+
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), ".mp4") {
+			filePath := filepath.Join(camDir, entry.Name())
+			valid, valErr := ValidateFMP4File(filePath)
+			if !valid || valErr != nil {
+				t.Errorf("expected valid fMP4 with B-frames/regressions, got valid=%v, err=%v", valid, valErr)
+			}
+		}
+	}
+}
+
 func BenchmarkRecorder_FMP4_Write_GOP(b *testing.B) {
 	tempDir := b.TempDir()
 	filePath := filepath.Join(tempDir, "bench.mp4")

@@ -135,6 +135,14 @@ func (m *Muxer) run() {
 
 		m.lastFrameTime.Store(time.Now().UnixNano())
 
+		if frame.IsKeyFrame {
+			newVps, newSps, newPps := m.ringBuffer.GetParams()
+			if (!bytes.Equal(sps, newSps) || !bytes.Equal(pps, newPps) || !bytes.Equal(vps, newVps)) && newSps != nil {
+				vps, sps, pps = newVps, newSps, newPps
+				m.needsDiscontinuity = true
+			}
+		}
+
 		// Если текущий сегмент достиг целевой длины и пришел новый I-кадр, закрываем сегмент
 		if currentBuf != nil && frame.IsKeyFrame && frame.Timestamp-segmentStart >= m.targetDuration {
 			m.currentMetaMu.Lock()
