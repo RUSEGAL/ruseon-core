@@ -1,6 +1,8 @@
 package buffer
 
 import (
+	"context"
+	"io"
 	"sync"
 	"sync/atomic"
 
@@ -187,12 +189,21 @@ func (rb *RingBuffer) NewReader() *Reader {
 	return rb.Subscribe()
 }
 
-// Read - обратная совместимость со старым API.
-// Блокирует выполнение до получения следующего кадра.
-func (r *Reader) Read() *Frame {
-	f, ok := <-r.C
-	if !ok {
-		return nil
+// ReadContext возвращает следующий кадр с поддержкой отмены по контексту.
+func (r *Reader) ReadContext(ctx context.Context) (*Frame, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case f, ok := <-r.C:
+		if !ok {
+			return nil, io.EOF
+		}
+		return f, nil
 	}
+}
+
+// Read - блокирует выполнение до получения следующего кадра или закрытия буфера.
+func (r *Reader) Read() *Frame {
+	f, _ := r.ReadContext(context.Background())
 	return f
 }

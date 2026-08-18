@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/RUSEGAL/ruseon-core/internal/buffer"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/storage"
 )
@@ -162,4 +164,42 @@ func TestManager_UpsertConcurrency(_ *testing.T) {
 		}(i)
 	}
 	wg.Wait()
+}
+
+func TestStream_Shutdown_IdleSubscribers(t *testing.T) {
+	st := NewStream("test_idle_sub", "synthetic://", false, false, "tcp")
+
+	// Subscribe 5 idle readers that are waiting on ReadContext
+	var readers []*buffer.Reader
+	for i := 0; i < 5; i++ {
+		r := st.GetRingBuffer().Subscribe()
+		readers = append(readers, r)
+		go func(rd *buffer.Reader) {
+			for {
+				f, err := rd.ReadContext(st.ctx)
+				if err != nil || f == nil {
+					return
+				}
+			}
+		}(r)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	stopped := make(chan struct{})
+	go func() {
+		st.Stop()
+		close(stopped)
+	}()
+
+	select {
+	case <-stopped:
+		// Stopped cleanly within bounded deadline
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Stream.Stop() timed out with idle subscribers (unbounded shutdown)")
+	}
+
+	for _, r := range readers {
+		r.Close()
+	}
 }

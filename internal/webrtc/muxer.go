@@ -222,14 +222,8 @@ func (h *WHEPHandler) pumpFrames(ctx context.Context, pc *webrtc.PeerConnection,
 	_, sps, pps := h.rb.GetParams()
 
 	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		frame := reader.Read()
-		if frame == nil {
+		frame, err := reader.ReadContext(ctx)
+		if err != nil || frame == nil {
 			return
 		}
 
@@ -252,13 +246,11 @@ func (h *WHEPHandler) pumpFrames(ctx context.Context, pc *webrtc.PeerConnection,
 			annexB = append(annexB, nalu...)
 		}
 
-		err := track.WriteSample(media.Sample{
+		if writeErr := track.WriteSample(media.Sample{
 			Data:     annexB,
 			Duration: time.Second / 25, // Assume 25fps for playback pacing
-		})
-
-		if err != nil {
-			log.Error().Err(err).Str("stream", h.streamID).Msg("WebRTC track write error")
+		}); writeErr != nil {
+			log.Error().Err(writeErr).Str("stream", h.streamID).Msg("WebRTC track write error")
 			return
 		}
 	}
