@@ -36,6 +36,11 @@ func (l *LocalFS) fullPath(p string) (string, error) {
 		return cleanPath, nil
 	}
 
+	// Cross-platform check: reject Windows drive letter (e.g. "C:...", "D:...")
+	if len(cleanPath) >= 2 && cleanPath[1] == ':' && ((cleanPath[0] >= 'a' && cleanPath[0] <= 'z') || (cleanPath[0] >= 'A' && cleanPath[0] <= 'Z')) {
+		return "", fmt.Errorf("invalid path with drive letter: %s", p)
+	}
+
 	// When baseDir is configured, reject absolute paths, rooted paths, and volume names
 	if filepath.IsAbs(cleanPath) || strings.HasPrefix(cleanPath, "/") || strings.HasPrefix(cleanPath, "\\") || filepath.VolumeName(cleanPath) != "" {
 		return "", fmt.Errorf("invalid absolute or rooted path: %s", p)
