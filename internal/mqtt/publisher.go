@@ -37,6 +37,7 @@ func NewPublisher(cfg config.MQTTConfig) (*Publisher, error) {
 	opts.SetAutoReconnect(true)
 	opts.SetConnectRetry(true)
 	opts.SetConnectRetryInterval(5 * time.Second)
+	opts.SetConnectTimeout(3 * time.Second)
 
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {

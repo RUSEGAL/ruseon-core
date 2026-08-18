@@ -61,8 +61,16 @@ jobs:
       - name: Performance Validated (Run Benchmarks)
         run: go test -run=^$ -bench="." -benchmem ./...
 
+      - name: Filter Out Generated and Tool Files from Coverage
+        run: |
+          grep -v -E 'cmd/loadtest|internal/api/docs|pkg/grpc/pb' coverage.out > coverage.clean.out
+          mv coverage.clean.out coverage.out
+
       - name: Print Coverage Summary
         run: go tool cover -func=coverage.out
+
+      - name: Enforce Code Coverage Thresholds
+        run: go run scripts/check_coverage.go coverage.out
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
