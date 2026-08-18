@@ -60,6 +60,7 @@ func (r *Recorder) run() {
 	var pendingSample *fmp4.PartSample
 	var initialPts int64 = -1
 	var currentFilename string
+	var lastGoodDuration uint32 = 90000 / 25
 
 	closeAndFinalize := func(isError bool) {
 		if file != nil {
@@ -128,7 +129,7 @@ func (r *Recorder) run() {
 		// Ротация файла каждый час. Проверяем перед обработкой I-кадра.
 		if file != nil && frame.IsKeyFrame && time.Since(recordStartTime) > 1*time.Hour {
 			if pendingSample != nil {
-				pendingSample.Duration = 90000 / 25
+				pendingSample.Duration = lastGoodDuration
 				partSamples = append(partSamples, pendingSample)
 			}
 			if len(partSamples) > 0 {
@@ -245,9 +246,10 @@ func (r *Recorder) run() {
 		if pendingSample != nil {
 			dur := currentPts - lastPts
 			if dur <= 0 || dur > 90000*5 { // Защита от регрессий, джиттера B-кадров и аномальных скачков
-				pendingSample.Duration = 90000 / 25
+				pendingSample.Duration = lastGoodDuration
 			} else {
-				pendingSample.Duration = uint32(dur) // #nosec G115 -- dur is bounded <= 90000*5
+				lastGoodDuration = uint32(dur) // #nosec G115 -- dur is bounded <= 90000*5
+				pendingSample.Duration = lastGoodDuration
 			}
 			partSamples = append(partSamples, pendingSample)
 		}
@@ -302,7 +304,7 @@ ExitLoop:
 
 	if file != nil {
 		if pendingSample != nil {
-			pendingSample.Duration = 90000 / 25
+			pendingSample.Duration = lastGoodDuration
 			partSamples = append(partSamples, pendingSample)
 		}
 		if len(partSamples) > 0 {

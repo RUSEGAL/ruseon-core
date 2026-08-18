@@ -66,3 +66,48 @@ func TestTimestampUnwrapper_BFrame_SmallJitter(t *testing.T) {
 		t.Errorf("expected 13000, got %d", u3)
 	}
 }
+
+func TestTimestampUnwrapper_ReorderedSequence(t *testing.T) {
+	u := NewTimestampUnwrapper()
+
+	// Последовательность с reordering: 100000 -> 101000 -> 100500 -> 102000
+	seq := []struct {
+		in       uint32
+		expected uint64
+	}{
+		{100000, 100000},
+		{101000, 101000},
+		{100500, 100500},
+		{102000, 102000},
+	}
+
+	for i, s := range seq {
+		got := u.Unwrap(s.in)
+		if got != s.expected {
+			t.Errorf("step %d (in=%d): expected %d, got %d", i, s.in, s.expected, got)
+		}
+	}
+}
+
+func TestTimestampUnwrapper_OutOfOrderRollover(t *testing.T) {
+	u := NewTimestampUnwrapper()
+
+	// Пакеты переупорядочены прямо вокруг границы rollover:
+	// 0xFFFFFFFE (before rollover)
+	// 0x00000001 (after rollover -> epoch increases)
+	// 0xFFFFFFFF (late packet before rollover -> epoch rolls back symmetrically)
+	u1 := u.Unwrap(0xFFFFFFFE)
+	if u1 != 0xFFFFFFFE {
+		t.Errorf("expected 0xFFFFFFFE, got %d", u1)
+	}
+
+	u2 := u.Unwrap(0x00000001)
+	if u2 != (1<<32)+1 {
+		t.Errorf("expected %d, got %d", (uint64(1)<<32)+1, u2)
+	}
+
+	u3 := u.Unwrap(0xFFFFFFFF)
+	if u3 != 0xFFFFFFFF {
+		t.Errorf("expected 0xFFFFFFFF after out-of-order wrap recovery, got %d", u3)
+	}
+}
