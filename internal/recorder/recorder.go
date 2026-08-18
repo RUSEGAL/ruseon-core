@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -50,6 +51,7 @@ func (r *Recorder) run() {
 	
 	var file registry.WriteSeekCloser
 	var seq uint32
+	var partsWritten uint32
 	var partSamples = make([]*fmp4.PartSample, 0, 150) // Preallocate for ~5 sec GOP
 
 	var partStartBaseTime uint64
@@ -59,15 +61,31 @@ func (r *Recorder) run() {
 	var initialPts int64 = -1
 	var currentFilename string
 
-	closeAndRename := func() {
+	closeAndFinalize := func(isError bool) {
 		if file != nil {
 			_ = file.Close()
-			recordEndTime := time.Now()
-			finalFilename := filepath.Join(filepath.Dir(currentFilename), fmt.Sprintf("%s_to_%s.mp4", recordStartTime.Format("2006-01-02_15-04-05"), recordEndTime.Format("15-04-05")))
-			_ = registry.CurrentBlobStore.Rename(currentFilename, finalFilename)
-			metrics.ArchiveSegmentsWrittenTotal.WithLabelValues(r.streamID).Inc()
-			if registry.CurrentEventBus != nil {
-				registry.CurrentEventBus.Publish("archive_segment_ready", r.streamID, map[string]string{"file": finalFilename})
+			switch {
+			case isError:
+				metrics.ArchiveErrorsTotal.WithLabelValues(r.streamID).Inc()
+				if registry.CurrentEventBus != nil {
+					registry.CurrentEventBus.Publish("recording_failed", r.streamID, map[string]string{
+						"error": "recording write failure",
+						"file":  currentFilename,
+					})
+				}
+				corruptedFilename := filepath.Join(filepath.Dir(currentFilename), strings.TrimSuffix(filepath.Base(currentFilename), ".mp4")+".corrupted")
+				_ = registry.CurrentBlobStore.Rename(currentFilename, corruptedFilename)
+			case partsWritten > 0:
+				recordEndTime := time.Now()
+				finalFilename := filepath.Join(filepath.Dir(currentFilename), fmt.Sprintf("%s_to_%s.mp4", recordStartTime.Format("2006-01-02_15-04-05"), recordEndTime.Format("15-04-05")))
+				_ = registry.CurrentBlobStore.Rename(currentFilename, finalFilename)
+				metrics.ArchiveSegmentsWrittenTotal.WithLabelValues(r.streamID).Inc()
+				if registry.CurrentEventBus != nil {
+					registry.CurrentEventBus.Publish("archive_segment_ready", r.streamID, map[string]string{"file": finalFilename})
+				}
+			default:
+				// Пустой файл (0 частей записано) - удаляем, исключая загрязнение архива
+				_ = registry.CurrentBlobStore.Delete(currentFilename)
 			}
 			file = nil
 		}
@@ -76,7 +94,7 @@ func (r *Recorder) run() {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error().Interface("panic", err).Str("streamID", r.streamID).Msg("Recovered from panic in Recorder.run")
-			closeAndRename()
+			closeAndFinalize(true)
 		}
 	}()
 
@@ -123,33 +141,35 @@ func (r *Recorder) run() {
 					}},
 				}
 				if err := part.Marshal(file); err != nil {
-					metrics.ArchiveErrorsTotal.WithLabelValues(r.streamID).Inc()
-					if registry.CurrentEventBus != nil {
-						registry.CurrentEventBus.Publish("recording_failed", r.streamID, map[string]string{"error": err.Error(), "file": currentFilename})
-					}
 					if r.onDegraded != nil {
 						r.onDegraded(true)
 					}
+					closeAndFinalize(true)
+					pendingSample = nil
+					partSamples = partSamples[:0]
+					initialPts = -1
+					continue
 				}
+				partsWritten++
 			}
 
-			// Считаем примерный объем записанного в байтах по размеру сэмплов
+			// Считаем объем записанного
 			var size uint32
 			for _, s := range partSamples {
 				size += uint32(len(s.Payload)) // #nosec G115 -- payload length fits within uint32
 			}
 			metrics.DiskWriteBytesTotal.WithLabelValues(r.streamID).Add(float64(size))
 
-			// Если поддерживается DropCache, то сбрасываем Page Cache
 			if dropper, ok := file.(registry.CacheDropper); ok {
 				_ = dropper.DropCache()
 			}
 			
 			log.Info().Str("stream", r.streamID).Msg("Rotating record file")
-			closeAndRename()
+			closeAndFinalize(false)
 			pendingSample = nil
 			partSamples = partSamples[:0]
 			initialPts = -1
+			partsWritten = 0
 		}
 
 		if file == nil {
@@ -203,13 +223,10 @@ func (r *Recorder) run() {
 			}
 			if err := init.Marshal(file); err != nil {
 				log.Error().Err(err).Msg("Failed to write fMP4 init")
-				if registry.CurrentEventBus != nil {
-					registry.CurrentEventBus.Publish("recording_failed", r.streamID, map[string]string{"error": err.Error(), "file": currentFilename})
-				}
 				if r.onDegraded != nil {
 					r.onDegraded(true)
 				}
-				closeAndRename()
+				closeAndFinalize(true)
 				continue
 			}
 
@@ -217,6 +234,7 @@ func (r *Recorder) run() {
 			partStartBaseTime = 0
 			lastPts = 0
 			seq = 1
+			partsWritten = 0
 			pendingSample = nil
 			partSamples = partSamples[:0]
 		}
@@ -247,29 +265,25 @@ func (r *Recorder) run() {
 			}
 
 			if err := part.Marshal(file); err != nil {
-				metrics.ArchiveErrorsTotal.WithLabelValues(r.streamID).Inc()
 				log.Error().Err(err).Msg("Failed to write fMP4 part")
-				if registry.CurrentEventBus != nil {
-					registry.CurrentEventBus.Publish("recording_failed", r.streamID, map[string]string{"error": err.Error(), "file": currentFilename})
-				}
 				if r.onDegraded != nil {
 					r.onDegraded(true)
 				}
-				closeAndRename()
+				closeAndFinalize(true)
 				pendingSample = nil
 				partSamples = partSamples[:0]
 				initialPts = -1
+				partsWritten = 0
 				continue
 			}
 
-			// Считаем примерный объем записанного в байтах по размеру сэмплов
+			partsWritten++
 			var size uint32
 			for _, s := range partSamples {
 				size += uint32(len(s.Payload)) // #nosec G115 -- payload length fits within uint32
 			}
 			metrics.DiskWriteBytesTotal.WithLabelValues(r.streamID).Add(float64(size))
 
-			// OPTIMIZATION: Drop Page Cache to save RAM (Direct I/O alternative)
 			if dropper, ok := file.(registry.CacheDropper); ok {
 				_ = dropper.DropCache()
 			}
@@ -282,7 +296,6 @@ func (r *Recorder) run() {
 ExitLoop:
 
 	if file != nil {
-		// Дописываем последний сэмпл при остановке
 		if pendingSample != nil {
 			pendingSample.Duration = 90000 / 25
 			partSamples = append(partSamples, pendingSample)
@@ -296,9 +309,11 @@ ExitLoop:
 					Samples:  partSamples,
 				}},
 			}
-			_ = part.Marshal(file)
+			if err := part.Marshal(file); err == nil {
+				partsWritten++
+			}
 		}
-		closeAndRename()
+		closeAndFinalize(false)
 	}
 }
 
