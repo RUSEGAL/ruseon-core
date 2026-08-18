@@ -641,7 +641,7 @@ func (h *Handler) PostWHEP(c *gin.Context) {
 	answerSDP, err := whepHandler.HandleOffer(c.Request.Context(), offerSDP)
 	if err != nil {
 		log.Error().Err(err).Str("stream", id).Msg("WHEP HandleOffer failed")
-		c.String(http.StatusInternalServerError, err.Error())
+		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
 
