@@ -243,7 +243,12 @@ func (r *Recorder) run() {
 
 		// Устанавливаем Duration для предыдущего сэмпла
 		if pendingSample != nil {
-			pendingSample.Duration = uint32(currentPts - lastPts) // #nosec G115 -- duration fits within uint32
+			dur := currentPts - lastPts
+			if dur <= 0 || dur > 90000*5 { // Защита от регрессий, джиттера B-кадров и аномальных скачков
+				pendingSample.Duration = 90000 / 25
+			} else {
+				pendingSample.Duration = uint32(dur) // #nosec G115 -- dur is bounded <= 90000*5
+			}
 			partSamples = append(partSamples, pendingSample)
 		}
 

@@ -177,4 +177,43 @@ func TestReader_ReadContext(t *testing.T) {
 	}
 }
 
+func TestRingBuffer_LongGOP_RequiresIFrame(t *testing.T) {
+	rb := NewRingBuffer(5)
+	defer rb.Close()
+
+	// 1. Пишем 1 I-кадр и 6 P-кадров (I-кадр вымывается из буфера емкостью 5)
+	rb.Write(&Frame{IsKeyFrame: true, Timestamp: 1})
+	for i := 2; i <= 7; i++ {
+		rb.Write(&Frame{IsKeyFrame: false, Timestamp: time.Duration(i)})
+	}
+
+	// 2. Новый подписчик подключается к потоку, в истории которого нет I-кадра (Long GOP > capacity)
+	reader := rb.Subscribe()
+	defer reader.Close()
+
+	if !reader.NeedsIFrame.Load() {
+		t.Errorf("expected reader to require I-frame when historical GOP exceeds buffer capacity")
+	}
+
+	// 3. Пишем P-кадр -> читатель должен его пропустить
+	rb.Write(&Frame{IsKeyFrame: false, Timestamp: 8})
+	select {
+	case f := <-reader.C:
+		t.Fatalf("expected reader to ignore delta frame before I-frame, got frame: %v", f)
+	default:
+		// OK
+	}
+
+	// 4. Пишем I-кадр -> читатель должен его получить
+	rb.Write(&Frame{IsKeyFrame: true, Timestamp: 9})
+	select {
+	case f := <-reader.C:
+		if f.Timestamp != 9 || !f.IsKeyFrame {
+			t.Errorf("expected keyframe 9, got %v", f)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatalf("expected reader to receive keyframe 9")
+	}
+}
+
 

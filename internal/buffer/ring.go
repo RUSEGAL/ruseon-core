@@ -167,6 +167,9 @@ func (rb *RingBuffer) Subscribe() *Reader {
 				r.C <- f
 			}
 		}
+	} else if rb.head > 0 {
+		// Если I-кадр не найден в истории (Long-GOP > capacity), требуем дождаться следующего I-кадра
+		r.NeedsIFrame.Store(true)
 	}
 	rb.mu.RUnlock()
 
