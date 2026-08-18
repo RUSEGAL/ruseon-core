@@ -103,12 +103,14 @@ func (s *Storage) Ping(ctx context.Context) error {
 		return errors.New("badger database is closed or uninitialized")
 	}
 	return s.db.View(func(_ *badger.Txn) error {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			return nil
+		if ctx != nil {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
 		}
+		return nil
 	})
 }
 

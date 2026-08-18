@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -475,5 +476,60 @@ func TestStorage_MigrateFromConfig_NilAndIdempotent(t *testing.T) {
 	camsAfter, _ := store.ListCameras()
 	if len(camsAfter) != 2 {
 		t.Fatalf("expected camera count to remain 2, got %d", len(camsAfter))
+	}
+}
+
+func TestStorage_UserCRUD_And_Ping(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := NewStorage(tempDir)
+	if err != nil {
+		t.Fatalf("failed to create storage: %v", err)
+	}
+	defer store.Close()
+
+	// 1. Ping
+	if err := store.Ping(context.Background()); err != nil {
+		t.Errorf("expected ping to succeed, got %v", err)
+	}
+
+	// 2. HasUsers initial
+	hasUsers, err := store.HasUsers()
+	if err != nil || hasUsers {
+		t.Fatalf("expected hasUsers to be false, got %v (err: %v)", hasUsers, err)
+	}
+
+	// 3. Save Users
+	u1 := &models.User{Username: "user1", PasswordHash: "hash1", Role: models.RoleAdmin}
+	u2 := &models.User{Username: "user2", PasswordHash: "hash2", Role: models.RoleViewer}
+	if err := store.SaveUser(u1); err != nil {
+		t.Fatalf("failed to save u1: %v", err)
+	}
+	if err := store.SaveUser(u2); err != nil {
+		t.Fatalf("failed to save u2: %v", err)
+	}
+
+	// 4. HasUsers now true
+	hasUsers, err = store.HasUsers()
+	if err != nil || !hasUsers {
+		t.Fatalf("expected hasUsers to be true, got %v", hasUsers)
+	}
+
+	// 5. List Users
+	users, err := store.ListUsers()
+	if err != nil || len(users) != 2 {
+		t.Fatalf("expected 2 users, got %d (err: %v)", len(users), err)
+	}
+
+	// 6. Delete Users
+	if err := store.DeleteUser("user1"); err != nil {
+		t.Fatalf("failed to delete user1: %v", err)
+	}
+	if err := store.DeleteUser("user2"); err != nil {
+		t.Fatalf("failed to delete user2: %v", err)
+	}
+
+	usersAfter, err := store.ListUsers()
+	if err != nil || len(usersAfter) != 0 {
+		t.Fatalf("expected 0 users after deletion, got %d", len(usersAfter))
 	}
 }
