@@ -117,21 +117,68 @@ func (h *Handler) LivenessCheck(c *gin.Context) {
 	})
 }
 
-// ReadinessCheck responds to readiness probes (e.g. /readyz).
+// ReadinessCheck responds to readiness probes (e.g. /readyz) verifying the health of database, storage, and streaming subsystems.
 func (h *Handler) ReadinessCheck(c *gin.Context) {
-	if registry.CurrentStateStore == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"status": "not ready", "error": "store not initialized"})
-		return
+	components := make(map[string]string)
+	isReady := true
+	var errMsgs []string
+
+	// 1. Check StateStore / Database health
+	store := h.store
+	if store == nil {
+		store = registry.CurrentStateStore
 	}
-	// Check store connection by doing a simple operation
-	_, err := registry.CurrentStateStore.HasUsers()
-	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"status": "not ready", "error": "database unavailable"})
+	if store == nil {
+		components["database"] = "uninitialized"
+		isReady = false
+		errMsgs = append(errMsgs, "database store not initialized")
+	} else if _, err := store.HasUsers(); err != nil {
+		components["database"] = fmt.Sprintf("unavailable: %v", err)
+		isReady = false
+		errMsgs = append(errMsgs, fmt.Sprintf("database unavailable: %v", err))
+	} else {
+		components["database"] = "ok"
+	}
+
+	// 2. Check BlobStore / Storage subsystem health
+	if registry.CurrentBlobStore == nil {
+		components["storage"] = "uninitialized"
+		isReady = false
+		errMsgs = append(errMsgs, "storage blobstore not initialized")
+	} else if _, err := registry.CurrentBlobStore.Stat("."); err != nil {
+		// If "." is not supported or returns error, check if recordings dir is accessible/creatable
+		if mkdirErr := registry.CurrentBlobStore.MkdirAll("recordings"); mkdirErr != nil {
+			components["storage"] = fmt.Sprintf("unavailable: %v", err)
+			isReady = false
+			errMsgs = append(errMsgs, fmt.Sprintf("storage unavailable: %v", err))
+		} else {
+			components["storage"] = "ok"
+		}
+	} else {
+		components["storage"] = "ok"
+	}
+
+	// 3. Check StreamManager / Media subsystem health
+	if h.manager == nil {
+		components["stream_manager"] = "uninitialized"
+		isReady = false
+		errMsgs = append(errMsgs, "stream manager not initialized")
+	} else {
+		components["stream_manager"] = "ok"
+	}
+
+	if !isReady {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"status":     "not_ready",
+			"error":      strings.Join(errMsgs, "; "),
+			"components": components,
+		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"status": "ready",
+		"status":     "ready",
+		"components": components,
 	})
 }
 

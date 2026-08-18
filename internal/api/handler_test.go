@@ -17,6 +17,7 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 	"github.com/RUSEGAL/ruseon-core/pkg/storage"
+	"github.com/RUSEGAL/ruseon-core/pkg/storage/localfs"
 	"github.com/RUSEGAL/ruseon-core/internal/stream"
 )
 
@@ -24,6 +25,8 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *Handler, registry.StateStore) 
 	gin.SetMode(gin.TestMode)
 	tempDir := t.TempDir()
 	store, _ := storage.NewStorage(filepath.Join(tempDir, "db"))
+	registry.CurrentStateStore = store
+	registry.CurrentBlobStore = localfs.NewLocalFS(tempDir)
 	
 	cfg := &config.Config{}
 	cfg.Auth.Secret = "secret"
@@ -50,6 +53,106 @@ func TestLivenessCheck(t *testing.T) {
 	
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestReadinessCheck_Healthy(t *testing.T) {
+	router, handler, store := setupTestRouter(t)
+	defer store.Close()
+
+	router.GET("/readyz", handler.ReadinessCheck)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/readyz", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var res struct {
+		Status     string            `json:"status"`
+		Components map[string]string `json:"components"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("failed to decode json: %v", err)
+	}
+
+	if res.Status != "ready" {
+		t.Errorf("expected status 'ready', got '%s'", res.Status)
+	}
+	if res.Components["database"] != "ok" || res.Components["storage"] != "ok" || res.Components["stream_manager"] != "ok" {
+		t.Errorf("expected all components ok, got: %+v", res.Components)
+	}
+}
+
+func TestReadinessCheck_UnhealthyDatabase(t *testing.T) {
+	router, handler, store := setupTestRouter(t)
+	// Close store to make database unavailable
+	store.Close()
+
+	router.GET("/readyz", handler.ReadinessCheck)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/readyz", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 Service Unavailable, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var res struct {
+		Status     string            `json:"status"`
+		Error      string            `json:"error"`
+		Components map[string]string `json:"components"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &res)
+	if res.Status != "not_ready" {
+		t.Errorf("expected status 'not_ready', got '%s'", res.Status)
+	}
+	if res.Components["database"] == "ok" {
+		t.Errorf("expected database component to report error, got ok")
+	}
+}
+
+func TestReadinessCheck_UnhealthyStorage(t *testing.T) {
+	router, handler, store := setupTestRouter(t)
+	defer store.Close()
+
+	oldBlobStore := registry.CurrentBlobStore
+	registry.CurrentBlobStore = nil
+	defer func() { registry.CurrentBlobStore = oldBlobStore }()
+
+	router.GET("/readyz", handler.ReadinessCheck)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/readyz", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 Service Unavailable, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestReadinessCheck_UninitializedStreamManager(t *testing.T) {
+	tempDir := t.TempDir()
+	store, _ := storage.NewStorage(filepath.Join(tempDir, "db"))
+	defer store.Close()
+	registry.CurrentStateStore = store
+	registry.CurrentBlobStore = localfs.NewLocalFS(tempDir)
+
+	cfg := &config.Config{}
+	handler := NewHandler(nil, cfg, store) // nil StreamManager
+
+	router := gin.New()
+	router.GET("/readyz", handler.ReadinessCheck)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/readyz", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 Service Unavailable, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
