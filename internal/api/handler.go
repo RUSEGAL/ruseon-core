@@ -533,9 +533,7 @@ func (h *Handler) GetHLSPlaylist(c *gin.Context) {
 		return
 	}
 
-	muxer := st.WakeUpHLSMuxer()
-	// Force muxer to wake up and generate stream, but we return Master Playlist here
-	_ = muxer.GetPlaylist()
+	st.WakeUpHLSMuxer()
 
 	c.Header("Content-Type", "application/vnd.apple.mpegurl")
 	masterPlaylist := `#EXTM3U
