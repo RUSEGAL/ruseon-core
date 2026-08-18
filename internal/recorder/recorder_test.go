@@ -80,6 +80,32 @@ func TestRecorder_Lifecycle(t *testing.T) {
 	}
 }
 
+func TestRecorder_EmptySegmentCleaned(t *testing.T) {
+	tempDir := t.TempDir()
+	rb := buffer.NewRingBuffer(10)
+	
+	sps := []byte{0x67, 0x42, 0x00, 0x0a, 0xf8, 0x41, 0xa2}
+	pps := []byte{0x68, 0xce, 0x38, 0x80}
+	rb.SetParams(nil, sps, pps)
+
+	r := NewRecorder("cam_empty", rb, tempDir, nil)
+	time.Sleep(50 * time.Millisecond)
+
+	// Не пишем никаких кадров, сразу останавливаем рекордер
+	r.Stop()
+	rb.Close()
+	time.Sleep(50 * time.Millisecond)
+
+	camDir := filepath.Join(tempDir, "cam_empty")
+	if entries, err := os.ReadDir(camDir); err == nil {
+		for _, entry := range entries {
+			if strings.HasSuffix(entry.Name(), ".mp4") {
+				t.Errorf("expected no mp4 files for empty recorder, found: %s", entry.Name())
+			}
+		}
+	}
+}
+
 func BenchmarkRecorder_FMP4_Write_GOP(b *testing.B) {
 	tempDir := b.TempDir()
 	filePath := filepath.Join(tempDir, "bench.mp4")
