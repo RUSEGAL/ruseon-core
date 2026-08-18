@@ -104,3 +104,62 @@ func TestManager_SyncWithStorage(t *testing.T) {
 		t.Errorf("expected cam2 and cam3, got something else")
 	}
 }
+
+func TestManager_UpsertStream(t *testing.T) {
+	m := NewManager()
+
+	// 1. Создаем поток через UpsertStream
+	m.UpsertStream("cam1", "rtsp://test1", false, true, "tcp", false)
+	st1, ok := m.GetStream("cam1")
+	if !ok || st1 == nil {
+		t.Fatalf("expected cam1 to be created")
+	}
+	if !m.HasStream("cam1") {
+		t.Errorf("expected HasStream to return true for cam1")
+	}
+
+	// 2. Идемпотентный апсерт с теми же параметрами - стрим НЕ должен пересоздаваться
+	m.UpsertStream("cam1", "rtsp://test1", false, true, "tcp", false)
+	st1Same, _ := m.GetStream("cam1")
+	if st1 != st1Same {
+		t.Errorf("expected same stream instance when parameters are identical")
+	}
+
+	// 3. Апсерт с измененным URL - стрим ДОЛЖЕН пересоздаться
+	m.UpsertStream("cam1", "rtsp://test1-updated", false, true, "tcp", false)
+	st1Updated, _ := m.GetStream("cam1")
+	if st1 == st1Updated {
+		t.Errorf("expected new stream instance when URL is updated")
+	}
+	if st1Updated.URL != "rtsp://test1-updated" {
+		t.Errorf("expected updated URL, got %s", st1Updated.URL)
+	}
+
+	// 4. Апсерт с disabled=true - стрим ДОЛЖЕН быть остановлен и удален
+	m.UpsertStream("cam1", "rtsp://test1-updated", false, true, "tcp", true)
+	if m.HasStream("cam1") {
+		t.Errorf("expected cam1 to be removed when disabled")
+	}
+	if _, ok := m.GetStream("cam1"); ok {
+		t.Errorf("expected GetStream to return false for disabled cam1")
+	}
+}
+
+func TestManager_UpsertConcurrency(_ *testing.T) {
+	m := NewManager()
+	var wg sync.WaitGroup
+
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			camID := fmt.Sprintf("cam_%d", id%5)
+			for j := 0; j < 20; j++ {
+				disabled := (j % 2 == 1)
+				url := fmt.Sprintf("rtsp://server/%s_%d", camID, j)
+				m.UpsertStream(camID, url, false, true, "tcp", disabled)
+			}
+		}(i)
+	}
+	wg.Wait()
+}

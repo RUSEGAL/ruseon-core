@@ -70,6 +70,46 @@ func (m *Manager) GetStreams() []*Stream {
 	return result
 }
 
+// HasStream проверяет, зарегистрирован ли поток в менеджере.
+func (m *Manager) HasStream(id string) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	_, exists := m.streams[id]
+	return exists
+}
+
+// UpsertStream атомарно создает, обновляет или останавливает поток в зависимости от конфигурации.
+// Если поток отключен (disabled=true), он останавливается и удаляется из менеджера.
+// Если поток включен (disabled=false), он создается или обновляется при изменении параметров.
+func (m *Manager) UpsertStream(id, url string, record bool, lazyHLS bool, transport string, disabled bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	existing, exists := m.streams[id]
+	if disabled {
+		if exists {
+			existing.Stop()
+			delete(m.streams, id)
+			log.Info().Str("id", id).Msg("Stream stopped and removed (disabled)")
+		}
+		return
+	}
+
+	if exists {
+		if existing.MatchesConfig(url, record, lazyHLS, transport) {
+			// Параметры стрима не изменились, оставляем работать без прерывания
+			return
+		}
+		// Параметры изменились, пересоздаем стрим
+		existing.Stop()
+		delete(m.streams, id)
+		log.Info().Str("id", id).Msg("Stream parameters changed, recreating stream")
+	}
+
+	st := NewStream(id, url, record, lazyHLS, transport)
+	m.streams[id] = st
+}
+
 // SyncWithStorage синхронизирует состояние потоков с базой.
 func (m *Manager) SyncWithStorage(store registry.StateStore) error {
 	log.Info().Msg("Syncing stream manager with storage...")
@@ -82,20 +122,30 @@ func (m *Manager) SyncWithStorage(store registry.StateStore) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	
-	// 1. Остановка всех текущих потоков
-	for id, st := range m.streams {
-		st.Stop()
-		delete(m.streams, id)
-	}
-	
-	// 2. Инициализация новых потоков
+	activeIDs := make(map[string]struct{}, len(cams))
 	for _, cam := range cams {
 		if !cam.Disabled {
-			st := NewStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport)
-			m.streams[cam.ID] = st
-			log.Info().Str("id", cam.ID).Msg("Stream started from backup sync")
+			activeIDs[cam.ID] = struct{}{}
+			if existing, exists := m.streams[cam.ID]; exists {
+				if !existing.MatchesConfig(cam.URL, cam.Record, cam.LazyHLS, cam.Transport) {
+					existing.Stop()
+					m.streams[cam.ID] = NewStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport)
+				}
+			} else {
+				m.streams[cam.ID] = NewStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport)
+				log.Info().Str("id", cam.ID).Msg("Stream started from backup sync")
+			}
 		} else {
 			log.Info().Str("id", cam.ID).Msg("Stream is disabled, skipping")
+		}
+	}
+	
+	// Остановка потоков, которых больше нет в активном списке
+	for id, st := range m.streams {
+		if _, ok := activeIDs[id]; !ok {
+			st.Stop()
+			delete(m.streams, id)
+			log.Info().Str("id", id).Msg("Stream stopped (removed or disabled in storage)")
 		}
 	}
 	

@@ -320,6 +320,7 @@ func (h *Handler) GetCameras(c *gin.Context) {
 // @Param camera body config.CameraConfig true "Camera Configuration"
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
+// @Failure 409 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /api/cameras [post]
 func (h *Handler) AddCamera(c *gin.Context) {
@@ -329,18 +330,25 @@ func (h *Handler) AddCamera(c *gin.Context) {
 		return
 	}
 
+	cam.ID = strings.TrimSpace(cam.ID)
+	if cam.ID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Camera ID cannot be empty"})
+		return
+	}
+
+	// Проверяем, не существует ли уже камера с таким ID в хранилище
+	if existing, _ := h.store.GetCamera(cam.ID); existing != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": fmt.Sprintf("Camera with ID '%s' already exists", cam.ID)})
+		return
+	}
+
 	if err := h.store.SaveCamera(&cam); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save camera to DB"})
 		return
 	}
 
-	// Запускаем поток, если он не отключен
-	if !cam.Disabled {
-		if err := h.manager.AddStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-	}
+	// Атомарно синхронизируем рантайм-менеджер потоков
+	h.manager.UpsertStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport, cam.Disabled)
 
 	log.Info().Str("audit", "true").Str("action", "camera_added").Str("camera_id", cam.ID).Str("user", c.GetString("username")).Msg("Camera added")
 	h.InvalidateCamerasCache()
@@ -353,17 +361,24 @@ func (h *Handler) AddCamera(c *gin.Context) {
 // @Produce json
 // @Param id path string true "Camera ID"
 // @Success 200 {object} map[string]string
+// @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /api/cameras/{id} [delete]
 func (h *Handler) DeleteCamera(c *gin.Context) {
 	id := c.Param("id")
+
+	// Проверяем, существует ли камера в хранилище
+	if _, err := h.store.GetCamera(id); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Camera '%s' not found", id)})
+		return
+	}
 
 	if err := h.store.DeleteCamera(id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete camera"})
 		return
 	}
 
-	// Останавливаем поток
+	// Останавливаем поток и удаляем из менеджера
 	h.manager.RemoveStream(id)
 
 	log.Info().Str("audit", "true").Str("action", "camera_deleted").Str("camera_id", id).Str("user", c.GetString("username")).Msg("Camera deleted")
@@ -380,6 +395,7 @@ func (h *Handler) DeleteCamera(c *gin.Context) {
 // @Param camera body config.CameraConfig true "Updated Camera Configuration"
 // @Success 200 {object} map[string]string
 // @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /api/cameras/{id} [put]
 func (h *Handler) EditCamera(c *gin.Context) {
@@ -389,6 +405,9 @@ func (h *Handler) EditCamera(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
+
+	// Гарантируем соответствие ID в URL и теле запроса
+	req.ID = id
 
 	err := h.store.UpdateCameraTx(id, func(cam *config.CameraConfig) bool {
 		cam.URL = req.URL
@@ -400,6 +419,7 @@ func (h *Handler) EditCamera(c *gin.Context) {
 		cam.SimICCID = req.SimICCID
 		cam.LazyHLS = req.LazyHLS
 		cam.TokenAuth = req.TokenAuth
+		cam.Transport = req.Transport
 
 		// Отслеживание изменения статуса записи
 		if cam.Record != req.Record {
@@ -435,15 +455,12 @@ func (h *Handler) EditCamera(c *gin.Context) {
 	})
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update camera"})
+		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Camera '%s' not found or failed to update", id)})
 		return
 	}
 
-	// Перезапускаем поток если он включен
-	h.manager.RemoveStream(id)
-	if !req.Disabled {
-		_ = h.manager.AddStream(req.ID, req.URL, req.Record, req.LazyHLS, req.Transport)
-	}
+	// Атомарно обновляем рантайм-поток
+	h.manager.UpsertStream(id, req.URL, req.Record, req.LazyHLS, req.Transport, req.Disabled)
 
 	log.Info().Str("audit", "true").Str("action", "camera_edited").Str("camera_id", id).Str("user", c.GetString("username")).Msg("Camera edited")
 	h.InvalidateCamerasCache()

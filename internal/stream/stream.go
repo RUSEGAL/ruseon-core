@@ -277,6 +277,12 @@ func (s *Stream) Stop() {
 	}
 }
 
+// MatchesConfig проверяет, совпадают ли текущие параметры стрима с переданными.
+func (s *Stream) MatchesConfig(url string, record, lazyHLS bool, transport string) bool {
+	hasRecorder := s.mp4Recorder != nil
+	return s.URL == url && s.transport == transport && s.lazyHLS == lazyHLS && hasRecorder == record
+}
+
 // GetRingBuffer возвращает кольцевой буфер потока для чтения.
 func (s *Stream) GetRingBuffer() *buffer.RingBuffer {
 	return s.ringBuffer
