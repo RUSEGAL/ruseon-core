@@ -2,6 +2,7 @@ package buffer
 
 import (
 	"bytes"
+	"context"
 	"testing"
 	"time"
 )
@@ -135,6 +136,44 @@ func TestRingBuffer_DropsAndRecovery(t *testing.T) {
 	f5 := reader.Read()
 	if f5.Timestamp != 5 {
 		t.Errorf("expected 5 after recovery, got %v", f5.Timestamp)
+	}
+}
+
+func TestReader_ReadContext(t *testing.T) {
+	rb := NewRingBuffer(5)
+	defer rb.Close()
+
+	reader := rb.Subscribe()
+	defer reader.Close()
+
+	// 1. Test Cancellation
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		cancel()
+	}()
+
+	f, err := reader.ReadContext(ctx)
+	if f != nil || err != context.Canceled {
+		t.Errorf("expected context.Canceled, got f=%v, err=%v", f, err)
+	}
+
+	// 2. Test Timeout
+	ctxTimeout, cancelTimeout := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancelTimeout()
+
+	f, err = reader.ReadContext(ctxTimeout)
+	if f != nil || err != context.DeadlineExceeded {
+		t.Errorf("expected context.DeadlineExceeded, got f=%v, err=%v", f, err)
+	}
+
+	// 3. Test Success with Frame
+	ctxValid := context.Background()
+	rb.Write(&Frame{IsKeyFrame: true, Timestamp: 100})
+
+	f, err = reader.ReadContext(ctxValid)
+	if err != nil || f == nil || f.Timestamp != 100 {
+		t.Errorf("expected frame with timestamp 100, got f=%v, err=%v", f, err)
 	}
 }
 

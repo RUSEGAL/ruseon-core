@@ -65,6 +65,7 @@ type Muxer struct {
 	ctx            context.Context
 	cancel         context.CancelFunc
 	targetDuration time.Duration
+	wg             sync.WaitGroup
 
 	metaChan    <-chan *pb.MetadataRequest
 	unsubscribe func()
@@ -94,15 +95,18 @@ func NewMuxer(streamID string, rb *buffer.RingBuffer, metaChan <-chan *pb.Metada
 		unsubscribe:    unsubscribe,
 	}
 	m.lastFrameTime.Store(time.Now().UnixNano())
+	m.wg.Add(2)
 	go m.run()
 	go m.watchdog()
 	if metaChan != nil {
+		m.wg.Add(1)
 		go m.readMetadata()
 	}
 	return m
 }
 
 func (m *Muxer) run() {
+	defer m.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
 			log.Error().Interface("panic", r).Str("streamID", m.streamID).Msg("Recovered from panic in Muxer.run")
@@ -119,13 +123,13 @@ func (m *Muxer) run() {
 	// Читаем параметры кодека из буфера
 	vps, sps, pps := m.ringBuffer.GetParams()
 
-	for m.ctx.Err() == nil {
+	for {
 		if sps == nil || pps == nil {
 			vps, sps, pps = m.ringBuffer.GetParams()
 		}
 
-		frame := reader.Read()
-		if frame == nil {
+		frame, err := reader.ReadContext(m.ctx)
+		if err != nil || frame == nil {
 			break
 		}
 
@@ -266,8 +270,7 @@ func (m *Muxer) run() {
 
 		// Пишем NALU в TS
 		// Так как мы не имеем B-кадров от большинства IP камер, PTS == DTS.
-		err := tsWriter.WriteH26x(track, pts, pts, frame.IsKeyFrame, nalus)
-		if err != nil {
+		if writeErr := tsWriter.WriteH26x(track, pts, pts, frame.IsKeyFrame, nalus); writeErr != nil {
 			// При записи в memory buffer ошибка практически невозможна
 			continue
 		}
@@ -275,6 +278,7 @@ func (m *Muxer) run() {
 }
 
 func (m *Muxer) readMetadata() {
+	defer m.wg.Done()
 	for {
 		select {
 		case <-m.ctx.Done():
@@ -296,6 +300,8 @@ func (m *Muxer) Stop() {
 		m.unsubscribe()
 	}
 	m.cancel()
+	m.wg.Wait()
+
 	m.mu.Lock()
 	for _, seg := range m.segments {
 		seg.Release()
@@ -308,6 +314,7 @@ func (m *Muxer) Stop() {
 // он берет последний готовый сегмент и добавляет его дубликат в плейлист с флагом Discontinuity.
 // Это заставляет сторонние плееры (VLC, OBS) "заморозить" последний кадр и не вылетать по таймауту.
 func (m *Muxer) watchdog() {
+	defer m.wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
 			log.Error().Interface("panic", r).Str("streamID", m.streamID).Msg("Recovered from panic in Muxer.watchdog")

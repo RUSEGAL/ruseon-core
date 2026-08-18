@@ -72,13 +72,12 @@ func (s *Server) StreamFrames(req *pb.StreamRequest, srv pb.FrameService_StreamF
 	log.Info().Str("camera_id", req.CameraId).Msg("gRPC client subscribed to stream frames")
 
 	for {
-		if srv.Context().Err() != nil {
-			log.Info().Str("camera_id", req.CameraId).Msg("gRPC client disconnected")
-			return nil
-		}
-
-		frame := reader.Read()
-		if frame == nil {
+		frame, err := reader.ReadContext(srv.Context())
+		if err != nil || frame == nil {
+			if srv.Context().Err() != nil {
+				log.Info().Str("camera_id", req.CameraId).Msg("gRPC client disconnected")
+				return nil
+			}
 			return fmt.Errorf("stream closed")
 		}
 

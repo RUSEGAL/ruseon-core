@@ -115,6 +115,28 @@ func TestMuxer_Lifecycle_And_GetSegment(t *testing.T) {
 	muxer.Stop()
 }
 
+func TestMuxer_BoundedStopWithIdleStream(t *testing.T) {
+	rb := buffer.NewRingBuffer(10)
+	defer rb.Close()
+
+	// Create Muxer with NO frames ever written to ringBuffer
+	muxer := NewMuxer("test_idle", rb, nil, nil)
+	time.Sleep(20 * time.Millisecond)
+
+	stopped := make(chan struct{})
+	go func() {
+		muxer.Stop()
+		close(stopped)
+	}()
+
+	select {
+	case <-stopped:
+		// Clean bounded exit
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("muxer.Stop() timed out on idle stream (unbounded cancellation)")
+	}
+}
+
 func BenchmarkMuxer_GetPlaylist(b *testing.B) {
 	rb := buffer.NewRingBuffer(10)
 	defer rb.Close()
