@@ -328,3 +328,152 @@ func TestStorage_UserCRUD(t *testing.T) {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}
 }
+
+func TestStorage_Sync(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := NewStorage(tempDir)
+	if err != nil {
+		t.Fatalf("failed to create storage: %v", err)
+	}
+
+	_ = store.SaveCamera(&config.CameraConfig{ID: "cam_sync_test", URL: "rtsp://sync"})
+
+	if err := store.Sync(); err != nil {
+		t.Fatalf("expected Sync to succeed, got %v", err)
+	}
+
+	store.Close()
+
+	if err := store.Sync(); err == nil {
+		t.Errorf("expected Sync on closed storage to fail, got nil")
+	}
+}
+
+func TestStorage_Durability_SuddenTermination_Reopen(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Phase 1: Initialize, write configurations and users, sync to disk
+	store1, err := NewStorage(tempDir)
+	if err != nil {
+		t.Fatalf("failed to open storage 1: %v", err)
+	}
+
+	cam := &config.CameraConfig{
+		ID:            "cam_durable_1",
+		URL:           "rtsp://durable.local/live",
+		Record:        true,
+		RetentionDays: 30,
+	}
+	if err := store1.SaveCamera(cam); err != nil {
+		t.Fatalf("failed to save camera: %v", err)
+	}
+
+	tag := &config.TagConfig{
+		ID:    "tag_durable_1",
+		Name:  "Security HQ",
+		Color: "#00FF00",
+	}
+	if err := store1.SaveTag(tag); err != nil {
+		t.Fatalf("failed to save tag: %v", err)
+	}
+
+	user := &models.User{
+		Username:     "admin_durable",
+		PasswordHash: "secure_hash_123",
+		Role:         models.RoleAdmin,
+	}
+	if err := store1.SaveUser(user); err != nil {
+		t.Fatalf("failed to save user: %v", err)
+	}
+
+	if err := store1.Sync(); err != nil {
+		t.Fatalf("failed to sync storage: %v", err)
+	}
+
+	// Simulate unexpected termination / restart by closing store1 handle
+	if err := store1.Close(); err != nil {
+		t.Fatalf("failed to close store1: %v", err)
+	}
+
+	// Phase 2: Open completely new Storage instance on the same directory
+	store2, err := NewStorage(tempDir)
+	if err != nil {
+		t.Fatalf("failed to reopen storage 2 after simulated restart: %v", err)
+	}
+	defer store2.Close()
+
+	// Verify Camera durability
+	fetchedCam, err := store2.GetCamera("cam_durable_1")
+	if err != nil {
+		t.Fatalf("camera lost after reopen: %v", err)
+	}
+	if fetchedCam.URL != "rtsp://durable.local/live" || fetchedCam.RetentionDays != 30 {
+		t.Errorf("camera data corrupted after reopen: %+v", fetchedCam)
+	}
+
+	// Verify Tag durability
+	fetchedTag, err := store2.GetTag("tag_durable_1")
+	if err != nil {
+		t.Fatalf("tag lost after reopen: %v", err)
+	}
+	if fetchedTag.Name != "Security HQ" {
+		t.Errorf("tag data corrupted after reopen: %+v", fetchedTag)
+	}
+
+	// Verify User durability
+	fetchedUser, err := store2.GetUser("admin_durable")
+	if err != nil {
+		t.Fatalf("user lost after reopen: %v", err)
+	}
+	if fetchedUser.Username != "admin_durable" || fetchedUser.Role != models.RoleAdmin {
+		t.Errorf("user data corrupted after reopen: %+v", fetchedUser)
+	}
+}
+
+func TestStorage_MigrateFromConfig_NilAndIdempotent(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := NewStorage(tempDir)
+	if err != nil {
+		t.Fatalf("failed to create storage: %v", err)
+	}
+	defer store.Close()
+
+	// Nil config should succeed safely without panic
+	if err := store.MigrateFromConfig(nil); err != nil {
+		t.Errorf("expected nil config migration to succeed, got %v", err)
+	}
+
+	// Migration with multiple cameras and tags
+	cfg := &config.Config{
+		Cameras: []config.CameraConfig{
+			{ID: "c1", URL: "rtsp://c1"},
+			{ID: "c2", URL: "rtsp://c2"},
+		},
+		GlobalTags: []config.TagConfig{
+			{ID: "t1", Name: "Tag1"},
+		},
+	}
+
+	if err := store.MigrateFromConfig(cfg); err != nil {
+		t.Fatalf("migration failed: %v", err)
+	}
+
+	cams, err := store.ListCameras()
+	if err != nil || len(cams) != 2 {
+		t.Fatalf("expected 2 cameras, got %d (err: %v)", len(cams), err)
+	}
+
+	tags, err := store.ListTags()
+	if err != nil || len(tags) != 1 {
+		t.Fatalf("expected 1 tag, got %d (err: %v)", len(tags), err)
+	}
+
+	// Re-running migration must be a no-op
+	if err := store.MigrateFromConfig(cfg); err != nil {
+		t.Fatalf("subsequent migration failed: %v", err)
+	}
+	camsAfter, _ := store.ListCameras()
+	if len(camsAfter) != 2 {
+		t.Fatalf("expected camera count to remain 2, got %d", len(camsAfter))
+	}
+}
