@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -119,11 +120,14 @@ func (h *Handler) LivenessCheck(c *gin.Context) {
 
 // ReadinessCheck responds to readiness probes (e.g. /readyz) verifying the health of database, storage, and streaming subsystems.
 func (h *Handler) ReadinessCheck(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+	defer cancel()
+
 	components := make(map[string]string)
 	isReady := true
 	var errMsgs []string
 
-	// 1. Check StateStore / Database health
+	// 1. Check StateStore / Database health via Ping
 	store := h.store
 	if store == nil {
 		store = registry.CurrentStateStore
@@ -132,7 +136,7 @@ func (h *Handler) ReadinessCheck(c *gin.Context) {
 		components["database"] = "uninitialized"
 		isReady = false
 		errMsgs = append(errMsgs, "database store not initialized")
-	} else if _, err := store.HasUsers(); err != nil {
+	} else if err := store.Ping(ctx); err != nil {
 		components["database"] = fmt.Sprintf("unavailable: %v", err)
 		isReady = false
 		errMsgs = append(errMsgs, fmt.Sprintf("database unavailable: %v", err))
@@ -163,6 +167,10 @@ func (h *Handler) ReadinessCheck(c *gin.Context) {
 		components["stream_manager"] = "uninitialized"
 		isReady = false
 		errMsgs = append(errMsgs, "stream manager not initialized")
+	} else if err := h.manager.Ready(ctx); err != nil {
+		components["stream_manager"] = fmt.Sprintf("unavailable: %v", err)
+		isReady = false
+		errMsgs = append(errMsgs, fmt.Sprintf("stream manager unavailable: %v", err))
 	} else {
 		components["stream_manager"] = "ok"
 	}

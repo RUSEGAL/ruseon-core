@@ -1,6 +1,8 @@
 package stream
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"sync"
 	
@@ -8,8 +10,6 @@ import (
 	
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
-
-
 
 // Manager управляет списком всех потоков.
 type Manager struct {
@@ -21,6 +21,19 @@ type Manager struct {
 func NewManager() *Manager {
 	return &Manager{
 		streams: make(map[string]*Stream),
+	}
+}
+
+// Ready проверяет работоспособность менеджера потоков.
+func (m *Manager) Ready(ctx context.Context) error {
+	if m == nil {
+		return errors.New("stream manager is not initialized")
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		return nil
 	}
 }
 

@@ -97,6 +97,21 @@ func (s *Storage) Close() error {
 	return s.db.Close()
 }
 
+// Ping проверяет доступность базы данных через открытие read-only транзакции.
+func (s *Storage) Ping(ctx context.Context) error {
+	if s.db == nil || s.db.IsClosed() {
+		return errors.New("badger database is closed or uninitialized")
+	}
+	return s.db.View(func(_ *badger.Txn) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return nil
+		}
+	})
+}
+
 // SaveCamera сохраняет или обновляет камеру.
 func (s *Storage) SaveCamera(cam *config.CameraConfig) error {
 	data, err := json.Marshal(cam)

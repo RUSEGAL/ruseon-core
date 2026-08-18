@@ -188,6 +188,15 @@ func newLoadtestStore() *loadtestStore {
 	}
 }
 
+func (s *loadtestStore) Ping(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		return nil
+	}
+}
+
 func (s *loadtestStore) MigrateFromConfig(*config.Config) error { return nil }
 
 func (s *loadtestStore) SaveCamera(c *config.CameraConfig) error {

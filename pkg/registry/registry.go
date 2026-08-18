@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"context"
 	"io"
 	"io/fs"
 
@@ -12,6 +13,7 @@ import (
 
 // StateStore абстрагирует хранение состояния (конфиги камер, тегов и папок).
 type StateStore interface {
+	Ping(ctx context.Context) error
 	SaveCamera(cam *config.CameraConfig) error
 	GetCamera(id string) (*config.CameraConfig, error)
 	DeleteCamera(id string) error

@@ -156,6 +156,48 @@ func TestReadinessCheck_UninitializedStreamManager(t *testing.T) {
 	}
 }
 
+func TestReadinessCheck_EmptyDatabaseHealthy(t *testing.T) {
+	tempDir := t.TempDir()
+	emptyStore, err := storage.NewStorage(filepath.Join(tempDir, "empty_db"))
+	if err != nil {
+		t.Fatalf("failed to create empty storage: %v", err)
+	}
+	defer emptyStore.Close()
+
+	registry.CurrentStateStore = emptyStore
+	registry.CurrentBlobStore = localfs.NewLocalFS(tempDir)
+
+	cfg := &config.Config{}
+	manager := stream.NewManager()
+	handler := NewHandler(manager, cfg, emptyStore)
+
+	// Verify that database has 0 users initially
+	hasUsers, err := emptyStore.HasUsers()
+	if err != nil || hasUsers {
+		t.Fatalf("expected store to have 0 users, got hasUsers=%v, err=%v", hasUsers, err)
+	}
+
+	router := gin.New()
+	router.GET("/readyz", handler.ReadinessCheck)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/readyz", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for empty but healthy database, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var res struct {
+		Status     string            `json:"status"`
+		Components map[string]string `json:"components"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &res)
+	if res.Status != "ready" || res.Components["database"] != "ok" {
+		t.Errorf("expected status 'ready' and database 'ok' on empty database, got: %+v", res)
+	}
+}
+
 func TestLogin(t *testing.T) {
 	router, _, store := setupTestRouter(t)
 	defer store.Close()
