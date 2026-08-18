@@ -50,7 +50,7 @@ export function useCameraAiDetection({
       try {
         const bitmap = await createImageBitmap(el);
         globalInferenceClient.detect(cameraId, bitmap);
-      } catch (err) {
+      } catch {
         // Silently catch during video layout changes
       }
     }, frameIntervalMs);

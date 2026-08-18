@@ -201,7 +201,7 @@ export class ObjectDetector {
 
       if (isChannelsFirst) {
         // [1, 84, numBoxes]
-        cx = output[0 * numBoxes + i];
+        cx = output[i];
         cy = output[1 * numBoxes + i];
         w = output[2 * numBoxes + i];
         h = output[3 * numBoxes + i];

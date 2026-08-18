@@ -31,6 +31,16 @@ export const HlsPlayerV2: React.FC<HlsPlayerV2Props> = ({
   const [error, setError] = useState<string | null>(null);
   const [localMetadata] = useState<MetadataPayload | null>(null);
 
+  const onErrorRef = useRef(onError);
+  const onConnectedRef = useRef(onConnected);
+  const autoPlayRef = useRef(autoPlay);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+    onConnectedRef.current = onConnected;
+    autoPlayRef.current = autoPlay;
+  });
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -65,10 +75,10 @@ export const HlsPlayerV2: React.FC<HlsPlayerV2Props> = ({
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setLoading(false);
-        if (autoPlay) {
+        if (autoPlayRef.current) {
           video.play().catch(() => {});
         }
-        if (onConnected) onConnected();
+        if (onConnectedRef.current) onConnectedRef.current();
       });
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -84,7 +94,7 @@ export const HlsPlayerV2: React.FC<HlsPlayerV2Props> = ({
               const msg = `Fatal HLS Error: ${data.details}`;
               setError(msg);
               hls.destroy();
-              if (onError) onError(msg);
+              if (onErrorRef.current) onErrorRef.current(msg);
               break;
           }
         }
@@ -93,12 +103,12 @@ export const HlsPlayerV2: React.FC<HlsPlayerV2Props> = ({
       video.src = hlsUrl;
       video.addEventListener('loadedmetadata', () => {
         setLoading(false);
-        if (autoPlay) video.play().catch(() => {});
-        if (onConnected) onConnected();
+        if (autoPlayRef.current) video.play().catch(() => {});
+        if (onConnectedRef.current) onConnectedRef.current();
       });
     } else {
       setError('HLS is not supported in this browser');
-      if (onError) onError('HLS unsupported');
+      if (onErrorRef.current) onErrorRef.current('HLS unsupported');
     }
 
     return () => {

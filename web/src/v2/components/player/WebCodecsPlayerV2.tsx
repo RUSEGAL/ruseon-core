@@ -298,7 +298,7 @@ export const WebCodecsPlayerV2: React.FC<WebCodecsPlayerV2Props> = ({
       if (decoderRef.current && decoderRef.current.state !== 'closed') {
         try {
           decoderRef.current.close();
-        } catch (e) {
+        } catch {
           // Ignore
         }
         decoderRef.current = null;

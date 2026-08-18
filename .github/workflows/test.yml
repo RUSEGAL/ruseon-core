@@ -91,5 +91,8 @@ jobs:
       - name: Run OxLint
         run: npm run lint
 
+      - name: Run Frontend Tests (Vitest)
+        run: npm test
+
       - name: TypeScript Compile Check
         run: npm run build

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Users, Plus, Trash2, Edit2, Key, Shield, User as UserIcon } from 'lucide-react';
 
@@ -31,7 +31,7 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
   const [resetPassUser, setResetPassUser] = useState<string | null>(null);
   const [resetPasswordVal, setResetPasswordVal] = useState('');
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch('/api/users', {
@@ -46,11 +46,11 @@ export const V2UserManagerModal: React.FC<V2UserManagerModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
