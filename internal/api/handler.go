@@ -533,9 +533,7 @@ func (h *Handler) GetHLSPlaylist(c *gin.Context) {
 		return
 	}
 
-	muxer := st.WakeUpHLSMuxer()
-	// Force muxer to wake up and generate stream, but we return Master Playlist here
-	_ = muxer.GetPlaylist()
+	st.WakeUpHLSMuxer()
 
 	c.Header("Content-Type", "application/vnd.apple.mpegurl")
 	masterPlaylist := `#EXTM3U
@@ -643,7 +641,7 @@ func (h *Handler) PostWHEP(c *gin.Context) {
 	answerSDP, err := whepHandler.HandleOffer(c.Request.Context(), offerSDP)
 	if err != nil {
 		log.Error().Err(err).Str("stream", id).Msg("WHEP HandleOffer failed")
-		c.String(http.StatusInternalServerError, err.Error())
+		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
 
