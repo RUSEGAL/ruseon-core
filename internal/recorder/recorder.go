@@ -62,7 +62,7 @@ func (r *Recorder) run() {
 	var currentFilename string
 	var lastGoodDuration uint32 = 90000 / 25
 
-	closeAndFinalize := func(isError bool) {
+	finalize := func(isError bool) {
 		if file != nil {
 			_ = file.Close()
 			switch {
@@ -92,10 +92,13 @@ func (r *Recorder) run() {
 		}
 	}
 
+	finalizeSuccess := func() { finalize(false) }
+	finalizeFailure := func() { finalize(true) }
+
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error().Interface("panic", err).Str("streamID", r.streamID).Msg("Recovered from panic in Recorder.run")
-			closeAndFinalize(true)
+			finalizeFailure()
 		}
 	}()
 
@@ -145,7 +148,7 @@ func (r *Recorder) run() {
 					if r.onDegraded != nil {
 						r.onDegraded(true)
 					}
-					closeAndFinalize(true)
+					finalizeFailure()
 					pendingSample = nil
 					partSamples = partSamples[:0]
 					initialPts = -1
@@ -166,7 +169,7 @@ func (r *Recorder) run() {
 			}
 			
 			log.Info().Str("stream", r.streamID).Msg("Rotating record file")
-			closeAndFinalize(false)
+			finalizeSuccess()
 			pendingSample = nil
 			partSamples = partSamples[:0]
 			initialPts = -1
@@ -227,7 +230,7 @@ func (r *Recorder) run() {
 				if r.onDegraded != nil {
 					r.onDegraded(true)
 				}
-				closeAndFinalize(true)
+				finalizeFailure()
 				continue
 			}
 
@@ -276,7 +279,7 @@ func (r *Recorder) run() {
 				if r.onDegraded != nil {
 					r.onDegraded(true)
 				}
-				closeAndFinalize(true)
+				finalizeFailure()
 				pendingSample = nil
 				partSamples = partSamples[:0]
 				initialPts = -1
@@ -320,7 +323,7 @@ ExitLoop:
 				partsWritten++
 			}
 		}
-		closeAndFinalize(false)
+		finalizeSuccess()
 	}
 }
 

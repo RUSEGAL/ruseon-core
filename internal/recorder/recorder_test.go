@@ -4,10 +4,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/RUSEGAL/ruseon-core/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 	"github.com/bluenviron/mediacommon/pkg/formats/fmp4"
 )
 
@@ -167,6 +169,59 @@ func TestRecorder_TimestampRegression_And_BFrames(t *testing.T) {
 				t.Errorf("expected valid fMP4 with B-frames/regressions, got valid=%v, err=%v", valid, valErr)
 			}
 		}
+	}
+}
+
+type mockRecorderBus struct {
+	events map[string]int
+	mu     sync.Mutex
+}
+
+func (m *mockRecorderBus) Publish(topic string, _ string, _ any) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.events[topic]++
+}
+
+func (m *mockRecorderBus) Stop() {}
+
+func TestRecorder_EventExclusivity_OnFailure(t *testing.T) {
+	tempDir := t.TempDir()
+	rb := buffer.NewRingBuffer(10)
+
+	mockBus := &mockRecorderBus{events: make(map[string]int)}
+	oldBus := registry.CurrentEventBus
+	registry.CurrentEventBus = mockBus
+	defer func() { registry.CurrentEventBus = oldBus }()
+
+	// Set invalid SPS so fMP4 Init write fails immediately
+	invalidSPS := []byte{0x00, 0x00}
+	pps := []byte{0x68, 0xce, 0x38, 0x80}
+	rb.SetParams(nil, invalidSPS, pps)
+
+	r := NewRecorder("cam_err_test", rb, tempDir, nil)
+	time.Sleep(50 * time.Millisecond)
+
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: true,
+		Timestamp:  0,
+		NALUs:      [][]byte{{0x05, 0x01}},
+	})
+
+	time.Sleep(100 * time.Millisecond)
+	r.Stop()
+	rb.Close()
+
+	mockBus.mu.Lock()
+	failedCount := mockBus.events["recording_failed"]
+	readyCount := mockBus.events["archive_segment_ready"]
+	mockBus.mu.Unlock()
+
+	if failedCount != 1 {
+		t.Errorf("expected exactly 1 recording_failed event, got %d", failedCount)
+	}
+	if readyCount != 0 {
+		t.Errorf("expected 0 archive_segment_ready events on error, got %d", readyCount)
 	}
 }
 

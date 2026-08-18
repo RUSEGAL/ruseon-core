@@ -141,3 +141,67 @@ func TestRecoverCrashedFiles(t *testing.T) {
 		t.Errorf("normal file should not have been touched")
 	}
 }
+
+func TestValidateFMP4File_TruncatedBoxPayload(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "truncated_box.mp4")
+
+	// 1. Создаем валидный fMP4
+	if err := createValidFMP4File(filePath); err != nil {
+		t.Fatalf("failed to create valid fMP4: %v", err)
+	}
+
+	// 2. Дописываем заголовок mdat, заявляющий 1 МБ (1048576 байт), но с телом всего в 16 байт
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		t.Fatalf("failed to open file: %v", err)
+	}
+	// 4 байта size (0x00100000 = 1048576) + 4 байта type "mdat"
+	var fakeHeader [8]byte
+	fakeHeader[0] = 0x00
+	fakeHeader[1] = 0x10
+	fakeHeader[2] = 0x00
+	fakeHeader[3] = 0x00
+	copy(fakeHeader[4:8], "mdat")
+	_, _ = file.Write(fakeHeader[:])
+	_, _ = file.Write(make([]byte, 16)) // пишем только 16 байт вместо 1048568
+	file.Close()
+
+	// 3. Валидатор должен обнаружить превышение размера над физической длиной файла
+	valid, err := ValidateFMP4File(filePath)
+	if valid || err == nil {
+		t.Errorf("expected ValidateFMP4File to fail for truncated box payload, got valid=%v, err=%v", valid, err)
+	}
+}
+
+func TestRecoverCrashedFiles_TruncatedTrailingFragment(t *testing.T) {
+	tempDir := t.TempDir()
+	camDir := filepath.Join(tempDir, "cam_truncated")
+	_ = os.MkdirAll(camDir, 0755)
+
+	truncatedOngoingPath := filepath.Join(camDir, "2026-07-31_17-00-00_ongoing.mp4")
+	if err := createValidFMP4File(truncatedOngoingPath); err != nil {
+		t.Fatalf("failed to create valid fMP4: %v", err)
+	}
+
+	// Дописываем обрезанный moof/mdat
+	file, _ := os.OpenFile(truncatedOngoingPath, os.O_WRONLY|os.O_APPEND, 0600)
+	var fakeHeader [8]byte
+	fakeHeader[0] = 0x00
+	fakeHeader[1] = 0x05
+	fakeHeader[2] = 0x00
+	fakeHeader[3] = 0x00
+	copy(fakeHeader[4:8], "moof")
+	_, _ = file.Write(fakeHeader[:])
+	_, _ = file.Write(make([]byte, 10))
+	file.Close()
+
+	// Запускаем восстановление
+	RecoverCrashedFiles(tempDir)
+
+	// Файл должен быть изолирован в .corrupted, а не переименован в .mp4
+	corruptedTarget := filepath.Join(camDir, "2026-07-31_17-00-00_ongoing.corrupted")
+	if _, err := os.Stat(corruptedTarget); os.IsNotExist(err) {
+		t.Errorf("expected truncated ongoing recording to be isolated as .corrupted, not found at %s", corruptedTarget)
+	}
+}
