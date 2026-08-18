@@ -3,6 +3,7 @@ package buffer
 import (
 	"bytes"
 	"context"
+	"sync"
 	"testing"
 	"time"
 )
@@ -213,6 +214,145 @@ func TestRingBuffer_LongGOP_RequiresIFrame(t *testing.T) {
 		}
 	case <-time.After(100 * time.Millisecond):
 		t.Fatalf("expected reader to receive keyframe 9")
+	}
+}
+
+func TestRingBuffer_ReplayLiveBoundary_NoGapsOrDups(t *testing.T) {
+	rb := NewRingBuffer(100)
+	defer rb.Close()
+
+	// 1. Предзаполняем буфер: I-кадр на 10, P-кадры 11..20
+	for i := 1; i <= 20; i++ {
+		rb.Write(&Frame{
+			IsKeyFrame: i%10 == 0,
+			Timestamp:  time.Duration(i),
+			NALUs:      [][]byte{{byte(i)}},
+		})
+	}
+
+	var reader *Reader
+	var received []*Frame
+	var readerWg sync.WaitGroup
+
+	readerWg.Add(1)
+	go func() {
+		defer readerWg.Done()
+		// Подключаемся прямо во время параллельной записи
+		reader = rb.Subscribe()
+		defer reader.Close()
+
+		for {
+			select {
+			case f, ok := <-reader.C:
+				if !ok {
+					return
+				}
+				received = append(received, f)
+				if f.Timestamp == 100 {
+					return
+				}
+			case <-time.After(500 * time.Millisecond):
+				return
+			}
+		}
+	}()
+
+	// Параллельно пишем кадры 21..100
+	for i := 21; i <= 100; i++ {
+		rb.Write(&Frame{
+			IsKeyFrame: i%10 == 0,
+			Timestamp:  time.Duration(i),
+			NALUs:      [][]byte{{byte(i)}},
+		})
+		time.Sleep(100 * time.Microsecond)
+	}
+
+	readerWg.Wait()
+
+	if len(received) == 0 {
+		t.Fatalf("expected to receive frames, got 0")
+	}
+
+	// Первый кадр обязан быть ключевым
+	if !received[0].IsKeyFrame {
+		t.Errorf("expected first replayed frame to be keyframe, got ts=%v isKey=%v", received[0].Timestamp, received[0].IsKeyFrame)
+	}
+
+	// Проверяем строгую монотонность: 0 дубликатов, 0 пропусков
+	for i := 1; i < len(received); i++ {
+		prev := received[i-1].Timestamp
+		curr := received[i].Timestamp
+		if curr != prev+1 {
+			t.Fatalf("sequence discontinuity at index %d: received ts=%v immediately after prev ts=%v (gap or duplicate)", i, curr, prev)
+		}
+	}
+}
+
+func TestRingBuffer_SlowSubscriber_NoGlobalStall(t *testing.T) {
+	rb := NewRingBuffer(5)
+	defer rb.Close()
+
+	// 1. Медленный подписчик - канал емкостью 5, не вычитываем из него ничего
+	slowSub := rb.Subscribe()
+	defer slowSub.Close()
+
+	// 2. Быстрый подписчик - читаем непрерывно в фоне
+	fastSub := rb.Subscribe()
+	defer fastSub.Close()
+
+	fastReceived := 0
+	fastDone := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case _, ok := <-fastSub.C:
+				if !ok {
+					close(fastDone)
+					return
+				}
+				fastReceived++
+			case <-fastDone:
+				return
+			}
+		}
+	}()
+
+	// 3. Быстро пишем 1000 кадров и измеряем время выполнения
+	start := time.Now()
+	for i := 1; i <= 1000; i++ {
+		rb.Write(&Frame{
+			IsKeyFrame: i%10 == 0,
+			Timestamp:  time.Duration(i),
+			NALUs:      [][]byte{{byte(i)}},
+		})
+	}
+	elapsed := time.Since(start)
+
+	close(fastDone)
+
+	// Запись 1000 кадров в non-blocking кольцо должна занимать не более 50 мс
+	if elapsed > 100*time.Millisecond {
+		t.Errorf("Write() stalled due to slow subscriber, elapsed: %v", elapsed)
+	}
+
+	// Медленный подписчик должен зафиксировать сбросы (Drops > 0)
+	if slowSub.Drops == 0 {
+		t.Errorf("expected slow subscriber to have drops > 0, got %d", slowSub.Drops)
+	}
+	if !slowSub.NeedsIFrame.Load() {
+		t.Errorf("expected slow subscriber to require I-Frame after drops")
+	}
+}
+
+func TestRingBuffer_DefensiveCapacityGuard(t *testing.T) {
+	rb0 := NewRingBuffer(0)
+	if rb0.capacity != 100 || len(rb0.frames) != 100 {
+		t.Errorf("expected capacity 100 for NewRingBuffer(0), got %d", rb0.capacity)
+	}
+
+	rbNeg := NewRingBuffer(-15)
+	if rbNeg.capacity != 100 || len(rbNeg.frames) != 100 {
+		t.Errorf("expected capacity 100 for NewRingBuffer(-15), got %d", rbNeg.capacity)
 	}
 }
 
