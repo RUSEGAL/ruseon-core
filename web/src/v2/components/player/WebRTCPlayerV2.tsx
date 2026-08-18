@@ -28,6 +28,14 @@ export const WebRTCPlayerV2: React.FC<WebRTCPlayerV2Props> = ({
   const [error, setError] = useState<string | null>(null);
   const [localMetadata, setLocalMetadata] = useState<MetadataPayload | null>(null);
 
+  const onErrorRef = useRef(onError);
+  const onConnectedRef = useRef(onConnected);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+    onConnectedRef.current = onConnected;
+  });
+
   useEffect(() => {
     let isCancelled = false;
     setLoading(true);
@@ -73,7 +81,7 @@ export const WebRTCPlayerV2: React.FC<WebRTCPlayerV2Props> = ({
           if (videoRef.current && event.streams[0]) {
             videoRef.current.srcObject = event.streams[0];
             setLoading(false);
-            if (onConnected) onConnected();
+            if (onConnectedRef.current) onConnectedRef.current();
           }
         };
 
@@ -82,7 +90,7 @@ export const WebRTCPlayerV2: React.FC<WebRTCPlayerV2Props> = ({
             if (!isCancelled) {
               const errMsg = `WebRTC ICE ${pc.iceConnectionState}`;
               setError(errMsg);
-              if (onError) onError(errMsg);
+              if (onErrorRef.current) onErrorRef.current(errMsg);
             }
           }
         };
@@ -123,7 +131,7 @@ export const WebRTCPlayerV2: React.FC<WebRTCPlayerV2Props> = ({
           const msg = err instanceof Error ? err.message : 'WebRTC connection failed';
           setError(msg);
           setLoading(false);
-          if (onError) onError(msg);
+          if (onErrorRef.current) onErrorRef.current(msg);
         }
       }
     };

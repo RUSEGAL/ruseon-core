@@ -74,6 +74,6 @@ export function getCachedCapabilities(): BrowserCapabilities {
     hasWebCodecsH265: false,
     hasMSE: true,
     hasWebGPU: false,
-    isSecureContext: typeof window !== 'undefined' ? window.isSecureContext : true,
+    isSecureContext: typeof window !== 'undefined' ? !!window.isSecureContext : true,
   };
 }

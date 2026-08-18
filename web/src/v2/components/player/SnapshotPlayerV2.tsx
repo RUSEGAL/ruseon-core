@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { ImageOff, Loader2 } from 'lucide-react';
 
 interface SnapshotPlayerV2Props {
@@ -15,6 +15,13 @@ export const SnapshotPlayerV2: React.FC<SnapshotPlayerV2Props> = ({
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const onErrorRef = useRef(onError);
+  const currentImgUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  });
 
   useEffect(() => {
     let isCancelled = false;
@@ -35,10 +42,11 @@ export const SnapshotPlayerV2: React.FC<SnapshotPlayerV2Props> = ({
         const blob = await res.blob();
         if (!isCancelled) {
           const blobUrl = URL.createObjectURL(blob);
-          setImgUrl((prev) => {
-            if (prev) URL.revokeObjectURL(prev);
-            return blobUrl;
-          });
+          if (currentImgUrlRef.current) {
+            URL.revokeObjectURL(currentImgUrlRef.current);
+          }
+          currentImgUrlRef.current = blobUrl;
+          setImgUrl(blobUrl);
           setLoading(false);
           setError(null);
         }
@@ -47,7 +55,7 @@ export const SnapshotPlayerV2: React.FC<SnapshotPlayerV2Props> = ({
           const msg = err instanceof Error ? err.message : 'Snapshot fetch failed';
           setError(msg);
           setLoading(false);
-          if (onError) onError(msg);
+          if (onErrorRef.current) onErrorRef.current(msg);
         }
       }
     };
@@ -58,8 +66,9 @@ export const SnapshotPlayerV2: React.FC<SnapshotPlayerV2Props> = ({
     return () => {
       isCancelled = true;
       clearInterval(interval);
-      if (imgUrl) {
-        URL.revokeObjectURL(imgUrl);
+      if (currentImgUrlRef.current) {
+        URL.revokeObjectURL(currentImgUrlRef.current);
+        currentImgUrlRef.current = null;
       }
     };
   }, [streamId, intervalMs]);
