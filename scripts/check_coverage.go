@@ -26,6 +26,7 @@ var criticalThresholds = map[string]float64{
 	"github.com/RUSEGAL/ruseon-core/internal/stream":     65.0,
 	"github.com/RUSEGAL/ruseon-core/internal/grpc":       65.0,
 	"github.com/RUSEGAL/ruseon-core/internal/recorder":   65.0,
+	"github.com/RUSEGAL/ruseon-core/internal/mqtt":       80.0,
 }
 
 const globalMinimumThreshold = 50.0
