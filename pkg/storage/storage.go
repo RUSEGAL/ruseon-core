@@ -44,7 +44,7 @@ func NewStorage(dir string) (*Storage, error) {
 	opts.NumMemtables = 1                 // Держим максимум 1 memtable в памяти (вместо 5)
 	opts.NumLevelZeroTables = 1           // Меньше таблиц нулевого уровня в памяти
 	opts.NumLevelZeroTablesStall = 2      // Сброс на диск происходит быстрее
-	opts.SyncWrites = false               // Асинхронная запись (для скорости, у нас есть бэкапы)
+	opts.SyncWrites = true                // Синхронная запись WAL для надежности контрольного слоя (ACID/fsync)
 	
 	db, err := badger.Open(opts)
 	if err != nil {
@@ -110,6 +110,14 @@ func (s *Storage) Ping(ctx context.Context) error {
 			return nil
 		}
 	})
+}
+
+// Sync сбрасывает все буферизованные записи BadgerDB на постоянный диск.
+func (s *Storage) Sync() error {
+	if s.db == nil || s.db.IsClosed() {
+		return errors.New("badger database is closed or uninitialized")
+	}
+	return s.db.Sync()
 }
 
 // SaveCamera сохраняет или обновляет камеру.
@@ -440,41 +448,61 @@ func (s *Storage) HasUsers() (bool, error) {
 }
 
 
-// MigrateFromConfig переносит данные из config.yaml в БД, если БД пуста.
-// Внимание: после вызова этого метода, данные нужно удалить из конфига (это будет на этапе 18.2).
+// MigrateFromConfig атомарно переносит данные из config.yaml в БД при первом старте.
 func (s *Storage) MigrateFromConfig(cfg *config.Config) error {
-	// Проверяем, пуста ли база
-	cams, err := s.ListCameras()
-	if err != nil {
-		return err
-	}
-	tags, err := s.ListTags()
-	if err != nil {
-		return err
+	if cfg == nil {
+		return nil
 	}
 
-	if len(cams) == 0 && len(cfg.Cameras) > 0 {
-		log.Info().Int("count", len(cfg.Cameras)).Msg("Migrating cameras from config.yaml to BadgerDB")
-		for _, cam := range cfg.Cameras {
-			// Копируем значение, чтобы не сохранять указатель на итератор
-			c := cam 
-			if err := s.SaveCamera(&c); err != nil {
-				return fmt.Errorf("failed to migrate camera %s: %w", c.ID, err)
+	return s.db.Update(func(txn *badger.Txn) error {
+		// Проверяем наличие существующих камер внутри транзакции
+		optsCam := badger.DefaultIteratorOptions
+		optsCam.PrefetchValues = false
+		optsCam.Prefix = []byte(PrefixCamera)
+		itCam := txn.NewIterator(optsCam)
+		defer itCam.Close()
+		itCam.Seek([]byte(PrefixCamera))
+		hasCameras := itCam.ValidForPrefix([]byte(PrefixCamera))
+
+		if !hasCameras && len(cfg.Cameras) > 0 {
+			log.Info().Int("count", len(cfg.Cameras)).Msg("Migrating cameras from config.yaml to BadgerDB")
+			for _, cam := range cfg.Cameras {
+				c := cam
+				data, err := json.Marshal(&c)
+				if err != nil {
+					return fmt.Errorf("failed to marshal camera %s: %w", c.ID, err)
+				}
+				if err := txn.Set([]byte(PrefixCamera+c.ID), data); err != nil {
+					return fmt.Errorf("failed to migrate camera %s: %w", c.ID, err)
+				}
 			}
 		}
-	}
 
-	if len(tags) == 0 && len(cfg.GlobalTags) > 0 {
-		log.Info().Int("count", len(cfg.GlobalTags)).Msg("Migrating global tags from config.yaml to BadgerDB")
-		for _, tag := range cfg.GlobalTags {
-			t := tag
-			if err := s.SaveTag(&t); err != nil {
-				return fmt.Errorf("failed to migrate tag %s: %w", t.ID, err)
+		// Проверяем наличие существующих тегов внутри той же транзакции
+		optsTag := badger.DefaultIteratorOptions
+		optsTag.PrefetchValues = false
+		optsTag.Prefix = []byte(PrefixTag)
+		itTag := txn.NewIterator(optsTag)
+		defer itTag.Close()
+		itTag.Seek([]byte(PrefixTag))
+		hasTags := itTag.ValidForPrefix([]byte(PrefixTag))
+
+		if !hasTags && len(cfg.GlobalTags) > 0 {
+			log.Info().Int("count", len(cfg.GlobalTags)).Msg("Migrating global tags from config.yaml to BadgerDB")
+			for _, tag := range cfg.GlobalTags {
+				t := tag
+				data, err := json.Marshal(&t)
+				if err != nil {
+					return fmt.Errorf("failed to marshal tag %s: %w", t.ID, err)
+				}
+				if err := txn.Set([]byte(PrefixTag+t.ID), data); err != nil {
+					return fmt.Errorf("failed to migrate tag %s: %w", t.ID, err)
+				}
 			}
 		}
-	}
 
-	return nil
+		return nil
+	})
 }
 
 // BackupData представляет структуру JSON-файла для ручного бэкапа.

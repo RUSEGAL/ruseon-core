@@ -197,6 +197,10 @@ func (s *loadtestStore) Ping(ctx context.Context) error {
 	}
 }
 
+func (s *loadtestStore) Sync() error {
+	return nil
+}
+
 func (s *loadtestStore) MigrateFromConfig(*config.Config) error { return nil }
 
 func (s *loadtestStore) SaveCamera(c *config.CameraConfig) error {

@@ -40,6 +40,7 @@ type StateStore interface {
 	ExportJSON() ([]byte, error)
 	ImportJSON(data []byte) error
 	BackupBadger(w io.Writer) error // В будущем переименуем в Backup(), но пока оставим для совместимости
+	Sync() error
 	Close() error
 }
 
