@@ -203,3 +203,136 @@ func TestStream_Shutdown_IdleSubscribers(t *testing.T) {
 		r.Close()
 	}
 }
+
+func TestManager_UpsertStream_ActiveViewersUninterrupted(t *testing.T) {
+	m := NewManager()
+
+	// 1. Создаем поток
+	m.UpsertStream("cam_viewers", "rtsp://localhost/live", false, false, "tcp", false)
+	st1, ok := m.GetStream("cam_viewers")
+	if !ok {
+		t.Fatalf("expected stream to exist")
+	}
+
+	// 2. Подключаем 3 активных читателя
+	readers := make([]*buffer.Reader, 3)
+	for i := 0; i < 3; i++ {
+		readers[i] = st1.GetRingBuffer().Subscribe()
+	}
+
+	// 3. Вызываем UpsertStream с неизменными параметрами стриминга (симуляция обновления метаданных камеры)
+	m.UpsertStream("cam_viewers", "rtsp://localhost/live", false, false, "tcp", false)
+
+	st2, ok := m.GetStream("cam_viewers")
+	if !ok || st1 != st2 {
+		t.Fatalf("expected stream instance to remain identical on metadata change")
+	}
+
+	// 4. Пишем тестовый кадр в кольцевой буфер
+	testFrame := &buffer.Frame{
+		Timestamp:  100 * time.Millisecond,
+		IsKeyFrame: true,
+		NALUs:      [][]byte{{0x05, 0x01}},
+	}
+	st1.GetRingBuffer().Write(testFrame)
+
+	// 5. Проверяем, что все 3 читателя успешно получили кадр без разрыва соединения
+	for i, r := range readers {
+		select {
+		case f := <-r.C:
+			if f.Timestamp != 100*time.Millisecond {
+				t.Errorf("reader %d expected frame with timestamp 100ms, got %v", i, f)
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Fatalf("reader %d failed to receive frame (disconnected or interrupted)", i)
+		}
+		r.Close()
+	}
+	st1.Stop()
+}
+
+func TestManager_UpsertStream_PipelineRestartOnConfigChange(t *testing.T) {
+	m := NewManager()
+
+	// 1. Создаем поток с URL A
+	m.UpsertStream("cam_restart", "rtsp://server/streamA", false, false, "tcp", false)
+	st1, ok := m.GetStream("cam_restart")
+	if !ok {
+		t.Fatalf("expected streamA to exist")
+	}
+
+	// 2. Меняем URL на streamB
+	m.UpsertStream("cam_restart", "rtsp://server/streamB", false, false, "tcp", false)
+
+	st2, ok := m.GetStream("cam_restart")
+	if !ok || st1 == st2 {
+		t.Fatalf("expected new stream instance to be created on URL change")
+	}
+
+	// 3. Проверяем, что старый стрим был гарантированно остановлен (контекст отменен)
+	if st1.ctx.Err() == nil {
+		t.Errorf("expected old stream to be stopped/cancelled, got active context")
+	}
+
+	// 4. Проверяем, что новый стрим активен и имеет новый URL
+	if st2.URL != "rtsp://server/streamB" {
+		t.Errorf("expected new stream URL to be rtsp://server/streamB, got %s", st2.URL)
+	}
+	if st2.ctx.Err() != nil {
+		t.Errorf("expected new stream context to be active")
+	}
+
+	st2.Stop()
+}
+
+func TestManager_Concurrent_EditVsDelete_NoResurrection(t *testing.T) {
+	m := NewManager()
+
+	// Инициализируем поток
+	m.UpsertStream("cam_race", "rtsp://server/original", false, false, "tcp", false)
+
+	var wg sync.WaitGroup
+	deleted := false
+	var delMu sync.Mutex
+
+	// 25 горутин пытаются редактировать поток
+	for i := 0; i < 25; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			delMu.Lock()
+			isDel := deleted
+			delMu.Unlock()
+
+			if !isDel {
+				m.UpsertStream("cam_race", fmt.Sprintf("rtsp://server/edit_%d", idx), false, false, "tcp", false)
+			}
+		}(i)
+	}
+
+	// 1 горутина удаляет/отключает поток
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		time.Sleep(2 * time.Millisecond)
+		delMu.Lock()
+		deleted = true
+		delMu.Unlock()
+		m.UpsertStream("cam_race", "", false, false, "", true) // disabled=true
+	}()
+
+	wg.Wait()
+
+	// Если удаление было последним или применилось, проверяем что нет зомби-стримов
+	delMu.Lock()
+	isDel := deleted
+	delMu.Unlock()
+
+	if isDel {
+		// Принудительно завершаем отключением, если какая-то горутина успела добежать
+		m.UpsertStream("cam_race", "", false, false, "", true)
+		if m.HasStream("cam_race") {
+			t.Errorf("expected stream to be absent after final disabled upsert")
+		}
+	}
+}

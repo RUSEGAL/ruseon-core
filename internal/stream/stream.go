@@ -277,10 +277,28 @@ func (s *Stream) Stop() {
 	}
 }
 
+// PipelineConfig определяет параметры, управляющие жизненным циклом и поведением рантайм-пайплайна.
+type PipelineConfig struct {
+	URL       string
+	Record    bool
+	LazyHLS   bool
+	Transport string
+}
+
+// MatchesPipelineConfig проверяет соответствие текущего состояния стрима заданной конфигурации пайплайна.
+func (s *Stream) MatchesPipelineConfig(cfg PipelineConfig) bool {
+	hasRecorder := s.mp4Recorder != nil
+	return s.URL == cfg.URL && s.transport == cfg.Transport && s.lazyHLS == cfg.LazyHLS && hasRecorder == cfg.Record
+}
+
 // MatchesConfig проверяет, совпадают ли текущие параметры стрима с переданными.
 func (s *Stream) MatchesConfig(url string, record, lazyHLS bool, transport string) bool {
-	hasRecorder := s.mp4Recorder != nil
-	return s.URL == url && s.transport == transport && s.lazyHLS == lazyHLS && hasRecorder == record
+	return s.MatchesPipelineConfig(PipelineConfig{
+		URL:       url,
+		Record:    record,
+		LazyHLS:   lazyHLS,
+		Transport: transport,
+	})
 }
 
 // GetRingBuffer возвращает кольцевой буфер потока для чтения.
