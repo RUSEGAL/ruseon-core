@@ -23,8 +23,12 @@ func NewLocalFS(baseDir string) *LocalFS {
 }
 
 func (l *LocalFS) fullPath(p string) (string, error) {
+	if strings.Contains(p, "\x00") {
+		return "", fmt.Errorf("invalid path: contains null byte")
+	}
+
 	cleanPath := filepath.Clean(p)
-	
+
 	if l.baseDir == "" {
 		if strings.HasPrefix(cleanPath, "..") {
 			return "", fmt.Errorf("invalid path: %s", p)
@@ -32,10 +36,26 @@ func (l *LocalFS) fullPath(p string) (string, error) {
 		return cleanPath, nil
 	}
 
-	if filepath.IsAbs(cleanPath) || strings.HasPrefix(cleanPath, "..") {
-		return "", fmt.Errorf("invalid path: %s", p)
+	// Cross-platform check: reject Windows drive letter (e.g. "C:...", "D:...")
+	if len(cleanPath) >= 2 && cleanPath[1] == ':' && ((cleanPath[0] >= 'a' && cleanPath[0] <= 'z') || (cleanPath[0] >= 'A' && cleanPath[0] <= 'Z')) {
+		return "", fmt.Errorf("invalid path with drive letter: %s", p)
 	}
-	return filepath.Join(l.baseDir, cleanPath), nil
+
+	// When baseDir is configured, reject absolute paths, rooted paths, and volume names
+	if filepath.IsAbs(cleanPath) || strings.HasPrefix(cleanPath, "/") || strings.HasPrefix(cleanPath, "\\") || filepath.VolumeName(cleanPath) != "" {
+		return "", fmt.Errorf("invalid absolute or rooted path: %s", p)
+	}
+
+	cleanBase := filepath.Clean(l.baseDir)
+	target := filepath.Join(cleanBase, cleanPath)
+
+	// Ensure target is strictly confined inside cleanBase
+	rel, err := filepath.Rel(cleanBase, target)
+	if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
+		return "", fmt.Errorf("path escapes base directory: %s", p)
+	}
+
+	return target, nil
 }
 
 func (l *LocalFS) Write(path string, data []byte) error {
