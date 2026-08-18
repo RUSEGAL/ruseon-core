@@ -50,8 +50,13 @@ jobs:
           CGO_ENABLED=0 go build -v ./cmd/server
           CGO_ENABLED=0 go build -v ./cmd/ruseon-cli
 
+      - name: Pre-pull E2E Docker Images
+        run: |
+          docker pull bluenviron/mediamtx:1.19.2
+          docker pull jrottenberg/ffmpeg:8-alpine
+
       - name: Run Tests with Race Detector and Coverage
-        run: go test -v -race -coverprofile=coverage.out ./...
+        run: go test -v -race -timeout=15m -coverprofile=coverage.out ./...
 
       - name: Performance Validated (Run Benchmarks)
         run: go test -run=^$ -bench="." -benchmem ./...
