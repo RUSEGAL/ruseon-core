@@ -30,6 +30,9 @@ type RingBuffer struct {
 
 // NewRingBuffer создает новый буфер заданного размера.
 func NewRingBuffer(capacity int) *RingBuffer {
+	if capacity <= 0 {
+		capacity = 100
+	}
 	rb := &RingBuffer{
 		capacity: capacity,
 		frames:   make([]*Frame, capacity),
@@ -48,6 +51,9 @@ func (rb *RingBuffer) SetCameraID(id string) {
 
 // Write добавляет новый кадр в буфер и рассылает его подписчикам.
 func (rb *RingBuffer) Write(f *Frame) {
+	rb.subMu.RLock()
+	defer rb.subMu.RUnlock()
+
 	// 1. Сохраняем в кольцевой буфер (для истории новым клиентам)
 	rb.mu.Lock()
 	// #nosec G115 -- rb.capacity is always positive
@@ -57,8 +63,6 @@ func (rb *RingBuffer) Write(f *Frame) {
 	rb.mu.Unlock()
 
 	// 2. Рассылаем всем текущим подписчикам
-	rb.subMu.RLock()
-	defer rb.subMu.RUnlock()
 	for sub := range rb.subs {
 		if sub.NeedsIFrame.Load() {
 			if !f.IsKeyFrame {
@@ -119,12 +123,19 @@ type Reader struct {
 // Subscribe создает нового читателя. Если в истории есть кадры,
 // он начинает чтение с ближайшего прошлого ключевого кадра (I-frame).
 func (rb *RingBuffer) Subscribe() *Reader {
-	// Буфер на 100 кадров позволяет компенсировать кратковременные сетевые задержки клиента
 	r := &Reader{
 		C:  make(chan *Frame, rb.capacity),
 		rb: rb,
 	}
-	
+
+	rb.subMu.Lock()
+	defer rb.subMu.Unlock()
+
+	if rb.closed {
+		close(r.C)
+		return r
+	}
+
 	rb.mu.RLock()
 	// Ищем I-Frame в истории, чтобы сразу закинуть его в канал подписчика
 	startIdx := rb.head
@@ -157,14 +168,7 @@ func (rb *RingBuffer) Subscribe() *Reader {
 	}
 	rb.mu.RUnlock()
 
-	rb.subMu.Lock()
-	if rb.closed {
-		close(r.C)
-	} else {
-		rb.subs[r] = struct{}{}
-	}
-	rb.subMu.Unlock()
-
+	rb.subs[r] = struct{}{}
 	return r
 }
 
