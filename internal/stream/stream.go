@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -157,6 +158,9 @@ func (s *Stream) run() {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Error().Interface("panic", r).Str("id", s.ID).Msg("Recovered from panic in Stream.run")
+			s.state.Store(models.StateOffline)
+			s.lastError.Store(fmt.Sprintf("panic: %v", r))
+			s.isDegraded.Store(true)
 		}
 	}()
 

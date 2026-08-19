@@ -114,6 +114,9 @@ func (r *Recorder) run() {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error().Interface("panic", err).Str("streamID", r.streamID).Msg("Recovered from panic in Recorder.run")
+			if r.onDegraded != nil {
+				r.onDegraded(true)
+			}
 			finalizeFailure()
 		}
 	}()
