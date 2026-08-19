@@ -61,8 +61,9 @@ func (w *Worker) Run(ctx context.Context) {
 
 func (w *Worker) doBackup() {
 	filename := filepath.Join(w.backupDir, fmt.Sprintf("badger_backup_%s.bak", time.Now().Format("2006-01-02_15-04-05")))
+	cleanFilename := filepath.Clean(filename)
 	
-	f, err := os.Create(filepath.Clean(filename)) // #nosec G304
+	f, err := os.OpenFile(cleanFilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600) // #nosec G304
 	if err != nil {
 		log.Error().Err(err).Str("file", filename).Msg("Failed to create backup file")
 		return

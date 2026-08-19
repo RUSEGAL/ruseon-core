@@ -56,14 +56,14 @@ func TestRouterMiddleware(t *testing.T) {
 		t.Errorf("expected 401 for invalid token, got %d", w3.Code)
 	}
 
-	// 4. Test Auth Middleware - Valid Token (Query param)
+	// 4. Test Auth Middleware - Query param token rejected for main API
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"username": "admin", "role": string(models.RoleAdmin)})
 	tokenString, _ := token.SignedString([]byte("secret"))
 	w4 := httptest.NewRecorder()
 	req4, _ := http.NewRequest("GET", "/api/cameras?token="+tokenString, nil)
 	router.ServeHTTP(w4, req4)
-	if w4.Code != http.StatusOK {
-		t.Errorf("expected 200 for valid token, got %d", w4.Code)
+	if w4.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 for query param token on API, got %d", w4.Code)
 	}
 
 	// 5. Test Auth Middleware - Valid Token (Header)

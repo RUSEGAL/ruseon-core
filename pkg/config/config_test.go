@@ -17,7 +17,7 @@ server:
 auth:
   secret: "test_secret"
 `
-	err := os.WriteFile(configPath, []byte(initialYaml), 0644)
+	err := os.WriteFile(configPath, []byte(initialYaml), 0600)
 	if err != nil {
 		t.Fatalf("failed to write dummy config: %v", err)
 	}
@@ -31,8 +31,14 @@ auth:
 	if cfg.Server.Port != 8080 {
 		t.Errorf("expected port 8080, got %d", cfg.Server.Port)
 	}
-	if cfg.Auth.Secret == "" {
-		t.Errorf("Load() should generate JWT secret if missing")
+	if cfg.Auth.Secret != "test_secret" {
+		t.Errorf("expected secret test_secret, got %s", cfg.Auth.Secret)
+	}
+	if cfg.Server.GCPercent != 50 {
+		t.Errorf("expected default GCPercent 50, got %d", cfg.Server.GCPercent)
+	}
+	if cfg.Server.GRPC.Port != 50051 {
+		t.Errorf("expected default GRPC.Port 50051, got %d", cfg.Server.GRPC.Port)
 	}
 
 	// Modify and save
@@ -53,5 +59,65 @@ auth:
 	}
 	if cfg2.Auth.Secret != cfg.Auth.Secret {
 		t.Errorf("expected JWT secret to be preserved, got %s vs %s", cfg2.Auth.Secret, cfg.Auth.Secret)
+	}
+}
+
+func TestLoad_GenerateSecret(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "empty_secret.yml")
+
+	initialYaml := `
+server:
+  port: 8080
+`
+	err := os.WriteFile(configPath, []byte(initialYaml), 0600)
+	if err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() failed: %v", err)
+	}
+
+	if cfg.Auth.Secret == "" {
+		t.Errorf("expected generated secret, got empty")
+	}
+
+	// Verify it was persisted to disk
+	cfgReload, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Reload failed: %v", err)
+	}
+	if cfgReload.Auth.Secret != cfg.Auth.Secret {
+		t.Errorf("expected persisted secret %s, got %s", cfg.Auth.Secret, cfgReload.Auth.Secret)
+	}
+}
+
+func TestLoad_Errors(t *testing.T) {
+	t.Run("non-existent file", func(t *testing.T) {
+		_, err := Load("non_existent_file_12345.yml")
+		if err == nil {
+			t.Errorf("expected error for non-existent file")
+		}
+	})
+
+	t.Run("invalid yaml", func(t *testing.T) {
+		tempDir := t.TempDir()
+		invalidPath := filepath.Join(tempDir, "invalid.yml")
+		_ = os.WriteFile(invalidPath, []byte("server: [unclosed"), 0600)
+
+		_, err := Load(invalidPath)
+		if err == nil {
+			t.Errorf("expected error for invalid yaml")
+		}
+	})
+}
+
+func TestSave_Error(t *testing.T) {
+	cfg := &Config{}
+	err := cfg.Save("/non_existent_dir_12345/sub/config.yml")
+	if err == nil {
+		t.Errorf("expected error when saving to invalid directory")
 	}
 }

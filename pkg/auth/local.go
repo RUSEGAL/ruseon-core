@@ -122,14 +122,12 @@ func (a *LocalAuthenticator) Login(c *gin.Context) {
 func (a *LocalAuthenticator) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
-		tokenString := ""
-
-		if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
-			tokenString = strings.TrimPrefix(authHeader, "Bearer ")
-		} else {
-			tokenString = c.Query("token")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
 		}
 
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		if tokenString == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
@@ -202,9 +200,12 @@ func RequireRole(allowedRoles ...models.Role) gin.HandlerFunc {
 
 // GenerateStreamToken создает короткоживущий токен для доступа к потоку камеры
 func (a *LocalAuthenticator) GenerateStreamToken(cameraID string) (string, error) {
+	now := time.Now()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"stream_id": cameraID,
-		"exp":       time.Now().Add(time.Second * 60).Unix(), // 60 секунд
+		"iat":       now.Unix(),
+		"nbf":       now.Unix(),
+		"exp":       now.Add(time.Second * 60).Unix(), // 60 секунд
 	})
 	return token.SignedString([]byte(a.cfg.Auth.Secret))
 }
