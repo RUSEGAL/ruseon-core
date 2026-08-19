@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/RUSEGAL/ruseon-core/pkg/auth"
+	"github.com/RUSEGAL/ruseon-core/pkg/config"
 )
 
 func TestRouterCORS(t *testing.T) {
@@ -53,5 +54,41 @@ func TestRouterCORS(t *testing.T) {
 				t.Errorf("expected no Allow-Origin header, got %q", originHeader)
 			}
 		})
+	}
+}
+
+func TestWSOriginCheck(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Server.CORSAllowedOrigins = []string{"https://dashboard.example.com"}
+	h := &Handler{cfg: cfg}
+
+	// 1. Matching origin
+	req1, _ := http.NewRequest("GET", "/stream/ws/cam1", nil)
+	req1.Header.Set("Origin", "https://dashboard.example.com")
+	if !h.checkWSOrigin(req1) {
+		t.Errorf("expected origin to be allowed")
+	}
+
+	// 2. Non-matching origin
+	req2, _ := http.NewRequest("GET", "/stream/ws/cam1", nil)
+	req2.Header.Set("Origin", "https://evil.com")
+	if h.checkWSOrigin(req2) {
+		t.Errorf("expected evil origin to be rejected")
+	}
+
+	// 3. No origin header (non-browser client)
+	req3, _ := http.NewRequest("GET", "/stream/ws/cam1", nil)
+	if !h.checkWSOrigin(req3) {
+		t.Errorf("expected empty origin to be allowed")
+	}
+
+	// 4. Wildcard origin
+	cfgWildcard := &config.Config{}
+	cfgWildcard.Server.CORSAllowedOrigins = []string{"*"}
+	hWildcard := &Handler{cfg: cfgWildcard}
+	req4, _ := http.NewRequest("GET", "/stream/ws/cam1", nil)
+	req4.Header.Set("Origin", "https://anything.com")
+	if !hWildcard.checkWSOrigin(req4) {
+		t.Errorf("expected wildcard origin to be allowed")
 	}
 }

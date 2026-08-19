@@ -162,13 +162,13 @@ func TestLocalAuthenticator_Middleware(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
-	t.Run("valid token in query param", func(t *testing.T) {
+	t.Run("reject token in query param", func(t *testing.T) {
 		tok := makeToken("viewer1", models.RoleViewer, time.Hour)
 		req := httptest.NewRequest(http.MethodGet, "/api/protected?token="+tok, nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
 	t.Run("missing token", func(t *testing.T) {
@@ -303,5 +303,18 @@ func TestLocalAuthenticator_StreamMiddleware(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("stream token claims contains iat and nbf", func(t *testing.T) {
+		token, err := jwt.Parse(tokCam1, func(_ *jwt.Token) (interface{}, error) {
+			return []byte(auth.cfg.Auth.Secret), nil
+		})
+		require.NoError(t, err)
+		claims, ok := token.Claims.(jwt.MapClaims)
+		require.True(t, ok)
+		assert.Equal(t, "cam-1", claims["stream_id"])
+		assert.NotNil(t, claims["iat"])
+		assert.NotNil(t, claims["nbf"])
+		assert.NotNil(t, claims["exp"])
 	})
 }

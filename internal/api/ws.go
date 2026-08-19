@@ -11,12 +11,29 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var wsUpgrader = websocket.Upgrader{
-	CheckOrigin: func(_ *http.Request) bool {
-		return true // CORS handled by upper middleware
-	},
-	ReadBufferSize:  1024,
-	WriteBufferSize: 64 * 1024,
+func (h *Handler) checkWSOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	// Allow non-browser clients with no Origin header
+	if origin == "" {
+		return true
+	}
+	if h.cfg == nil || len(h.cfg.Server.CORSAllowedOrigins) == 0 {
+		return true
+	}
+	for _, o := range h.cfg.Server.CORSAllowedOrigins {
+		if o == "*" || o == origin {
+			return true
+		}
+	}
+	return false
+}
+
+func (h *Handler) getWSUpgrader() websocket.Upgrader {
+	return websocket.Upgrader{
+		CheckOrigin:     h.checkWSOrigin,
+		ReadBufferSize:  1024,
+		WriteBufferSize: 64 * 1024,
+	}
 }
 
 // StreamWS handles binary WebCodecs streaming over WebSocket.
@@ -47,7 +64,8 @@ func (h *Handler) StreamWS(c *gin.Context) {
 		return
 	}
 
-	conn, err := wsUpgrader.Upgrade(c.Writer, c.Request, nil)
+	upgrader := h.getWSUpgrader()
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Error().Err(err).Str("id", id).Msg("WebSocket upgrade failed")
 		return

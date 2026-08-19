@@ -3,6 +3,7 @@ package config
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -132,9 +133,12 @@ func Load(path string) (*Config, error) {
 	// Генерируем JWT Secret, если его нет
 	if cfg.Auth.Secret == "" {
 		bytes := make([]byte, 32)
-		if _, err := rand.Read(bytes); err == nil {
-			cfg.Auth.Secret = hex.EncodeToString(bytes)
-			_ = cfg.Save(path)
+		if _, err := rand.Read(bytes); err != nil {
+			return nil, fmt.Errorf("generate random JWT secret: %w", err)
+		}
+		cfg.Auth.Secret = hex.EncodeToString(bytes)
+		if err := cfg.Save(path); err != nil {
+			return nil, fmt.Errorf("persist generated JWT secret: %w", err)
 		}
 	}
 
@@ -151,9 +155,10 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
-// Save сохраняет текущую конфигурацию в файл.
+// Save сохраняет текущую конфигурацию в файл с правами 0600.
 func (c *Config) Save(path string) error {
-	file, err := os.Create(filepath.Clean(path)) // #nosec G304
+	cleanPath := filepath.Clean(path)
+	file, err := os.OpenFile(cleanPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600) // #nosec G304
 	if err != nil {
 		return err
 	}
@@ -161,5 +166,9 @@ func (c *Config) Save(path string) error {
 
 	encoder := yaml.NewEncoder(file)
 	defer encoder.Close()
-	return encoder.Encode(c)
+	if err := encoder.Encode(c); err != nil {
+		return err
+	}
+	_ = os.Chmod(cleanPath, 0600)
+	return nil
 }

@@ -467,28 +467,45 @@ func TestImportBackupJSON(t *testing.T) {
 	
 	router.POST("/api/backup/import", handler.ImportBackupJSON)
 	
-	backupData := []byte(`{"cameras":[{"id":"import1","url":"rtsp://import"}],"tags":[{"id":"tag1","name":"T"}]}`)
-	
-	body := new(bytes.Buffer)
-	writer := multipart.NewWriter(body)
-	part, _ := writer.CreateFormFile("backup", "backup.json")
-	part.Write(backupData)
-	writer.Close()
-	
-	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("POST", "/api/backup/import", body)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	router.ServeHTTP(w, req)
-	
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200 for import, got %d", w.Code)
-	}
-	
-	// check DB
-	cam, err := store.GetCamera("import1")
-	if err != nil || cam.URL != "rtsp://import" {
-		t.Fatalf("camera not imported correctly")
-	}
+	t.Run("valid backup import", func(t *testing.T) {
+		backupData := []byte(`{"cameras":[{"id":"import1","url":"rtsp://import"}],"tags":[{"id":"tag1","name":"T"}]}`)
+		
+		body := new(bytes.Buffer)
+		writer := multipart.NewWriter(body)
+		part, _ := writer.CreateFormFile("backup", "backup.json")
+		part.Write(backupData)
+		writer.Close()
+		
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("POST", "/api/backup/import", body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		router.ServeHTTP(w, req)
+		
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 for import, got %d", w.Code)
+		}
+		
+		// check DB
+		cam, err := store.GetCamera("import1")
+		if err != nil || cam.URL != "rtsp://import" {
+			t.Fatalf("camera not imported correctly")
+		}
+	})
+
+	t.Run("missing backup file in request", func(t *testing.T) {
+		body := new(bytes.Buffer)
+		writer := multipart.NewWriter(body)
+		writer.Close()
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("POST", "/api/backup/import", body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 for missing file, got %d", w.Code)
+		}
+	})
 }
 
 func TestArchiveEndpoints(t *testing.T) {

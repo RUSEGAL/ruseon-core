@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"runtime"
 	"strconv"
@@ -933,11 +934,18 @@ func (h *Handler) ExportBackupJSON(c *gin.Context) {
 	c.Data(http.StatusOK, "application/json", data)
 }
 
+const maxBackupSize = 50 << 20 // 50 MB
+
 // ImportBackupJSON принимает JSON-файл дампа и восстанавливает конфигурации камер и тегов.
 func (h *Handler) ImportBackupJSON(c *gin.Context) {
 	file, err := c.FormFile("backup")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No backup file provided"})
+		return
+	}
+
+	if file.Size > maxBackupSize {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Backup file exceeds maximum allowed size (50MB)"})
 		return
 	}
 
@@ -948,8 +956,8 @@ func (h *Handler) ImportBackupJSON(c *gin.Context) {
 	}
 	defer f.Close()
 
-	data := make([]byte, file.Size)
-	if _, err := f.Read(data); err != nil {
+	data, err := io.ReadAll(io.LimitReader(f, maxBackupSize))
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file"})
 		return
 	}
