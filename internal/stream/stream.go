@@ -66,6 +66,9 @@ type Stream struct {
 
 	currentBitrate atomic.Uint64
 	isDegraded     atomic.Bool
+
+	stopOnce sync.Once
+	wg       sync.WaitGroup
 }
 
 // NewStream создает и запускает поток.
@@ -93,7 +96,11 @@ func NewStream(id, url string, record bool, lazyHLS bool, transport string) *Str
 		sub := s.metaBroadcaster.Subscribe()
 		s.hlsMuxer = hls.NewMuxer(id, rb, sub.C, func() { s.metaBroadcaster.Unsubscribe(sub) })
 	} else {
-		go s.lazyHLSWatchdog()
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			s.lazyHLSWatchdog()
+		}()
 	}
 
 	if record {
@@ -102,8 +109,17 @@ func NewStream(id, url string, record bool, lazyHLS bool, transport string) *Str
 		})
 	}
 
-	go s.bitrateTask()
-	go s.run()
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		s.bitrateTask()
+	}()
+
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		s.run()
+	}()
 
 	return s
 }
@@ -254,27 +270,32 @@ func (s *Stream) run() {
 	}
 }
 
-// Stop останавливает работу потока.
+// Stop останавливает работу потока, ожидает завершения всех фоновых воркеров.
+// Метод является идемпотентным (защищен через sync.Once).
 func (s *Stream) Stop() {
-	s.cancelCtx()
-	
-	s.rtspMu.Lock()
-	if s.rtspClient != nil {
-		s.rtspClient.Close()
-	}
-	s.rtspMu.Unlock()
+	s.stopOnce.Do(func() {
+		s.cancelCtx()
+		
+		s.rtspMu.Lock()
+		if s.rtspClient != nil {
+			s.rtspClient.Close()
+		}
+		s.rtspMu.Unlock()
 
-	s.ringBuffer.Close()
-	
-	s.muxerMu.Lock()
-	if s.hlsMuxer != nil {
-		s.hlsMuxer.Stop()
-	}
-	s.muxerMu.Unlock()
-	
-	if s.mp4Recorder != nil {
-		s.mp4Recorder.Stop()
-	}
+		s.ringBuffer.Close()
+		
+		s.muxerMu.Lock()
+		if s.hlsMuxer != nil {
+			s.hlsMuxer.Stop()
+		}
+		s.muxerMu.Unlock()
+		
+		if s.mp4Recorder != nil {
+			s.mp4Recorder.Stop()
+		}
+
+		s.wg.Wait()
+	})
 }
 
 // PipelineConfig определяет параметры, управляющие жизненным циклом и поведением рантайм-пайплайна.

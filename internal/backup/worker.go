@@ -44,15 +44,16 @@ func (w *Worker) Run(ctx context.Context) {
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
 
-	// Делаем первый бэкап при старте (с небольшой задержкой)
-	time.AfterFunc(5*time.Minute, func() {
-		w.doBackup()
-	})
+	// Делаем первый бэкап при старте (с небольшой задержкой, управляемой контекстом)
+	initialTimer := time.NewTimer(5 * time.Minute)
+	defer initialTimer.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-initialTimer.C:
+			w.doBackup()
 		case <-ticker.C:
 			w.doBackup()
 		}
