@@ -1059,10 +1059,12 @@ func main() {
 	httpSrv.Close()
 	grpcSrv.Stop()
 	if webrtcEngine != nil {
-		webrtcEngine.Close()
+		// #nosec G104 -- best-effort shutdown during benchmark teardown
+		_ = webrtcEngine.Close()
 	}
 	if clientWebRTCEngine != nil {
-		clientWebRTCEngine.Close()
+		// #nosec G104 -- best-effort shutdown during benchmark teardown
+		_ = clientWebRTCEngine.Close()
 	}
 	bus.Stop()
 	sink.Close()
