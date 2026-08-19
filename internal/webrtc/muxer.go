@@ -213,6 +213,28 @@ func (h *WHEPHandler) pumpMetadata(ctx context.Context, dc *webrtc.DataChannel) 
 	}
 }
 
+const (
+	defaultFrameDuration = 40 * time.Millisecond // 25 FPS fallback
+	minFrameDuration     = time.Millisecond          // 1000 FPS upper bound
+	maxFrameDuration     = time.Second              // 1 FPS lower bound / gap clamp
+)
+
+// calculateFrameDuration computes dynamic frame duration from PTS delta with safety clamping.
+func calculateFrameDuration(currentPTS time.Duration, lastPTS time.Duration, hasLastPTS bool) (time.Duration, time.Duration, bool) {
+	if !hasLastPTS {
+		return defaultFrameDuration, currentPTS, true
+	}
+	delta := currentPTS - lastPTS
+	if delta <= 0 || delta > maxFrameDuration {
+		// Clock reset, backward jump, reconnect, or excessive gap: fallback to safe default
+		return defaultFrameDuration, currentPTS, true
+	}
+	if delta < minFrameDuration {
+		delta = minFrameDuration
+	}
+	return delta, currentPTS, true
+}
+
 func (h *WHEPHandler) pumpFrames(ctx context.Context, pc *webrtc.PeerConnection, track *webrtc.TrackLocalStaticSample) {
 	reader := h.rb.NewReader()
 	defer reader.Close()
@@ -221,11 +243,17 @@ func (h *WHEPHandler) pumpFrames(ctx context.Context, pc *webrtc.PeerConnection,
 	// Wait for the first keyframe to send SPS/PPS inline if needed
 	_, sps, pps := h.rb.GetParams()
 
+	var lastPTS time.Duration
+	var hasLastPTS bool
+
 	for {
 		frame, err := reader.ReadContext(ctx)
 		if err != nil || frame == nil {
 			return
 		}
+
+		var duration time.Duration
+		duration, lastPTS, hasLastPTS = calculateFrameDuration(frame.Timestamp, lastPTS, hasLastPTS)
 
 		annexB := make([]byte, 0, 1024*100) // pre-allocate
 		
@@ -248,7 +276,7 @@ func (h *WHEPHandler) pumpFrames(ctx context.Context, pc *webrtc.PeerConnection,
 
 		if writeErr := track.WriteSample(media.Sample{
 			Data:     annexB,
-			Duration: time.Second / 25, // Assume 25fps for playback pacing
+			Duration: duration,
 		}); writeErr != nil {
 			log.Error().Err(writeErr).Str("stream", h.streamID).Msg("WebRTC track write error")
 			return

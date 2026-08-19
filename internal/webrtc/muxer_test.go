@@ -122,3 +122,112 @@ func TestWHEPHandler_MetadataDataChannel(t *testing.T) {
 		t.Fatal("timeout waiting for metadata message on DataChannel")
 	}
 }
+
+func TestCalculateFrameDuration(t *testing.T) {
+	tests := []struct {
+		name             string
+		currentPTS       time.Duration
+		lastPTS          time.Duration
+		hasLastPTS       bool
+		expectedDuration time.Duration
+		expectedNewLast  time.Duration
+		expectedHasPTS   bool
+	}{
+		{
+			name:             "first frame fallback",
+			currentPTS:       100 * time.Millisecond,
+			lastPTS:          0,
+			hasLastPTS:       false,
+			expectedDuration: 40 * time.Millisecond,
+			expectedNewLast:  100 * time.Millisecond,
+			expectedHasPTS:   true,
+		},
+		{
+			name:             "steady 25 FPS pacing (40ms)",
+			currentPTS:       140 * time.Millisecond,
+			lastPTS:          100 * time.Millisecond,
+			hasLastPTS:       true,
+			expectedDuration: 40 * time.Millisecond,
+			expectedNewLast:  140 * time.Millisecond,
+			expectedHasPTS:   true,
+		},
+		{
+			name:             "steady 30 FPS pacing (33ms)",
+			currentPTS:       133 * time.Millisecond,
+			lastPTS:          100 * time.Millisecond,
+			hasLastPTS:       true,
+			expectedDuration: 33 * time.Millisecond,
+			expectedNewLast:  133 * time.Millisecond,
+			expectedHasPTS:   true,
+		},
+		{
+			name:             "steady 60 FPS pacing (16ms)",
+			currentPTS:       116 * time.Millisecond,
+			lastPTS:          100 * time.Millisecond,
+			hasLastPTS:       true,
+			expectedDuration: 16 * time.Millisecond,
+			expectedNewLast:  116 * time.Millisecond,
+			expectedHasPTS:   true,
+		},
+		{
+			name:             "steady 15 FPS pacing (66ms)",
+			currentPTS:       166 * time.Millisecond,
+			lastPTS:          100 * time.Millisecond,
+			hasLastPTS:       true,
+			expectedDuration: 66 * time.Millisecond,
+			expectedNewLast:  166 * time.Millisecond,
+			expectedHasPTS:   true,
+		},
+		{
+			name:             "sub-millisecond delta clamped to minFrameDuration (1ms)",
+			currentPTS:       100*time.Millisecond + 200*time.Microsecond,
+			lastPTS:          100 * time.Millisecond,
+			hasLastPTS:       true,
+			expectedDuration: time.Millisecond,
+			expectedNewLast:  100*time.Millisecond + 200*time.Microsecond,
+			expectedHasPTS:   true,
+		},
+		{
+			name:             "backward jump / timestamp reset recovers with fallback",
+			currentPTS:       50 * time.Millisecond,
+			lastPTS:          500 * time.Millisecond,
+			hasLastPTS:       true,
+			expectedDuration: 40 * time.Millisecond,
+			expectedNewLast:  50 * time.Millisecond,
+			expectedHasPTS:   true,
+		},
+		{
+			name:             "zero delta duplicate frame recovers with fallback",
+			currentPTS:       500 * time.Millisecond,
+			lastPTS:          500 * time.Millisecond,
+			hasLastPTS:       true,
+			expectedDuration: 40 * time.Millisecond,
+			expectedNewLast:  500 * time.Millisecond,
+			expectedHasPTS:   true,
+		},
+		{
+			name:             "excessive gap (>1s stall) clamped to fallback",
+			currentPTS:       6 * time.Second,
+			lastPTS:          1 * time.Second,
+			hasLastPTS:       true,
+			expectedDuration: 40 * time.Millisecond,
+			expectedNewLast:  6 * time.Second,
+			expectedHasPTS:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dur, newLast, hasPTS := calculateFrameDuration(tt.currentPTS, tt.lastPTS, tt.hasLastPTS)
+			if dur != tt.expectedDuration {
+				t.Errorf("duration: expected %v, got %v", tt.expectedDuration, dur)
+			}
+			if newLast != tt.expectedNewLast {
+				t.Errorf("newLastPTS: expected %v, got %v", tt.expectedNewLast, newLast)
+			}
+			if hasPTS != tt.expectedHasPTS {
+				t.Errorf("hasPTS: expected %v, got %v", tt.expectedHasPTS, hasPTS)
+			}
+		})
+	}
+}

@@ -86,13 +86,22 @@ func (rb *RingBuffer) Write(f *Frame) {
 	}
 }
 
-// SetParams сохраняет параметры кодека (VPS, SPS, PPS).
+func cloneBytes(b []byte) []byte {
+	if b == nil {
+		return nil
+	}
+	c := make([]byte, len(b))
+	copy(c, b)
+	return c
+}
+
+// SetParams сохраняет параметры кодека (VPS, SPS, PPS), создавая защитные копии срезов.
 func (rb *RingBuffer) SetParams(vps, sps, pps []byte) {
 	rb.mu.Lock()
 	defer rb.mu.Unlock()
-	rb.vps = vps
-	rb.sps = sps
-	rb.pps = pps
+	rb.vps = cloneBytes(vps)
+	rb.sps = cloneBytes(sps)
+	rb.pps = cloneBytes(pps)
 }
 
 // Close закрывает буфер и каналы всех читателей.
@@ -107,11 +116,11 @@ func (rb *RingBuffer) Close() {
 	}
 }
 
-// GetParams возвращает текущие параметры кодека (VPS, SPS, PPS).
+// GetParams возвращает защитные копии текущих параметров кодека (VPS, SPS, PPS).
 func (rb *RingBuffer) GetParams() ([]byte, []byte, []byte) {
 	rb.mu.RLock()
 	defer rb.mu.RUnlock()
-	return rb.vps, rb.sps, rb.pps
+	return cloneBytes(rb.vps), cloneBytes(rb.sps), cloneBytes(rb.pps)
 }
 
 // Reader предоставляет интерфейс для чтения из RingBuffer через неблокирующий канал.
