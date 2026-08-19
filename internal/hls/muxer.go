@@ -74,8 +74,7 @@ type Muxer struct {
 	segments []*Segment
 	seqCount uint64
 
-	currentMetaMu sync.Mutex
-	currentMeta   []*pb.MetadataRequest
+	currentMeta []*pb.MetadataRequest
 
 	lastFrameTime      atomic.Int64
 	needsDiscontinuity bool
@@ -95,13 +94,8 @@ func NewMuxer(streamID string, rb *buffer.RingBuffer, metaChan <-chan *pb.Metada
 		unsubscribe:    unsubscribe,
 	}
 	m.lastFrameTime.Store(time.Now().UnixNano())
-	m.wg.Add(2)
+	m.wg.Add(1)
 	go m.run()
-	go m.watchdog()
-	if metaChan != nil {
-		m.wg.Add(1)
-		go m.readMetadata()
-	}
 	return m
 }
 
@@ -123,14 +117,32 @@ func (m *Muxer) run() {
 	// Читаем параметры кодека из буфера
 	vps, sps, pps := m.ringBuffer.GetParams()
 
+	metaChan := m.metaChan
+
 	for {
 		if sps == nil || pps == nil {
 			vps, sps, pps = m.ringBuffer.GetParams()
 		}
 
-		frame, err := reader.ReadContext(m.ctx)
-		if err != nil || frame == nil {
-			break
+		var frame *buffer.Frame
+
+		select {
+		case <-m.ctx.Done():
+			return
+		case req, ok := <-metaChan:
+			if !ok {
+				metaChan = nil
+				continue
+			}
+			if req != nil {
+				m.currentMeta = append(m.currentMeta, req)
+			}
+			continue
+		case f, ok := <-reader.C:
+			if !ok || f == nil {
+				return
+			}
+			frame = f
 		}
 
 		m.lastFrameTime.Store(time.Now().UnixNano())
@@ -145,10 +157,8 @@ func (m *Muxer) run() {
 
 		// Если текущий сегмент достиг целевой длины и пришел новый I-кадр, закрываем сегмент
 		if currentBuf != nil && frame.IsKeyFrame && frame.Timestamp-segmentStart >= m.targetDuration {
-			m.currentMetaMu.Lock()
 			meta := m.currentMeta
 			m.currentMeta = nil
-			m.currentMetaMu.Unlock()
 
 			segmentStartPts := int64(segmentStart * 90000 / time.Second)
 			var vttBuf bytes.Buffer
@@ -285,23 +295,6 @@ func (m *Muxer) run() {
 	}
 }
 
-func (m *Muxer) readMetadata() {
-	defer m.wg.Done()
-	for {
-		select {
-		case <-m.ctx.Done():
-			return
-		case req, ok := <-m.metaChan:
-			if !ok {
-				return
-			}
-			m.currentMetaMu.Lock()
-			m.currentMeta = append(m.currentMeta, req)
-			m.currentMetaMu.Unlock()
-		}
-	}
-}
-
 // Stop останавливает работу Muxer'а и очищает оставшиеся сегменты.
 func (m *Muxer) Stop() {
 	if m.unsubscribe != nil {
@@ -318,55 +311,45 @@ func (m *Muxer) Stop() {
 	m.mu.Unlock()
 }
 
-// watchdog следит за поступлением новых кадров. Если кадров нет больше 5 секунд (обрыв связи),
+// CheckWatchdog следит за поступлением новых кадров. Если кадров нет больше 5 секунд (обрыв связи),
 // он берет последний готовый сегмент и добавляет его дубликат в плейлист с флагом Discontinuity.
 // Это заставляет сторонние плееры (VLC, OBS) "заморозить" последний кадр и не вылетать по таймауту.
-func (m *Muxer) watchdog() {
-	defer m.wg.Done()
-	defer func() {
-		if r := recover(); r != nil {
-			log.Error().Interface("panic", r).Str("streamID", m.streamID).Msg("Recovered from panic in Muxer.watchdog")
-		}
-	}()
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
+// Метод вызывается централизованным шедулером Manager раз в секунду.
+func (m *Muxer) CheckWatchdog(now time.Time) {
+	lastTime := m.lastFrameTime.Load()
+	if lastTime == 0 || now.Sub(time.Unix(0, lastTime)) <= 5*time.Second {
+		return
+	}
 
-	for {
-		select {
-		case <-m.ctx.Done():
-			return
-		case <-ticker.C:
-			m.mu.Lock()
-			lastTime := m.lastFrameTime.Load()
-			// Если кадра не было 5 секунд
-			if lastTime > 0 && time.Since(time.Unix(0, lastTime)) > 5*time.Second {
-				if len(m.segments) > 0 {
-					lastSeg := m.segments[len(m.segments)-1]
-					m.seqCount++
-					dataCopy := make([]byte, len(lastSeg.Data))
-					copy(dataCopy, lastSeg.Data)
-					seg := &Segment{
-						Name:            fmt.Sprintf("stream_%d.ts", m.seqCount),
-						Duration:        lastSeg.Duration,
-						Data:            dataCopy,
-						buf:             nil,
-						IsDiscontinuity: true, // Сигнал для плеера, что PTS может прыгнуть
-					}
-					seg.refCount.Store(1)
-					m.segments = append(m.segments, seg)
-					if len(m.segments) > 5 {
-						oldSeg := m.segments[0]
-						m.segments = m.segments[1:]
-						oldSeg.Release()
-					}
-					// Сбрасываем таймер, чтобы следующий дубликат добавился еще через 5 секунд
-					m.lastFrameTime.Store(time.Now().UnixNano())
-					// Следующий РЕАЛЬНЫЙ сегмент (когда связь восстановится) тоже должен начаться с разрыва,
-					// так как его PTS будет отличаться от PTS дубликата.
-					m.needsDiscontinuity = true
-				}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	lastTime = m.lastFrameTime.Load()
+	if lastTime > 0 && now.Sub(time.Unix(0, lastTime)) > 5*time.Second {
+		if len(m.segments) > 0 {
+			lastSeg := m.segments[len(m.segments)-1]
+			m.seqCount++
+			dataCopy := make([]byte, len(lastSeg.Data))
+			copy(dataCopy, lastSeg.Data)
+			seg := &Segment{
+				Name:            fmt.Sprintf("stream_%d.ts", m.seqCount),
+				Duration:        lastSeg.Duration,
+				Data:            dataCopy,
+				buf:             nil,
+				IsDiscontinuity: true, // Сигнал для плеера, что PTS может прыгнуть
 			}
-			m.mu.Unlock()
+			seg.refCount.Store(1)
+			m.segments = append(m.segments, seg)
+			if len(m.segments) > 5 {
+				oldSeg := m.segments[0]
+				m.segments = m.segments[1:]
+				oldSeg.Release()
+			}
+			// Сбрасываем таймер, чтобы следующий дубликат добавился еще через 5 секунд
+			m.lastFrameTime.Store(now.UnixNano())
+			// Следующий РЕАЛЬНЫЙ сегмент (когда связь восстановится) тоже должен начаться с разрыва,
+			// так как его PTS будет отличаться от PTS дубликата.
+			m.needsDiscontinuity = true
 		}
 	}
 }

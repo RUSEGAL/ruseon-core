@@ -4,36 +4,33 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStream_LazyHLS(t *testing.T) {
-	// We pass empty transport or invalid URL because we only want to test the muxer logic.
-	// Since run() tries to connect, it will just fail and reconnect loop will handle it.
 	s := NewStream("cam1", "://invalid", false, true, "tcp")
-	
+	defer s.Stop()
+
 	if s.hlsMuxer != nil {
 		t.Fatalf("expected nil hlsMuxer for lazy start")
 	}
 
 	muxer := s.WakeUpHLSMuxer()
-	if muxer == nil {
-		t.Fatalf("expected non-nil muxer after WakeUp")
-	}
-	if s.hlsMuxer == nil {
-		t.Fatalf("expected s.hlsMuxer to be set")
-	}
+	require.NotNil(t, muxer)
+	require.NotNil(t, s.hlsMuxer)
 
-	// Fast-forward last request to trigger watchdog
+	// Fast-forward last request to trigger inactivity shutdown
+	oldTime := time.Now().Add(-65 * time.Second)
+	s.lastHLSRequest.Store(oldTime.UnixNano())
+
+	// Run housekeeping tick
+	s.TickHousekeeping(time.Now())
+
 	s.muxerMu.Lock()
-	s.lastHLSRequest = time.Now().Add(-2 * time.Minute)
+	assert.Nil(t, s.hlsMuxer, "expected hlsMuxer to be stopped due to inactivity")
 	s.muxerMu.Unlock()
-
-	// Wait for watchdog to trigger (watchdog ticks every 1 minute usually, 
-	// but since we can't easily fast forward time.After, we can't fully unit-test watchdog time.After 
-	// without injecting a ticker. 
-	// However, we can call lazyHLSWatchdog logic manually or just test the other methods for coverage.
-	
-	s.Stop()
 }
 
 func TestStream_GetStats(t *testing.T) {
@@ -41,83 +38,53 @@ func TestStream_GetStats(t *testing.T) {
 	defer s.Stop()
 
 	s.AddBytesSent(1024)
-	
+
 	rb := s.GetRingBuffer()
-	if rb == nil {
-		t.Fatalf("expected non-nil ring buffer")
-	}
+	require.NotNil(t, rb)
 
 	stats := s.GetStats()
-	if stats.BytesSent != 1024 {
-		t.Errorf("expected 1024 bytes sent, got %d", stats.BytesSent)
-	}
-	if stats.Codec != "-" {
-		t.Errorf("expected empty codec '-', got %s", stats.Codec)
-	}
+	assert.Equal(t, uint64(1024), stats.BytesSent)
+	assert.Equal(t, "-", stats.Codec)
 
 	// Simulate codec detection
 	rb.SetParams(nil, []byte{0x01}, []byte{0x02})
 	stats2 := s.GetStats()
-	if stats2.Codec != "H.264 / AVC" {
-		t.Errorf("expected H.264 / AVC, got %s", stats2.Codec)
-	}
+	assert.Equal(t, "H.264 / AVC", stats2.Codec)
 }
 
-func TestStream_LazyHLSWatchdog_Manual(t *testing.T) {
-	s := NewStream("cam_lazy_test", "rtsp://invalid", false, true, "tcp")
-	
-	// Wake up muxer
-	muxer := s.WakeUpHLSMuxer()
-	if muxer == nil || s.hlsMuxer == nil {
-		t.Fatalf("expected non-nil muxer after WakeUp")
-	}
+func TestStream_TickHousekeeping_Bitrate(t *testing.T) {
+	s := NewStream("cam_bitrate", "synthetic://", false, false, "tcp")
+	defer s.Stop()
 
-	// Wait 2 seconds to simulate inactivity
-	// Since ticker is 1 minute, it would take too long to run normally.
-	// But we can trigger the cleanup condition directly for coverage.
-	s.muxerMu.Lock()
-	s.lastHLSRequest = time.Now().Add(-65 * time.Second)
-	s.muxerMu.Unlock()
-	
-	// We can't wait for 1 minute for the real watchdog, so we simulate the check
-	s.muxerMu.Lock()
-	if s.hlsMuxer != nil && time.Since(s.lastHLSRequest) > 60*time.Second {
-		s.hlsMuxer.Stop()
-		s.hlsMuxer = nil
-	}
-	s.muxerMu.Unlock()
+	now := time.Now()
+	s.AddBytesReceived(1000)
 
-	s.muxerMu.Lock()
-	if s.hlsMuxer != nil {
-		t.Errorf("expected muxer to be nil after inactivity")
-	}
-	s.muxerMu.Unlock()
-	
-	s.Stop()
+	// First tick initializes baseline
+	s.TickHousekeeping(now)
+
+	// Simulate 1 second later with 1000 more bytes (1000 bytes * 8 / 1s = 8000 bps)
+	s.AddBytesReceived(1000)
+	s.TickHousekeeping(now.Add(1 * time.Second))
+
+	stats := s.GetStats()
+	assert.Equal(t, float64(8000), stats.Bitrate)
 }
 
 func TestStream_StateAndStats(t *testing.T) {
 	s := NewStream("cam_state_test", "rtsp://invalid", false, false, "tcp")
 	defer s.Stop()
 
-	// Initial state could be connecting or offline (since run() runs concurrently)
 	stats := s.GetStats()
-	if stats.State != "connecting" && stats.State != "offline" {
-		t.Errorf("expected connecting or offline state, got %s", stats.State)
-	}
+	assert.True(t, stats.State == "connecting" || stats.State == "offline")
 
-	// Reconnects should increment after some time, let's just manipulate the atomic counter to test stats
 	s.reconnects.Add(10)
 	stats = s.GetStats()
-	if stats.Reconnects != 10 {
-		t.Errorf("expected 10 reconnects, got %d", stats.Reconnects)
-	}
+	assert.Equal(t, uint64(10), stats.Reconnects)
 }
 
 func TestStream_Stop_Idempotent(t *testing.T) {
 	s := NewStream("cam_idempotent", "synthetic://", false, true, "tcp")
-	
-	// Calling Stop multiple times concurrently or sequentially should never panic or hang
+
 	var wg sync.WaitGroup
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
@@ -128,9 +95,5 @@ func TestStream_Stop_Idempotent(t *testing.T) {
 	}
 	wg.Wait()
 
-	// Context should be cancelled
-	if s.ctx.Err() == nil {
-		t.Errorf("expected context to be cancelled after Stop()")
-	}
+	assert.Error(t, s.ctx.Err())
 }
-
