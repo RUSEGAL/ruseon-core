@@ -5,21 +5,17 @@
 <h1 align="center">RUSEON Core</h1>
 
 <p align="center">
-  <strong>Video Data Infrastructure & AI Pipeline</strong><br>
-  <em>Облачно-ориентированная, высокопроизводительная платформа для видеоданных</em>
+  <strong>Высокопроизводительная видеоинфраструктура и конвейер данных для ИИ</strong><br>
+  <em>RTSP → HLS / WebRTC / fMP4 архив напрямую в RAM без перекодирования</em>
 </p>
 
 <p align="center">
-  <a href="https://github.com/RUSEON/ruseon-core/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/RUSEON/ruseon-core/ci.yml?branch=main&style=flat-square" alt="CI Status"></a>
-  <a href="https://goreportcard.com/report/github.com/RUSEON/ruseon-core"><img src="https://goreportcard.com/badge/github.com/RUSEON/ruseon-core?style=flat-square" alt="Go Report Card"></a>
-  <a href="https://github.com/RUSEON/ruseon-core/releases/latest"><img src="https://img.shields.io/github/v/release/RUSEON/ruseon-core?style=flat-square" alt="Latest Release"></a>
-  <img src="https://img.shields.io/docker/pulls/ruseon/ruseon-core?style=flat-square" alt="Docker Pulls">
+  <a href="https://github.com/RUSEGAL/ruseon-core/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/RUSEGAL/ruseon-core/test.yml?branch=main&style=flat-square" alt="CI Status"></a>
+  <a href="https://goreportcard.com/report/github.com/RUSEGAL/ruseon-core"><img src="https://goreportcard.com/badge/github.com/RUSEGAL/ruseon-core?style=flat-square" alt="Go Report Card"></a>
+  <a href="https://github.com/RUSEGAL/ruseon-core/releases/latest"><img src="https://img.shields.io/github/v/release/RUSEGAL/ruseon-core?style=flat-square" alt="Latest Release"></a>
   <a href="bench_max.md"><img src="https://img.shields.io/badge/Стресс--тест-100%20Камер%20%7C%207k%20RPS%20%7C%200%20Дропов-brightgreen?style=flat-square" alt="Стресс-тест"></a>
+  <img src="https://img.shields.io/badge/Покрытие%20CI-14%20Пакетов%20Проверено-blue?style=flat-square" alt="Покрытие CI">
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License">
-  <br>
-  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/RUSEGAL/9c2397c2c47671c0e65d91e39e91a7a3/raw/latency-badge.json" alt="Latency p(95)">
-  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/RUSEGAL/9c2397c2c47671c0e65d91e39e91a7a3/raw/success-badge.json" alt="Success Rate">
-  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/RUSEGAL/9c2397c2c47671c0e65d91e39e91a7a3/raw/vus-badge.json" alt="Simultaneous Viewers">
 </p>
 
 <p align="center">
@@ -29,178 +25,226 @@
 <hr>
 
 <p align="center">
-  <em>Большинство open-source видеосерверов решают задачу стриминга.<br>RUSEON решает задачу полного жизненного цикла видеоданных.<br>Ingest. Route. Record. Analyze. Export.<br>Один движок.</em>
+  <em>Большинство open-source видеосерверов решают задачу простого стриминга.<br>RUSEON решает задачу полного жизненного цикла видеоданных.<br><strong>Ingest. Route. Record. Analyze. Export.</strong> Один движок.</em>
 </p>
 
-**RUSEON Core** — это open-source Edge-платформа для работы с видеоинфраструктурой, написанная на Go. Разработанная для облачных и Edge-сред, она обеспечивает zero-copy ретрансляцию RTSP в HLS/WebRTC, запись архива в fMP4 и закладывает фундаментальный API для систем видеоаналитики на базе ИИ.
+**RUSEON Core** — это высокопроизводительная платформа для видеоинфраструктуры, оптимизированная для IP-камер, Edge-вычислений и облачных задач. Работая исключительно по принципу **трансмуксинга** (трансляции медиаконтейнеров без декодирования и повторного сжатия видеопотока), движок репакует H.264/H.265 видео в форматы HLS и WebRTC прямо в оперативной памяти.
 
-Вместо того чтобы пытаться делать всё подряд (например, ИИ-инференс или GPU-перекодирование) внутри одного монолита, RUSEON фокусируется исключительно на максимально эффективной маршрутизации и хранении байтов видео. Он спроектирован как центральный роутер и хранилище, в то время как тяжелые аналитические задачи (YOLO, распознавание лиц) работают как отдельные модули (например, `ruseon-yolo`, `ruseon-lpr`).
+Такой **zero-allocation подход** обеспечивает около-нулевую нагрузку на CPU, отдачу master-плейлистов за доли миллисекунды (< 0.5 мс) и горизонтальную масштабируемость, выступая надежным связующим мостом между CCTV-камерами и системами видеоаналитики на базе ИИ.
+
+---
 
 ## 🚀 Ключевые возможности
 
-* ⚡ **Zero-Copy Ретрансляция**: Сверхнизкая задержка при преобразовании RTSP в HLS/WebRTC напрямую в оперативной памяти. Обходит промежуточное перекодирование для максимальной эффективности.
-* 🎥 **Ultra-Low Latency (WebRTC WHEP)**: Поддержка протокола WebRTC для воспроизведения с около-нулевой задержкой, что критически важно для PTZ-камер и real-time аналитики.
-* 🧠 **Zero-Transcoding AI Metadata**: Проброс метаданных от нейросетей (Bounding Boxes) напрямую в видеопотоки зрителей через **HLS WebVTT** и **WebRTC DataChannels**, экономя 100% CPU (без ре-энкодинга).
-* 💾 **Smart I/O Archiver**: Использование механизмов ядра Linux (`FADV_DONTNEED`, скользящее окно `sync_file_range`) для защиты оперативной памяти (OS Page Cache) от вымывания при записи гигабайтов fMP4 видеоархива. Защищает от I/O stalls.
-* 🛡 **Cloud-Native Архитектура и Безопасность**: Встроенная защита от проблемы "Thundering Herd", жесткий OOM-контроль, а также защита API от атак типа Path Traversal (проверено через CodeQL).
-* 📦 **Высокопроизводительный архив (fMP4)**: Непрерывная запись без потерь в формат fragmented MP4. Оптимизировано для хранения на Edge-устройствах и быстрой синхронизации с облаком.
-* ⏪ **Продвинутый Timeshift-конвейер**: Воспроизведение архивных данных в формате HLS в реальном времени с возможностью бесшовного экспорта датасетов для обучения ИИ.
-* 🗄 **Встроенная NoSQL-СУБД**: Работает на базе BadgerDB, обеспечивая субмиллисекундное сохранение конфигураций и метрик без необходимости во внешних зависимостях.
-* 🎨 **Современный UI-мониторинг**: Включает Edge-дашборд на React 19 (TypeScript) с JWT-авторизацией, телеметрией SSE в реальном времени и удобной визуализацией таймлайна.
-* 🧪 **Надежность (Enterprise Reliability)**: Кодовая база защищена автоматизированными CI-пайплайнами производительности k6, непрерывным профилированием (pprof) и тестами Chaos Engineering для надежного предотвращения регрессий.
+* ⚡ **Zero-Copy Трансмуксинг**: Сверхнизкая задержка при преобразовании RTSP в HLS/WebRTC напрямую в RAM без перекодирования.
+* ⚡ **Субмиллисекундные Master-плейлисты**: Неблокирующая генерация и отдача HLS master-плейлистов (< 0.5 мс) с дедупликацией через `singleflight`.
+* 🎥 **Ultra-Low Latency (WebRTC WHEP)**: Поддержка протокола WebRTC на базе Pion для воспроизведения с субсекундной задержкой.
+* 🧠 **Zero-Transcoding AI Metadata**: Проброс метаданных от нейросетей (Bounding Boxes) напрямую в видеопотоки зрителей через **HLS WebVTT** и **WebRTC DataChannels** без нагрузки на процессор.
+* 💾 **Smart I/O Archiver**: Запись видеоархива в fMP4 с системными вызовами ядра Linux (`FADV_DONTNEED`, скользящее окно `sync_file_range`), предотвращающими вымывание дискового кэша ОС (Page Cache) и I/O-фризы.
+* 🗄 **Отказоустойчивое хранилище конфигураций**: Встроенная NoSQL-СУБД на базе BadgerDB с синхронной записью на диск (`SyncWrites = true`), атомарными миграциями и гарантированной сохранностью данных при сбоях питания.
+* 🛡 **Честные пробы состояния и здоровья**: Строгие пробы `/livez` и `/readyz`, в реальном времени отслеживающие доступность базы данных, файлового хранилища и менеджера потоков.
+* 📡 **Событийная архитектура и IoT**: Поддержка вебхуков с Circuit Breaker и публикация событий в MQTT через неблокирующий ring-buffer с контролируемыми таймаутами.
+* 🎨 **Современный Edge-дашборд**: Интерфейс на React 19 (TypeScript) с JWT-авторизацией, живой SSE-телеметрией и интерактивным 24-часовым таймлайном fMP4 архива.
+
+[**Подробнее о возможностях в документации**](https://docs.ruseon.tech/guide/features)
 
 ---
-
-## ⚔️ Философия и Сравнение
-
-Философия RUSEON Core сильно отличается от других популярных инструментов в экосистеме видео. Вместо прямой конкуренции, он решает совершенно иную архитектурную задачу:
-
-- **MediaMTX**: Великолепный **Медиа-маршрутизатор**. Фокусируется на трансляции огромного числа протоколов (RTSP, WebRTC, RTMP, SRT). RUSEON, напротив, сфокусирован на **жизненном цикле видеоданных** (архив, timeshift, экспорт датасетов).
-- **FFmpeg**: Ультимативный **Медиа-инструментарий**. Идеален для обработки видео, но требует сложного скриптинга для создания надежного демона, управляемого по API.
-- **Flussonic**: Комплексная **IPTV-платформа**, созданная для телекома и броадкастинга.
-- **RUSEON Core**: Инфраструктурная **Edge-видеоплатформа**. Создана специально для приема потоков с CCTV камер, их надежного сохранения на диск и эффективной раздачи операторам и конвейерам ИИ.
 
 ## 🏗 Архитектура и Конвейер Данных ИИ
 
-RUSEON Core выступает в роли критически важного связующего звена между Edge-оборудованием и вашими Облачными/ИИ нагрузками.
+RUSEON использует архитектуру неблокирующего кольцевого буфера (**Lock-Free Ring Buffer**). Видеокадры, поступающие по RTSP, сохраняются в памяти один раз и параллельно передаются всем потребителям (HLS, WebRTC, fMP4-архиватор, gRPC-конвейер ИИ) без лишних аллокаций памяти.
 
 ```mermaid
-graph LR
-  subgraph Edge [Edge Devices / Cameras]
-    Cam[RTSP Streams]
-  end
+flowchart TD
+    CAMERA["IP-камера<br/>RTSP (H.264 / H.265)"] -->|TCP / UDP| CORE["Медиа-движок RUSEON"]
 
-  subgraph Engine [RUSEON Core]
-    API[Live REST / SSE API]
-    gRPC[gRPC AI Receiver]
-    Demux[Zero-Copy Demuxer]
-    Pool[RingBuffer / Pool]
-    Meta[Metadata Bus]
-    HLS[HLS Muxer + WebVTT]
-    RTC[WebRTC WHEP + DataChannel]
-    Rec[fMP4 Storage 'Direct I/O']
-    Storage[(Video Archive / BlobStore)]
-    MQTT[MQTT Publisher]
-    DB[(BadgerDB Control Plane)]
-  end
+    CORE --> RING["Lock-Free RingBuffer"]
 
-  subgraph Clients [Clients & Ecosystem]
-    Dashboard[React Dashboard]
-    CLI[ruseon-cli / Swagger]
-    Player[Video Clients]
-    IoT[IoT Broker / Home Assistant]
-    AI[AI / CV Models]
-  end
+    RING --> HLS["HLS Муксер<br/>fMP4 & TS"]
+    RING --> WEBRTC["WebRTC / WHEP<br/>Движок Pion"]
+    RING --> RECORDER["fMP4 Архиватор<br/>Direct I/O"]
+    RING --> AI["ИИ Конвейер<br/>gRPC Приемник"]
 
-  %% Ingest Pipeline
-  Cam -->|H.264 / HEVC| Demux
-  Demux --> Pool
-  
-  %% Delivery Pipeline
-  Pool --> HLS
-  Pool --> RTC
-  Pool --> Rec
-  
-  %% State Management
-  DB -.->|Config & State| API
-  API -.-> Demux
-  API <--> CLI
-  
-  %% AI Metadata Loop
-  AI -->|Push Bounding Boxes| gRPC
-  gRPC -->|Metadata| Meta[Metadata Bus]
-  Meta --> HLS
-  Meta --> RTC
-  Meta --> MQTT
-  
-  %% Outputs
-  HLS -->|M3U8 / TS| Player
-  RTC -->|Sub-second Latency| Player
-  Rec -->|fMP4 Archive| Storage
-  Storage -->|Dataset Export| AI
-  MQTT -->|JSON Telemetry| IoT
-  
-  %% Observability
-  Dashboard <-->|Metrics & Config| API
+    HLS --> BROWSER["Браузеры и плееры"]
+    WEBRTC --> CLIENTS["Real-Time операторы"]
+    RECORDER --> ARCHIVE["Дисковый архив (BlobStore)"]
+    AI --> META["Шина метаданных<br/>WebVTT / DataChannel / MQTT"]
 ```
+
+[**Архитектурный обзор системы**](https://docs.ruseon.tech/architecture/system)
 
 ---
 
-## 📊 Производительность и Нагрузочные тесты
+## 🧪 Тестирование, надежность и верификация в CI
 
-RUSEON Core спроектирован для максимальной эффективности. В его основе лежит маршрутизатор, который обеспечивает **zero-copy / low-copy frame distribution with allocation minimization on the hot path**.
+В кодовой базе RUSEON Core действует многоуровневая автоматизированная система проверки качества на каждый Pull Request:
 
-Результаты максимального комплексного стресс-теста на 12-ядерном CPU (100 камер 30 FPS + 350 одновременных зрителей/воркеров + непрерывная запись MP4 на диск):
-
-| Метрика | Значение | Описание |
-| :--- | :--- | :--- |
-| **Входящий поток (Ingest)** | **3 028 FPS (252.3 Mbps)** | 100 камер, **0** потерь кадров |
-| **REST API RPS** | **6 897 RPS** (414k запросов) | `p50: 0.0 ms` / `p95: 3.0 ms` / `p99: 39.5 ms` |
-| **Раздача HLS fMP4** | **46.1 MB/s** (3 000 сегментов) | `p50: 44.9 ms` на сегмент |
-| **WebRTC WHEP** | **488k RTP пакетов (9.0 MB/s)** | **0** ошибок подключений |
-| **Запись архива (MP4)** | **29.8 MB/s** | 100 файлов на реальный диск |
-
-👉 **[Смотреть полный двуязычный отчет нагрузочного тестирования (bench_max.md)](bench_max.md)**
-
-```bash
-# Воспроизвести стресс-тест локально:
-go run ./cmd/loadtest -cameras=100 -api-workers=150 -hls-viewers=150 -webrtc-viewers=30 -duration=60 -real-disk=true
+```
++-----------------------------------------------------------------------------+
+|                       СИСТЕМА ТЕСТИРОВАНИЯ RUSEON                           |
++-----------------------------------------------------------------------------+
+|  1. Go Native Fuzzing        | Фаззинг Lock-Free буфера на гонки и переполнение |
+|  2. Testcontainers E2E Suite | MediaMTX 1.19.2 + FFmpeg 8 (RTSP -> HLS .ts) |
+|  3. Нагрузочные тесты k6     | Аутентифицированные HLS, WHEP, Архив, Пробы  |
+|  4. Тесты фронтенда (React)  | 36 тестов на Vitest + React Testing Library  |
+|  5. Контроль порогов в CI    | Строгие quality gates для 14 пакетов ядра    |
+|  6. Статический аудит        | golangci-lint (0 замечаний) + gosec SAST     |
++-----------------------------------------------------------------------------+
 ```
 
-Для просмотра полных результатов автоматизированных бенчмарков, стресс-тестов и отчетов Chaos Engineering, пожалуйста, обращайтесь к нашему единому источнику правды:
-👉 **[benchmarks/RESULTS.md](benchmarks/RESULTS.md)**
+### 1. Go Native Fuzz-тестирование (`internal/buffer`)
+- Непрерывный фаззинг Lock-Free кольцевого буфера (`fuzz_test.go`), проверяющий поведение при циклическом заполнении, конкурентном чтении/записи, переполнении и соблюдении инварианта нулевых аллокаций.
+
+### 2. Сквозные интеграционные тесты с Testcontainers (`tests/e2e`)
+- Тесты выполняются в изолированной Docker bridge-сети с зафиксированными версиями образов:
+  - **MediaMTX `1.19.2`** (RTSP-сервер)
+  - **FFmpeg `8-alpine`** (генератор живого H.264 видеопотока 10 кадров/сек, GOP = 10)
+- Проверяется весь реальный конвейер от начала до конца:
+  `FFmpeg Stream -> MediaMTX -> RUSEON RTSP Ingest -> RingBuffer -> /livez & /readyz -> HLS Master Playlist (index.m3u8) -> Video Playlist (stream.m3u8) -> Скачивание и бинарная валидация MPEG-TS сегмента (байт синхронизации 0x47)`.
+
+### 3. Нагрузочные тесты производительности медиа-путей (`tests/performance`)
+- Комплексные нагрузочные тесты на **k6** (`k6_load.js`) с JWT-аутентификацией:
+  - **Live HLS Stream**: согласование плейлистов и отдача сегментов.
+  - **WebRTC WHEP**: рукопожатие SDP offer/answer и ICE-подключение.
+  - **Timeshift Archive**: перемотка и воспроизведение fMP4 архива.
+  - **Control Plane**: вызовы REST API управления камерами.
+  - **Системные пробы**: мониторинг `/livez`, `/readyz` и `/metrics`.
+
+### 4. Тестирование фронтенда (`web/`)
+- Набор компонентных и модульных тестов на **Vitest** + **React Testing Library** + **jsdom** (36 тестов в 7 файлах):
+  - Математика 24-часового таймлайна, зуммирование и попадание по сегментам архива (`timeline-math.test.ts`).
+  - Координатор переподключения потоков с экспоненциальным backoff и джиттером (`reconnect-coordinator.test.ts`).
+  - Определение медиа-возможностей браузера (`capabilities.test.ts`).
+  - Стейт-машина плеера и иерархия переключения протоколов WebRTC $\to$ HLS (`orchestrator.test.ts`).
+  - Тесты формы логина, обработки 401 Unauthorized и переключателя языков.
+  - 100% чистый прогон линтера OxLint.
+
+### 5. Автоматический контроль порогов покрытия в CI (`scripts/check_coverage.go`)
+- Обязательная проверка порогов покрытия тестами в GitHub Actions для всех ключевых пакетов:
+
+| Пакет | Требуемый порог | Фактическое покрытие | Статус |
+| :--- | :---: | :---: | :---: |
+| `pkg/registry` | $\ge 90.0\%$ | **100.0%** | **PASS** |
+| `pkg/logger` | $\ge 90.0\%$ | **97.0%** | **PASS** |
+| `pkg/eventbus` | $\ge 90.0\%$ | **94.5%** | **PASS** |
+| `pkg/storage/localfs` | $\ge 85.0\%$ | **90.9%** | **PASS** |
+| `pkg/auth` | $\ge 80.0\%$ | **90.2%** | **PASS** |
+| `internal/archive` | $\ge 80.0\%$ | **87.8%** | **PASS** |
+| `internal/mqtt` | $\ge 80.0\%$ | **84.1%** | **PASS** |
+| `pkg/storage` | $\ge 75.0\%$ | **81.9%** | **PASS** |
+| `internal/buffer` | $\ge 70.0\%$ | **74.0%** | **PASS** |
+| `internal/backup` | $\ge 70.0\%$ | **72.9%** | **PASS** |
+| `pkg/config` | $\ge 70.0\%$ | **72.0%** | **PASS** |
+| `internal/stream` | $\ge 65.0\%$ | **70.4%** | **PASS** |
+| `internal/grpc` | $\ge 65.0\%$ | **70.3%** | **PASS** |
+| `internal/recorder` | $\ge 65.0\%$ | **69.7%** | **PASS** |
+| **Общее покрытие ядра** | $\ge 50.0\%$ | **62.3%** | **PASS** |
+
+---
+
+## 📊 Результаты стресс-тестирования
+
+При стандартизированном стресс-тесте (100 одновременных камер 30 FPS, 350 параллельных зрителей/воркеров и запись fMP4 на диск на 12-ядерном процессоре):
+
+| Метрика | Результат | Примечания |
+| :--- | :--- | :--- |
+| **Входящий битрейт (Ingest)** | **3,028 FPS (252.3 Mbps)** | 100 камер, `0` потерянных кадров |
+| **REST API RPS** | **6,897 RPS** (414k запросов) | `p50: 0.0 ms` / `p95: 3.0 ms` / `p99: 39.5 ms` |
+| **HLS Master-плейлист** | **< 0.5 ms** | Прямая генерация в RAM |
+| **Отдача HLS fMP4** | **46.1 MB/s** (3,000 сегментов) | `p50: 44.9 ms` на 2с чанк |
+| **WebRTC WHEP** | **488k RTP пакетов (9.0 MB/s)** | `0` ошибок хэндшейка |
+| **Запись на диск (fMP4)** | **29.8 MB/s** | 100 параллельных потоков |
+
+👉 **[Полный отчет о бенчмарках (bench_max.md)](bench_max.md)**
+
+---
+
+## 🛠 Руководство по локальному запуску тестов
+
+Все проверки качества можно запустить локально перед отправкой кода:
+
+```bash
+# 1. Запуск всех тестов бэкенда с детектором гонок и замером покрытия
+go test -v -race -timeout=15m -coverprofile=coverage.out ./...
+
+# 2. Запуск Fuzz-тестов кольцевого буфера
+go test -fuzz=FuzzRingBuffer -fuzztime=30s ./internal/buffer
+
+# 3. Запуск E2E тестов с Testcontainers (требуется Docker)
+go test -v -run=TestE2E ./tests/e2e/...
+
+# 4. Проверка соблюдения порогов покрытия тестами
+go run scripts/check_coverage.go coverage.out
+
+# 5. Запуск линтеров и SAST сканера безопасности
+golangci-lint run ./...
+gosec -exclude-dir=pkg/grpc/pb ./...
+
+# 6. Запуск тестов и линтера фронтенда
+cd web
+npm run lint
+npm test
+npm run build
+```
 
 ---
 
 ## 🏎 Быстрый старт
 
-### Требования
-- [Docker](https://www.docker.com/) (Рекомендуется для быстрого развертывания)
-- [Go](https://go.dev/) 1.26+ (Для сборки из исходников)
-
-### Развертывание через Docker (GHCR) 🐳
-
-Самый быстрый способ развернуть RUSEON Core — использовать наш официальный multi-arch Docker-образ:
+### 1. Запуск через Docker
+Запустите RUSEON Core одной командой. При первом старте система сгенерирует надежный пароль администратора и выведет его в консоль.
 
 ```bash
-docker run -d \
-  --network host \
-  -v ruseon-data:/data \
-  --name ruseon-core \
-  ghcr.io/ruseon/ruseon-core:latest
-# Примечание: --network host обязателен для корректной маршрутизации WebRTC по UDP.
-# В противном случае пробросьте -p 8080:8080 и ваш настроенный ICE UDP порт.
+docker run -p 8080:8080 -v data:/app/data -v recordings:/app/recordings ghcr.io/rusegal/ruseon-core:latest
 ```
 
-RUSEON Edge-дашборд будет доступен по адресу `http://localhost:8080`.
+### 2. Вход в дашборд
+Откройте браузер по адресу [http://localhost:8080](http://localhost:8080). Войдите с логином `admin` и сгенерированным паролем.
 
-### Сборка из исходников
-
-Для разработчиков и контрибьюторов:
-
+### 3. Добавление камеры через REST API
+Добавляйте и управляйте потоками на лету без перезагрузки сервера:
 ```bash
-# 1. Клонирование репозитория
-git clone https://github.com/RUSEON/ruseon-core.git
-cd ruseon-core
-
-# 2. Сборка Edge-дашборда (React)
-cd web && npm install && npm run build && cd ..
-
-# 3. Запуск ядра (Core Engine)
-go mod tidy
-go run ./cmd/server
+curl -X POST http://localhost:8080/api/cameras \
+  -H 'Authorization: Bearer ВАШ_JWT_ТОКЕН' \
+  -H 'Content-Type: application/json' \
+  -d '{"id":"cam1","url":"rtsp://user:pass@192.168.1.100:554/stream","record":true}'
 ```
-*(On first startup, RUSEON generates a random administrator password and prints it once to the server console.)*
+
+[**Полное руководство по быстрому старту**](https://docs.ruseon.tech/guide/quick-start)
 
 ---
 
-## 🤝 Участие в разработке
+## 📖 Документация
 
-Мы верим в силу open-source и приветствуем любой вклад от сообщества.
-Будь то баг-репорт, новая фича или улучшение документации, пожалуйста, ознакомьтесь с нашим [Руководством для контрибьюторов](CONTRIBUTING.ru.md) для начала работы.
+Официальная документация является единым источником информации о возможностях RUSEON Core:
 
-Убедитесь, что ваши коммиты соответствуют спецификации [Conventional Commits](https://www.conventionalcommits.org/).
+- **[Начало работы](https://docs.ruseon.tech/guide/introduction)**
+- **[Конфигурация](https://docs.ruseon.tech/reference/configuration)**
+- **[Архитектура системы](https://docs.ruseon.tech/architecture/overview)**
+- **[Стриминг и WebRTC](https://docs.ruseon.tech/streaming/overview)**
+- **[Архив и Smart I/O](https://docs.ruseon.tech/archive/overview)**
+- **[Справочник REST API](https://docs.ruseon.tech/api/overview)**
+- **[Развертывание](https://docs.ruseon.tech/deployment/overview)**
+- **[Устранение неполадок](https://docs.ruseon.tech/troubleshooting/overview)**
+
+---
+
+## ⚠️ Известные ограничения
+
+RUSEON Core спроектирован для максимальной производительности при маршрутизации и хранении видео. Движок работает по принципу трансмуксинга и **не производит ресурсоемкое серверное перекодирование видео**. Если ваши камеры выдают форматы, не поддерживаемые напрямую браузерами на целевых устройствах (например, H.265 в старых браузерах), воспроизведение осуществляется через встроенный клиентский WebCodecs/Canvas плеер либо требует внешнего транскодера.
+
+[**Все известные ограничения**](https://docs.ruseon.tech/reference/known-limitations)
+
+---
+
+## 💎 Редакции RUSEON
+
+RUSEON развивается по модели Open Core. Начните бесплатно с Community Edition и переходите на Pro или Enterprise при масштабировании видеоинфраструктуры для получения расширенных возможностей (SSO/OIDC, облачный архив S3, отказоустойчивый кластер High Availability).
+
+> **Готовы к масштабированию?** Свяжитесь с нами: [rusegal.dev@yahoo.com](mailto:rusegal.dev@yahoo.com)
+
+---
 
 ## 📄 Лицензия
 
-RUSEON Core (Community Edition) распространяется под лицензией [MIT](LICENSE).
+RUSEON Core (Community Edition) распространяется под лицензией [MIT License](LICENSE).
