@@ -89,3 +89,16 @@ func TestClientStart_ContextCancel(t *testing.T) {
 		t.Errorf("expected error, got nil")
 	}
 }
+
+func TestClientNoGoroutineLeak(t *testing.T) {
+	c := NewClient("cam_leak", "rtsp://127.0.0.1:1/stream", "tcp")
+	if c == nil {
+		t.Fatal("expected non-nil client")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	_ = c.Start(ctx, nil, nil)
+}
+

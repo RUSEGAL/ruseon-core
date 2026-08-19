@@ -78,6 +78,9 @@ type Muxer struct {
 
 	lastFrameTime      atomic.Int64
 	needsDiscontinuity bool
+
+	firstSegReady chan struct{}
+	firstSegOnce  sync.Once
 }
 
 // NewMuxer создает новый Muxer для потока.
@@ -92,6 +95,7 @@ func NewMuxer(streamID string, rb *buffer.RingBuffer, metaChan <-chan *pb.Metada
 		segments:       make([]*Segment, 0, 10),
 		metaChan:       metaChan,
 		unsubscribe:    unsubscribe,
+		firstSegReady:  make(chan struct{}),
 	}
 	m.lastFrameTime.Store(time.Now().UnixNano())
 	m.wg.Add(1)
@@ -216,6 +220,7 @@ func (m *Muxer) run() {
 			seg.refCount.Store(1)
 			m.needsDiscontinuity = false
 			m.segments = append(m.segments, seg)
+			m.firstSegOnce.Do(func() { close(m.firstSegReady) })
 			// Оставляем в памяти только последние 5 сегментов (окно Live в 10 секунд)
 			if len(m.segments) > 5 {
 				oldSeg := m.segments[0]
@@ -301,6 +306,7 @@ func (m *Muxer) Stop() {
 		m.unsubscribe()
 	}
 	m.cancel()
+	m.firstSegOnce.Do(func() { close(m.firstSegReady) })
 	m.wg.Wait()
 
 	m.mu.Lock()
@@ -340,6 +346,7 @@ func (m *Muxer) CheckWatchdog(now time.Time) {
 			}
 			seg.refCount.Store(1)
 			m.segments = append(m.segments, seg)
+			m.firstSegOnce.Do(func() { close(m.firstSegReady) })
 			if len(m.segments) > 5 {
 				oldSeg := m.segments[0]
 				m.segments = m.segments[1:]
@@ -356,17 +363,20 @@ func (m *Muxer) CheckWatchdog(now time.Time) {
 
 // GetPlaylist генерирует M3U8 манифест со сверхнизким числом аллокаций.
 func (m *Muxer) GetPlaylist() string {
-	// В режиме Lazy HLS при первом запуске сегментов еще нет.
-	// Ждем до 5 секунд, пока сгенерируется хотя бы один сегмент,
-	// чтобы плееры (VLC, k6) не зависали и не паниковали из-за пустого плейлиста.
-	for i := 0; i < 100; i++ {
-		m.mu.RLock()
-		count := len(m.segments)
-		m.mu.RUnlock()
-		if count > 0 {
-			break
+	m.mu.RLock()
+	hasSegments := len(m.segments) > 0
+	m.mu.RUnlock()
+
+	if !hasSegments {
+		// Ждем первого сегмента эффективно (нулевой CPU) до 5 секунд.
+		// При нормальной работе сигнал приходит через 2-3 секунды (один GOP).
+		select {
+		case <-m.firstSegReady:
+		case <-m.ctx.Done():
+			return ""
+		case <-time.After(5 * time.Second):
+			// Таймаут: возвращаем текущий плейлист (поведение как раньше)
 		}
-		time.Sleep(50 * time.Millisecond)
 	}
 
 	m.mu.RLock()

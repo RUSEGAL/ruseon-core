@@ -164,7 +164,12 @@ func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, e
 		return "", err
 	}
 
-	<-gatherComplete
+	// Ждем ICE gathering максимум 15 секунд (стандартный таймаут для STUN)
+	select {
+	case <-gatherComplete:
+	case <-time.After(15 * time.Second):
+		log.Warn().Str("stream", h.streamID).Msg("WebRTC ICE gathering timed out, proceeding with partial candidates")
+	}
 
 	go h.pumpFrames(pumpCtx, pc, videoTrack)
 

@@ -250,6 +250,24 @@ func (s *loadtestStore) UpdateCameraTx(id string, fn func(*config.CameraConfig) 
 	return nil
 }
 
+func (s *loadtestStore) BatchUpdateTraffic(updates map[string]uint64, nowMonth string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, delta := range updates {
+		c, ok := s.cameras[id]
+		if !ok {
+			continue
+		}
+		if c.LastResetMonth != nowMonth {
+			c.TrafficUsed = 0
+			c.LastResetMonth = nowMonth
+		}
+		c.TrafficUsed += delta
+		s.cameras[id] = c
+	}
+	return nil
+}
+
 func (s *loadtestStore) SaveTag(t *config.TagConfig) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

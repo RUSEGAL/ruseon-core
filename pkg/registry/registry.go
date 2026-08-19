@@ -19,6 +19,7 @@ type StateStore interface {
 	DeleteCamera(id string) error
 	ListCameras() ([]config.CameraConfig, error)
 	UpdateCameraTx(id string, updateFn func(cam *config.CameraConfig) bool) error
+	BatchUpdateTraffic(updates map[string]uint64, nowMonth string) error
 
 	SaveTag(tag *config.TagConfig) error
 	GetTag(id string) (*config.TagConfig, error)

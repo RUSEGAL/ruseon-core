@@ -218,6 +218,10 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 	case err := <-errChan:
 		return err
 	case <-ctx.Done():
+		// Явно закрываем клиент, чтобы разблокировать Wait() в фоновой горутине
+		c.client.Close()
+		// Дожидаемся завершения горутины, чтобы исключить утечку
+		<-errChan
 		return ctx.Err()
 	}
 }

@@ -533,3 +533,60 @@ func TestStorage_UserCRUD_And_Ping(t *testing.T) {
 		t.Fatalf("expected 0 users after deletion, got %d", len(usersAfter))
 	}
 }
+
+func TestStorage_BatchUpdateTraffic(t *testing.T) {
+	tempDir := t.TempDir()
+	store, err := NewStorage(tempDir)
+	if err != nil {
+		t.Fatalf("failed to create storage: %v", err)
+	}
+	defer store.Close()
+
+	// 1. Create 250 cameras to test multi-chunk batching (>200) with same month
+	updates := make(map[string]uint64)
+	for i := 0; i < 250; i++ {
+		id := "cam_" + string(rune('A'+i%26)) + "_" + string(rune('0'+i/26))
+		_ = store.SaveCamera(&config.CameraConfig{
+			ID:             id,
+			TrafficUsed:    100,
+			LastResetMonth: "2026-08",
+		})
+		updates[id] = 50
+	}
+
+	// 2. Batch update in same month -> traffic accumulates (100 + 50 = 150)
+	err = store.BatchUpdateTraffic(updates, "2026-08")
+	if err != nil {
+		t.Fatalf("BatchUpdateTraffic failed: %v", err)
+	}
+
+	// 3. Verify accumulation
+	for id := range updates {
+		cam, err := store.GetCamera(id)
+		if err != nil {
+			t.Fatalf("failed to get camera %s: %v", id, err)
+		}
+		if cam.TrafficUsed != 150 {
+			t.Errorf("expected 150 traffic used for %s, got %d", id, cam.TrafficUsed)
+		}
+	}
+
+	// 4. Batch update on month change ("2026-09") -> resets to 0 + 50 = 50
+	err = store.BatchUpdateTraffic(updates, "2026-09")
+	if err != nil {
+		t.Fatalf("BatchUpdateTraffic month rollover failed: %v", err)
+	}
+	for id := range updates {
+		cam, err := store.GetCamera(id)
+		if err != nil {
+			t.Fatalf("failed to get camera %s: %v", id, err)
+		}
+		if cam.TrafficUsed != 50 {
+			t.Errorf("expected 50 traffic used after rollover for %s, got %d", id, cam.TrafficUsed)
+		}
+		if cam.LastResetMonth != "2026-09" {
+			t.Errorf("expected LastResetMonth to be 2026-09, got %s", cam.LastResetMonth)
+		}
+	}
+}
+

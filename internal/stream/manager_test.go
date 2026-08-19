@@ -421,5 +421,37 @@ func TestManager_GoroutineSlope(t *testing.T) {
 	}
 }
 
+func TestHousekeepingLoopSurvivesPanic(t *testing.T) {
+	m := NewManager()
+	defer m.Close()
+
+	// 1. Add normal stream
+	_ = m.AddStream("cam_normal", "synthetic://", false, true, "tcp")
+	st, _ := m.GetStream("cam_normal")
+
+	// Inject a nil stream manually into manager map to force a panic on iteration
+	m.mu.Lock()
+	m.streams["cam_panic"] = nil
+	m.mu.Unlock()
+
+	// Wait 2.2 seconds (allowing at least 2 housekeeping ticks with recovery)
+	time.Sleep(2200 * time.Millisecond)
+
+	// Remove nil stream
+	m.mu.Lock()
+	delete(m.streams, "cam_panic")
+	m.mu.Unlock()
+
+	// Verify housekeeping loop is still running and updating bitrate for cam_normal
+	st.AddBytesReceived(10000)
+	time.Sleep(1200 * time.Millisecond)
+
+	stats := st.GetStats()
+	if stats.Bitrate == 0 {
+		t.Errorf("expected housekeepingLoop to continue updating stats after surviving panic, got 0 bitrate")
+	}
+}
+
+
 
 
