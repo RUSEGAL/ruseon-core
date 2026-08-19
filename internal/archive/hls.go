@@ -2,6 +2,7 @@ package archive
 
 import (
 	"bytes"
+	"container/list"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -15,6 +16,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	defaultCacheCapacity = 2000
+	minBoxHeaderSize     = 8
+	maxBoxSize           = 64 * 1024 * 1024 // 64 MB максимальный размер бокса для защиты от OOM
+)
+
 type PartInfo struct {
 	Offset   int64
 	Duration uint32 // In 90kHz ticks
@@ -26,10 +33,102 @@ type FileIndex struct {
 	Parts      []PartInfo
 }
 
-var (
-	indexCache = make(map[string]*FileIndex)
-	cacheMu    sync.RWMutex
-)
+type lruEntry struct {
+	key   string
+	value *FileIndex
+}
+
+// IndexLRUCache реализует потокобезопасный LRU-кэш для индексов fMP4 файлов.
+type IndexLRUCache struct {
+	mu        sync.Mutex
+	capacity  int
+	items     map[string]*list.Element
+	evictList *list.List
+}
+
+// NewIndexLRUCache создает новый LRU-кэш индексов заданной емкости.
+func NewIndexLRUCache(capacity int) *IndexLRUCache {
+	if capacity <= 0 {
+		capacity = defaultCacheCapacity
+	}
+	return &IndexLRUCache{
+		capacity:  capacity,
+		items:     make(map[string]*list.Element),
+		evictList: list.New(),
+	}
+}
+
+// Get возвращает индекс файла из кэша.
+func (c *IndexLRUCache) Get(key string) (*FileIndex, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if elem, ok := c.items[key]; ok {
+		c.evictList.MoveToFront(elem)
+		return elem.Value.(*lruEntry).value, true
+	}
+	return nil, false
+}
+
+// Add сохраняет индекс файла в кэш с вытеснением наименее используемых элементов.
+func (c *IndexLRUCache) Add(key string, value *FileIndex) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if elem, ok := c.items[key]; ok {
+		c.evictList.MoveToFront(elem)
+		elem.Value.(*lruEntry).value = value
+		return
+	}
+
+	for c.evictList.Len() >= c.capacity {
+		oldest := c.evictList.Back()
+		if oldest != nil {
+			delete(c.items, oldest.Value.(*lruEntry).key)
+			c.evictList.Remove(oldest)
+		}
+	}
+
+	entry := &lruEntry{key: key, value: value}
+	elem := c.evictList.PushFront(entry)
+	c.items[key] = elem
+}
+
+// Remove удаляет запись из кэша.
+func (c *IndexLRUCache) Remove(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if elem, ok := c.items[key]; ok {
+		delete(c.items, key)
+		c.evictList.Remove(elem)
+	}
+}
+
+// Clear очищает весь кэш.
+func (c *IndexLRUCache) Clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.items = make(map[string]*list.Element)
+	c.evictList.Init()
+}
+
+// Len возвращает текущее количество элементов в кэше.
+func (c *IndexLRUCache) Len() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.evictList.Len()
+}
+
+var globalIndexCache = NewIndexLRUCache(defaultCacheCapacity)
+
+// InvalidateFileIndex удаляет файл из глобального кэша индексов (например, при удалении файла).
+func InvalidateFileIndex(path string) {
+	globalIndexCache.Remove(path)
+}
+
+// ClearIndexCache полностью очищает глобальный кэш индексов.
+func ClearIndexCache() {
+	globalIndexCache.Clear()
+}
 
 func readBoxHeader(r io.Reader) (string, uint32, error) {
 	var header [8]byte
@@ -43,10 +142,7 @@ func readBoxHeader(r io.Reader) (string, uint32, error) {
 
 // getFileIndex сканирует fMP4 файл и запоминает смещения каждого Part (фрагмента)
 func getFileIndex(path string) (*FileIndex, error) {
-	cacheMu.RLock()
-	idx, ok := indexCache[path]
-	cacheMu.RUnlock()
-	if ok {
+	if idx, ok := globalIndexCache.Get(path); ok {
 		return idx, nil
 	}
 
@@ -58,7 +154,7 @@ func getFileIndex(path string) (*FileIndex, error) {
 	}
 	defer f.Close()
 
-	idx = &FileIndex{}
+	idx := &FileIndex{}
 	
 	// Находим размер Init блока (ftyp + moov) вручную, 
 	// так как fmp4.Init.Unmarshal сканирует весь файл до конца
@@ -68,39 +164,67 @@ func getFileIndex(path string) (*FileIndex, error) {
 		if err != nil {
 			break
 		}
+		if size < minBoxHeaderSize || size > maxBoxSize {
+			log.Warn().Str("file", path).Str("type", typ).Uint32("size", size).Msg("Invalid or excessive box size in init section")
+			break
+		}
 		if typ == "moof" {
 			// Нашли первый moof, возвращаемся к его началу
-			_, _ = f.Seek(-8, io.SeekCurrent)
+			if _, err := f.Seek(-minBoxHeaderSize, io.SeekCurrent); err != nil {
+				return nil, fmt.Errorf("failed to seek before moof: %w", err)
+			}
 			break
 		}
 		initSize += int64(size)
-		_, _ = f.Seek(int64(size)-8, io.SeekCurrent)
+		if _, err := f.Seek(int64(size)-minBoxHeaderSize, io.SeekCurrent); err != nil {
+			break
+		}
 	}
 
 	idx.InitOffset = 0
 	idx.InitSize = initSize
-	_, _ = f.Seek(initSize, io.SeekStart)
+	if _, err := f.Seek(initSize, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("failed to seek to initSize %d: %w", initSize, err)
+	}
 
 	for {
-		offset, _ := f.Seek(0, io.SeekCurrent)
+		offset, err := f.Seek(0, io.SeekCurrent)
+		if err != nil {
+			break
+		}
 		typ, size, err := readBoxHeader(f)
 		if err != nil {
+			break
+		}
+		if size < minBoxHeaderSize || size > maxBoxSize {
+			log.Warn().Str("file", path).Str("type", typ).Uint32("size", size).Msg("Invalid or excessive box size in parts section")
 			break
 		}
 		
 		if typ == "moof" {
 			// Нашли moof, читаем его целиком
-			_, _ = f.Seek(offset, io.SeekStart)
+			if _, err := f.Seek(offset, io.SeekStart); err != nil {
+				break
+			}
 			moofData := make([]byte, size)
-			_, _ = io.ReadFull(f, moofData)
+			if _, err := io.ReadFull(f, moofData); err != nil {
+				break
+			}
 			
 			// Дальше должен быть mdat
-			mdatOffset, _ := f.Seek(0, io.SeekCurrent)
+			mdatOffset, err := f.Seek(0, io.SeekCurrent)
+			if err != nil {
+				break
+			}
 			typ2, size2, err2 := readBoxHeader(f)
-			if err2 == nil && typ2 == "mdat" {
-				_, _ = f.Seek(mdatOffset, io.SeekStart)
+			if err2 == nil && typ2 == "mdat" && size2 >= minBoxHeaderSize && size2 <= maxBoxSize {
+				if _, err := f.Seek(mdatOffset, io.SeekStart); err != nil {
+					break
+				}
 				mdatData := make([]byte, size2)
-				_, _ = io.ReadFull(f, mdatData)
+				if _, err := io.ReadFull(f, mdatData); err != nil {
+					break
+				}
 				
 				// Парсим Part
 				combined := make([]byte, 0, len(moofData)+len(mdatData))
@@ -129,13 +253,13 @@ func getFileIndex(path string) (*FileIndex, error) {
 			}
 		} else {
 			// Пропускаем неизвестный бокс
-			_, _ = f.Seek(offset+int64(size), io.SeekStart)
+			if _, err := f.Seek(offset+int64(size), io.SeekStart); err != nil {
+				break
+			}
 		}
 	}
 
-	cacheMu.Lock()
-	indexCache[path] = idx
-	cacheMu.Unlock()
+	globalIndexCache.Add(path, idx)
 
 	return idx, nil
 }
@@ -193,7 +317,9 @@ func GenerateHLSSegment(recordDir, cameraID, filename string, seq int) ([]byte, 
 	defer f.Close()
 
 	// 1. Читаем Init чтобы достать параметры кодека (SPS/PPS)
-	_, _ = f.Seek(idx.InitOffset, io.SeekStart)
+	if _, err := f.Seek(idx.InitOffset, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("failed to seek init: %w", err)
+	}
 	var init fmp4.Init
 	if err := init.Unmarshal(f); err != nil {
 		return nil, err
@@ -204,19 +330,35 @@ func GenerateHLSSegment(recordDir, cameraID, filename string, seq int) ([]byte, 
 	}
 	
 	// 2. Читаем запрашиваемый Part
-	_, _ = f.Seek(idx.Parts[seq].Offset, io.SeekStart)
+	if _, err := f.Seek(idx.Parts[seq].Offset, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("failed to seek part: %w", err)
+	}
 	
 	// Читаем moof
-	_, moofSize, _ := readBoxHeader(f)
-	_, _ = f.Seek(idx.Parts[seq].Offset, io.SeekStart)
+	_, moofSize, err := readBoxHeader(f)
+	if err != nil || moofSize < minBoxHeaderSize || moofSize > maxBoxSize {
+		return nil, fmt.Errorf("invalid moof header: %w", err)
+	}
+	if _, err := f.Seek(idx.Parts[seq].Offset, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("failed to seek moof: %w", err)
+	}
 	moofData := make([]byte, moofSize)
-	_, _ = io.ReadFull(f, moofData)
+	if _, err := io.ReadFull(f, moofData); err != nil {
+		return nil, fmt.Errorf("failed to read moof: %w", err)
+	}
 	
 	// Читаем mdat
-	_, mdatSize, _ := readBoxHeader(f)
-	_, _ = f.Seek(idx.Parts[seq].Offset+int64(moofSize), io.SeekStart)
+	_, mdatSize, err := readBoxHeader(f)
+	if err != nil || mdatSize < minBoxHeaderSize || mdatSize > maxBoxSize {
+		return nil, fmt.Errorf("invalid mdat header: %w", err)
+	}
+	if _, err := f.Seek(idx.Parts[seq].Offset+int64(moofSize), io.SeekStart); err != nil {
+		return nil, fmt.Errorf("failed to seek mdat: %w", err)
+	}
 	mdatData := make([]byte, mdatSize)
-	_, _ = io.ReadFull(f, mdatData)
+	if _, err := io.ReadFull(f, mdatData); err != nil {
+		return nil, fmt.Errorf("failed to read mdat: %w", err)
+	}
 	
 	combined := make([]byte, 0, len(moofData)+len(mdatData))
 	combined = append(combined, moofData...)

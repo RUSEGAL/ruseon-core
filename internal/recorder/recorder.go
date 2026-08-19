@@ -39,7 +39,9 @@ func NewRecorder(streamID string, rb *buffer.RingBuffer, recordDir string, onDeg
 		onDegraded: onDegraded,
 	}
 
-	_ = registry.CurrentBlobStore.MkdirAll(recordDir)
+	if err := registry.CurrentBlobStore.MkdirAll(recordDir); err != nil {
+		log.Warn().Err(err).Str("recordDir", recordDir).Msg("Failed to create record root directory")
+	}
 
 	r.wg.Add(1)
 	go r.run()
@@ -75,18 +77,32 @@ func (r *Recorder) run() {
 					})
 				}
 				corruptedFilename := filepath.Join(filepath.Dir(currentFilename), strings.TrimSuffix(filepath.Base(currentFilename), ".mp4")+".corrupted")
-				_ = registry.CurrentBlobStore.Rename(currentFilename, corruptedFilename)
+				if err := registry.CurrentBlobStore.Rename(currentFilename, corruptedFilename); err != nil {
+					log.Warn().Err(err).Str("from", currentFilename).Str("to", corruptedFilename).Msg("Failed to rename corrupted recording file")
+				}
 			case partsWritten > 0:
 				recordEndTime := time.Now()
 				finalFilename := filepath.Join(filepath.Dir(currentFilename), fmt.Sprintf("%s_to_%s.mp4", recordStartTime.Format("2006-01-02_15-04-05"), recordEndTime.Format("15-04-05")))
-				_ = registry.CurrentBlobStore.Rename(currentFilename, finalFilename)
-				metrics.ArchiveSegmentsWrittenTotal.WithLabelValues(r.streamID).Inc()
-				if registry.CurrentEventBus != nil {
-					registry.CurrentEventBus.Publish("archive_segment_ready", r.streamID, map[string]string{"file": finalFilename})
+				if err := registry.CurrentBlobStore.Rename(currentFilename, finalFilename); err != nil {
+					log.Error().Err(err).Str("from", currentFilename).Str("to", finalFilename).Msg("Failed to rename completed recording file")
+					metrics.ArchiveErrorsTotal.WithLabelValues(r.streamID).Inc()
+					if registry.CurrentEventBus != nil {
+						registry.CurrentEventBus.Publish("recording_failed", r.streamID, map[string]string{
+							"error": fmt.Sprintf("failed to rename recording: %v", err),
+							"file":  currentFilename,
+						})
+					}
+				} else {
+					metrics.ArchiveSegmentsWrittenTotal.WithLabelValues(r.streamID).Inc()
+					if registry.CurrentEventBus != nil {
+						registry.CurrentEventBus.Publish("archive_segment_ready", r.streamID, map[string]string{"file": finalFilename})
+					}
 				}
 			default:
 				// Пустой файл (0 частей записано) - удаляем, исключая загрязнение архива
-				_ = registry.CurrentBlobStore.Delete(currentFilename)
+				if err := registry.CurrentBlobStore.Delete(currentFilename); err != nil {
+					log.Warn().Err(err).Str("file", currentFilename).Msg("Failed to delete empty recording file")
+				}
 			}
 			file = nil
 		}
@@ -184,7 +200,9 @@ func (r *Recorder) run() {
 
 			// Создаем подпапку по имени потока
 			streamDir := filepath.Join(r.recordDir, r.streamID)
-			_ = registry.CurrentBlobStore.MkdirAll(streamDir)
+			if err := registry.CurrentBlobStore.MkdirAll(streamDir); err != nil {
+				log.Warn().Err(err).Str("streamDir", streamDir).Msg("Failed to create stream record directory")
+			}
 
 			recordStartTime = time.Now()
 			currentFilename = filepath.Join(streamDir, fmt.Sprintf("%s_ongoing.mp4", recordStartTime.Format("2006-01-02_15-04-05")))

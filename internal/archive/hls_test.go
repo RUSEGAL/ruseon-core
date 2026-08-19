@@ -72,9 +72,7 @@ func TestArchiveHLS(t *testing.T) {
 	createDummyMP4(t, mp4Path)
 
 	// Clear cache just in case
-	cacheMu.Lock()
-	indexCache = make(map[string]*FileIndex)
-	cacheMu.Unlock()
+	ClearIndexCache()
 
 	// Test getFileIndex
 	idx, err := getFileIndex(mp4Path)
@@ -117,3 +115,76 @@ func TestArchiveHLS(t *testing.T) {
 		t.Fatal("expected error for out of bounds segment")
 	}
 }
+
+func TestIndexLRUCache_Operations(t *testing.T) {
+	cache := NewIndexLRUCache(2)
+
+	idx1 := &FileIndex{InitSize: 100}
+	idx2 := &FileIndex{InitSize: 200}
+	idx3 := &FileIndex{InitSize: 300}
+
+	cache.Add("file1", idx1)
+	cache.Add("file2", idx2)
+
+	if cache.Len() != 2 {
+		t.Fatalf("expected cache length 2, got %d", cache.Len())
+	}
+
+	// Access file1 to make file2 least recently used
+	if val, ok := cache.Get("file1"); !ok || val != idx1 {
+		t.Fatalf("expected file1 in cache")
+	}
+
+	// Add file3, should evict file2
+	cache.Add("file3", idx3)
+
+	if _, ok := cache.Get("file2"); ok {
+		t.Fatalf("expected file2 to be evicted")
+	}
+	if val, ok := cache.Get("file1"); !ok || val != idx1 {
+		t.Fatalf("expected file1 to remain in cache")
+	}
+	if val, ok := cache.Get("file3"); !ok || val != idx3 {
+		t.Fatalf("expected file3 in cache")
+	}
+
+	// Remove file1
+	cache.Remove("file1")
+	if _, ok := cache.Get("file1"); ok {
+		t.Fatalf("expected file1 to be removed")
+	}
+	if cache.Len() != 1 {
+		t.Fatalf("expected cache length 1, got %d", cache.Len())
+	}
+
+	// Clear
+	cache.Clear()
+	if cache.Len() != 0 {
+		t.Fatalf("expected cache length 0 after clear, got %d", cache.Len())
+	}
+}
+
+func TestArchiveHLS_CorruptBoxHeader(t *testing.T) {
+	tempDir := t.TempDir()
+	corruptPath := filepath.Join(tempDir, "corrupt.mp4")
+
+	// Write box header with impossible box size (> 64 MB)
+	corruptData := []byte{
+		0x7F, 0xFF, 0xFF, 0xFF, // huge size (2 GB)
+		'm', 'o', 'o', 'f',
+	}
+	if err := os.WriteFile(corruptPath, corruptData, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	ClearIndexCache()
+	idx, err := getFileIndex(corruptPath)
+	if err != nil {
+		t.Fatalf("getFileIndex on corrupt file should not crash: %v", err)
+	}
+	// Parts should be empty because header exceeded maxBoxSize
+	if len(idx.Parts) != 0 {
+		t.Fatalf("expected 0 parts for corrupt box header, got %d", len(idx.Parts))
+	}
+}
+
