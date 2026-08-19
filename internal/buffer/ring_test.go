@@ -356,4 +356,43 @@ func TestRingBuffer_DefensiveCapacityGuard(t *testing.T) {
 	}
 }
 
+func TestRingBuffer_ParamsCloning(t *testing.T) {
+	rb := NewRingBuffer(10)
+	defer rb.Close()
+
+	vps := []byte{0x01, 0x02}
+	sps := []byte{0x03, 0x04}
+	pps := []byte{0x05, 0x06}
+
+	rb.SetParams(vps, sps, pps)
+
+	// 1. Mutate original caller slices; buffer should NOT be affected
+	vps[0] = 0xFF
+	sps[0] = 0xFF
+	pps[0] = 0xFF
+
+	outVps, outSps, outPps := rb.GetParams()
+	if outVps[0] != 0x01 || outSps[0] != 0x03 || outPps[0] != 0x05 {
+		t.Errorf("SetParams did not defensively clone: got vps=%v, sps=%v, pps=%v", outVps, outSps, outPps)
+	}
+
+	// 2. Mutate returned slices; buffer should NOT be affected
+	outVps[0] = 0xAA
+	outSps[0] = 0xAA
+	outPps[0] = 0xAA
+
+	outVps2, outSps2, outPps2 := rb.GetParams()
+	if outVps2[0] != 0x01 || outSps2[0] != 0x03 || outPps2[0] != 0x05 {
+		t.Errorf("GetParams did not defensively clone: got vps=%v, sps=%v, pps=%v", outVps2, outSps2, outPps2)
+	}
+
+	// 3. Test nil params
+	rb.SetParams(nil, nil, nil)
+	nilVps, nilSps, nilPps := rb.GetParams()
+	if nilVps != nil || nilSps != nil || nilPps != nil {
+		t.Errorf("expected nil params, got %v, %v, %v", nilVps, nilSps, nilPps)
+	}
+}
+
+
 
