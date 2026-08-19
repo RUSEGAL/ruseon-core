@@ -5,22 +5,57 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 	
 	"github.com/rs/zerolog/log"
 	
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
-// Manager управляет списком всех потоков.
+// Manager управляет списком всех потоков и запускает централизованный шедулер фоновых задач.
 type Manager struct {
 	mu      sync.RWMutex
 	streams map[string]*Stream
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
 }
 
-// NewManager создает новый менеджер потоков.
+// NewManager создает новый менеджер потоков и запускает фоновый цикл обслуживания.
 func NewManager() *Manager {
-	return &Manager{
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &Manager{
 		streams: make(map[string]*Stream),
+		ctx:     ctx,
+		cancel:  cancel,
+	}
+	m.wg.Add(1)
+	go m.housekeepingLoop()
+	return m
+}
+
+func (m *Manager) housekeepingLoop() {
+	defer m.wg.Done()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error().Interface("panic", r).Msg("Recovered from panic in Manager.housekeepingLoop")
+		}
+	}()
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case t := <-ticker.C:
+			streams := m.GetStreams()
+			for _, st := range streams {
+				st.TickHousekeeping(t)
+			}
+		}
 	}
 }
 
@@ -180,8 +215,11 @@ func (m *Manager) SyncWithStorage(store registry.StateStore) error {
 	return nil
 }
 
-// Close останавливает все зарегистрированные потоки.
+// Close останавливает фоновый шедулер и все зарегистрированные потоки.
 func (m *Manager) Close() {
+	m.cancel()
+	m.wg.Wait()
+
 	m.mu.Lock()
 	all := make([]*Stream, 0, len(m.streams))
 	for id, st := range m.streams {

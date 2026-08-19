@@ -38,7 +38,7 @@ type Stream struct {
 	
 	muxerMu        sync.Mutex
 	hlsMuxer       *hls.Muxer
-	lastHLSRequest time.Time
+	lastHLSRequest atomic.Int64
 	lazyHLS        bool
 
 	mp4Recorder *recorder.Recorder
@@ -65,8 +65,10 @@ type Stream struct {
 	metricFramesRx   prometheus.Counter
 	metricKeyFrames  prometheus.Counter
 
-	currentBitrate atomic.Uint64
-	isDegraded     atomic.Bool
+	currentBitrate  atomic.Uint64
+	lastBytes       atomic.Uint64
+	lastBitrateCalc atomic.Int64
+	isDegraded      atomic.Bool
 
 	stopOnce sync.Once
 	wg       sync.WaitGroup
@@ -96,12 +98,6 @@ func NewStream(id, url string, record bool, lazyHLS bool, transport string) *Str
 	if !lazyHLS {
 		sub := s.metaBroadcaster.Subscribe()
 		s.hlsMuxer = hls.NewMuxer(id, rb, sub.C, func() { s.metaBroadcaster.Unsubscribe(sub) })
-	} else {
-		s.wg.Add(1)
-		go func() {
-			defer s.wg.Done()
-			s.lazyHLSWatchdog()
-		}()
 	}
 
 	if record {
@@ -113,44 +109,10 @@ func NewStream(id, url string, record bool, lazyHLS bool, transport string) *Str
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		s.bitrateTask()
-	}()
-
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
 		s.run()
 	}()
 
 	return s
-}
-
-func (s *Stream) bitrateTask() {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Error().Interface("panic", r).Str("id", s.ID).Msg("Recovered from panic in Stream.bitrateTask")
-		}
-	}()
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-	var lastBytes uint64
-	lastTime := time.Now()
-	for {
-		select {
-		case <-s.ctx.Done():
-			return
-		case t := <-ticker.C:
-			currentBytes := s.bytesReceived.Load()
-			diff := currentBytes - lastBytes
-			dt := t.Sub(lastTime).Seconds()
-			if dt > 0 {
-				bps := float64(diff) * 8 / dt
-				s.currentBitrate.Store(uint64(bps))
-			}
-			lastBytes = currentBytes
-			lastTime = t
-		}
-	}
 }
 
 // run выполняет бесконечный цикл подключения с ретраями.
@@ -337,11 +299,11 @@ func (s *Stream) GetMetadataBroadcaster() *MetadataBroadcaster {
 
 // WakeUpHLSMuxer возвращает мультиплексор HLS, просыпая его при необходимости.
 func (s *Stream) WakeUpHLSMuxer() *hls.Muxer {
+	s.lastHLSRequest.Store(time.Now().UnixNano())
+
 	v, _, _ := s.sfGroup.Do("wakeup", func() (interface{}, error) {
 		s.muxerMu.Lock()
 		defer s.muxerMu.Unlock()
-		
-		s.lastHLSRequest = time.Now()
 		
 		if s.hlsMuxer == nil {
 			log.Info().Str("id", s.ID).Msg("Waking up HLS Muxer (Lazy Mode)")
@@ -351,35 +313,46 @@ func (s *Stream) WakeUpHLSMuxer() *hls.Muxer {
 		return s.hlsMuxer, nil
 	})
 	
-	// Если мы не внутри Do, обновим время запроса для watchdog
-	s.muxerMu.Lock()
-	s.lastHLSRequest = time.Now()
-	s.muxerMu.Unlock()
-
 	return v.(*hls.Muxer)
 }
 
-func (s *Stream) lazyHLSWatchdog() {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Error().Interface("panic", r).Str("id", s.ID).Msg("Recovered from panic in Stream.lazyHLSWatchdog")
+// TickHousekeeping выполняет периодическое обслуживание потока:
+// расчет битрейта, остановку неактивных Lazy HLS муксеров и проверку зависания кадров.
+// Метод вызывается централизованным шедулером Manager раз в секунду.
+func (s *Stream) TickHousekeeping(now time.Time) {
+	// 1. Lock-free расчет битрейта
+	currentBytes := s.bytesReceived.Load()
+	lastBytes := s.lastBytes.Swap(currentBytes)
+	lastTime := s.lastBitrateCalc.Swap(now.UnixNano())
+	if lastTime > 0 {
+		dt := float64(now.UnixNano()-lastTime) / 1e9
+		if dt > 0 {
+			diff := currentBytes - lastBytes
+			bps := float64(diff) * 8 / dt
+			s.currentBitrate.Store(uint64(bps))
 		}
-	}()
-	ticker := time.NewTicker(1 * time.Minute)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
+	}
+
+	// 2. Остановка неактивного Lazy HLS Muxer (если не было запросов > 60 сек)
+	if s.lazyHLS {
+		lastReq := s.lastHLSRequest.Load()
+		if lastReq > 0 && now.Sub(time.Unix(0, lastReq)) > 60*time.Second {
 			s.muxerMu.Lock()
-			if s.hlsMuxer != nil && time.Since(s.lastHLSRequest) > 60*time.Second {
+			if s.hlsMuxer != nil {
 				log.Info().Str("id", s.ID).Msg("Stopping HLS Muxer due to inactivity (Lazy Mode)")
 				s.hlsMuxer.Stop()
 				s.hlsMuxer = nil
 			}
 			s.muxerMu.Unlock()
-		case <-s.ctx.Done():
-			return
 		}
+	}
+
+	// 3. Делегирование проверки зависания кадров активному HLS Muxer
+	s.muxerMu.Lock()
+	muxer := s.hlsMuxer
+	s.muxerMu.Unlock()
+	if muxer != nil {
+		muxer.CheckWatchdog(now)
 	}
 }
 

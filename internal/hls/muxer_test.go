@@ -5,6 +5,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+
 	"github.com/RUSEGAL/ruseon-core/internal/buffer"
 )
 
@@ -240,3 +243,41 @@ func BenchmarkMuxer_GetSegment(b *testing.B) {
 		_, _ = muxer.GetSegment("stream_1.ts")
 	}
 }
+
+func TestMuxer_CheckWatchdog(t *testing.T) {
+	rb := buffer.NewRingBuffer(10)
+	defer rb.Close()
+	muxer := NewMuxer("test_watchdog", rb, nil, nil)
+	defer muxer.Stop()
+
+	// Populate 1 segment
+	muxer.mu.Lock()
+	muxer.segments = append(muxer.segments, &Segment{
+		Name:     "stream_1.ts",
+		Duration: 2 * time.Second,
+		Data:     []byte{0x47, 0x01, 0x02},
+	})
+	muxer.seqCount = 1
+	muxer.mu.Unlock()
+
+	// 1. Fresh time -> CheckWatchdog does nothing
+	now := time.Now()
+	muxer.lastFrameTime.Store(now.UnixNano())
+	muxer.CheckWatchdog(now)
+
+	muxer.mu.RLock()
+	assert.Len(t, muxer.segments, 1)
+	muxer.mu.RUnlock()
+
+	// 2. Old frame time (>5s) -> CheckWatchdog appends discontinuity segment
+	oldTime := now.Add(-6 * time.Second)
+	muxer.lastFrameTime.Store(oldTime.UnixNano())
+	muxer.CheckWatchdog(now)
+
+	muxer.mu.RLock()
+	assert.Len(t, muxer.segments, 2)
+	assert.True(t, muxer.segments[1].IsDiscontinuity)
+	assert.Equal(t, "stream_2.ts", muxer.segments[1].Name)
+	muxer.mu.RUnlock()
+}
+

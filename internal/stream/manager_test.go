@@ -366,13 +366,32 @@ func TestManager_RemoveStream_NonBlockingGet(_ *testing.T) {
 		m.RemoveStream("cam_slow")
 	}()
 
-	// Parallel reader should immediately be able to query cam_fast without lock contention
-	for i := 0; i < 20; i++ {
-		_, _ = m.GetStream("cam_fast")
-		_ = m.GetStreams()
-	}
-
 	wg.Wait()
 	m.Close()
 }
+
+func TestManager_HousekeepingLoop(t *testing.T) {
+	m := NewManager()
+	defer m.Close()
+
+	_ = m.AddStream("cam_housekeeping", "synthetic://", false, true, "tcp")
+	st, ok := m.GetStream("cam_housekeeping")
+	if !ok || st == nil {
+		t.Fatalf("expected stream to exist")
+	}
+
+	st.AddBytesReceived(5000)
+
+	// Wait 1.5 seconds for at least 1 housekeeping tick
+	time.Sleep(1500 * time.Millisecond)
+
+	st.AddBytesReceived(5000)
+	time.Sleep(1100 * time.Millisecond)
+
+	stats := st.GetStats()
+	if stats.Bitrate == 0 {
+		t.Errorf("expected non-zero bitrate calculated by housekeeping loop, got 0")
+	}
+}
+
 

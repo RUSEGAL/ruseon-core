@@ -1052,7 +1052,24 @@ func main() {
 	elapsed := time.Since(start)
 	sec := elapsed.Seconds()
 
-	// ── 10. Gather Statistics & Drop Counts ────────────────────────────────
+	activeGoroutines := runtime.NumGoroutine()
+
+	// ── 10. Graceful Teardown & Post-Teardown Verification ──────────────
+	manager.Close()
+	httpSrv.Close()
+	grpcSrv.Stop()
+	if webrtcEngine != nil {
+		webrtcEngine.Close()
+	}
+	if clientWebRTCEngine != nil {
+		clientWebRTCEngine.Close()
+	}
+	bus.Stop()
+	sink.Close()
+
+	time.Sleep(100 * time.Millisecond)
+	runtime.GC()
+	baselineGoroutines := runtime.NumGoroutine()
 
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -1179,7 +1196,7 @@ func main() {
 		},
 		System: SystemMetrics{
 			NumCPU:        runtime.NumCPU(),
-			GoroutinesEnd: runtime.NumGoroutine(),
+			GoroutinesEnd: activeGoroutines,
 			HeapAllocMB:   m.HeapAlloc / 1024 / 1024,
 			HeapInuseMB:   m.HeapInuse / 1024 / 1024,
 			HeapSysMB:     m.HeapSys / 1024 / 1024,
@@ -1193,6 +1210,8 @@ func main() {
 	// ── 12. Print Final Dashboard ─────────────────────────────────────────
 
 	printFinalDashboard(&result)
+	fmt.Printf("║  [Teardown Check] Baseline Goroutines Post-Cleanup: %-4d                                      ║\n", baselineGoroutines)
+	fmt.Println("╚══════════════════════════════════════════════════════════════════════════════════════════════╝")
 
 	// ── 13. Export JSON / Markdown ────────────────────────────────────────
 
