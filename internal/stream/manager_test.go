@@ -2,6 +2,7 @@ package stream
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -393,5 +394,32 @@ func TestManager_HousekeepingLoop(t *testing.T) {
 		t.Errorf("expected non-zero bitrate calculated by housekeeping loop, got 0")
 	}
 }
+
+func TestManager_GoroutineSlope(t *testing.T) {
+	runtime.GC()
+	baseline := runtime.NumGoroutine()
+
+	m := NewManager()
+	defer m.Close()
+
+	counts := []int{50, 100, 200}
+	for _, n := range counts {
+		mgr := NewManager()
+		for i := 0; i < n; i++ {
+			_ = mgr.AddStream(fmt.Sprintf("cam_slope_%d_%d", n, i), "synthetic://", false, true, "tcp")
+		}
+		time.Sleep(100 * time.Millisecond)
+		active := runtime.NumGoroutine() - baseline
+		perCam := float64(active) / float64(n)
+		t.Logf("Cameras: %-4d | Active Goroutines delta: %-4d | Ratio per camera: %.2f", n, active, perCam)
+		
+		// In lazy mode without recording, each camera should consume <= 2 goroutines
+		if perCam > 3.0 {
+			t.Errorf("expected <= 3 goroutines per camera in lazy mode, got %.2f", perCam)
+		}
+		mgr.Close()
+	}
+}
+
 
 
