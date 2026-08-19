@@ -6,13 +6,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/storage"
 )
 
-func TestProcessBilling(t *testing.T) {
+func TestBilling_DeltaAndBatchFlush(t *testing.T) {
 	tempDir := t.TempDir()
-	store, _ := storage.NewStorage(filepath.Join(tempDir, "db"))
+	store, err := storage.NewStorage(filepath.Join(tempDir, "db"))
+	require.NoError(t, err)
 	defer store.Close()
 
 	// Initial cam configuration: used 100 bytes, last reset month is last month
@@ -23,70 +27,75 @@ func TestProcessBilling(t *testing.T) {
 		LastResetMonth: lastMonth,
 		TrafficLimit:   0,
 	}
-	_ = store.SaveCamera(cam)
+	require.NoError(t, store.SaveCamera(cam))
 
 	manager := NewManager()
+	defer manager.Close()
 
-	// Create a real Stream but don't start it fully (don't call NewStream, just construct)
-	st := &Stream{
-		ID: "cam1",
-	}
+	st := &Stream{ID: "cam1"}
 	st.bytesReceived.Store(50)
 	manager.streams["cam1"] = st
 
 	lastBytes := make(map[string]uint64)
 	lastBytes["cam1"] = 10
+	pendingDelta := make(map[string]uint64)
 
-	// 1. First tick: should reset month, zero traffic, set default limit, add delta (50-10 = 40)
-	processBilling(manager, store, lastBytes)
+	// 1. Collect delta: (50 - 10 = 40)
+	collectBillingDelta(manager, lastBytes, pendingDelta)
+	assert.Equal(t, uint64(40), pendingDelta["cam1"])
+	assert.Equal(t, uint64(50), lastBytes["cam1"])
 
-	c, _ := store.GetCamera("cam1")
-	if c.TrafficLimit != 200*1024*1024*1024 {
-		t.Errorf("expected default traffic limit to be set")
-	}
-	if c.LastResetMonth == lastMonth {
-		t.Errorf("expected reset month to be updated")
-	}
-	if c.TrafficUsed != 40 {
-		t.Errorf("expected traffic used to be 40 (reset to 0, then added 40), got %d", c.TrafficUsed)
-	}
-	if lastBytes["cam1"] != 50 {
-		t.Errorf("expected lastBytes to be updated to 50")
-	}
+	// 2. Flush to DB
+	err = flushBilling(store, pendingDelta)
+	require.NoError(t, err)
 
-	// 2. Second tick: bytesReceived is smaller (stream restarted). Let's say bytesReceived is 15.
-	// Delta logic says: if current < prev, traffic used += current (15)
+	c, err := store.GetCamera("cam1")
+	require.NoError(t, err)
+	assert.Equal(t, uint64(200*1024*1024*1024), c.TrafficLimit)
+	assert.Equal(t, time.Now().Format("2006-01"), c.LastResetMonth)
+	assert.Equal(t, uint64(40), c.TrafficUsed)
+
+	// Clear pendingDelta
+	delete(pendingDelta, "cam1")
+
+	// 3. Second collect: stream restarted, bytesReceived is 15
 	st.bytesReceived.Store(15)
-	processBilling(manager, store, lastBytes)
+	collectBillingDelta(manager, lastBytes, pendingDelta)
+	assert.Equal(t, uint64(15), pendingDelta["cam1"])
+	assert.Equal(t, uint64(15), lastBytes["cam1"])
 
-	c, _ = store.GetCamera("cam1")
-	if c.TrafficUsed != 55 { // 40 + 15
-		t.Errorf("expected traffic used to be 55 (restarted stream), got %d", c.TrafficUsed)
-	}
-	if lastBytes["cam1"] != 15 {
-		t.Errorf("expected lastBytes to be updated to 15")
-	}
+	// 4. Flush second delta
+	err = flushBilling(store, pendingDelta)
+	require.NoError(t, err)
 
-	// 3. Third tick: bytesReceived grew normally to 25. Delta is 10.
-	st.bytesReceived.Store(25)
-	processBilling(manager, store, lastBytes)
-
-	c, _ = store.GetCamera("cam1")
-	if c.TrafficUsed != 65 { // 55 + 10
-		t.Errorf("expected traffic used to be 65, got %d", c.TrafficUsed)
-	}
+	c, err = store.GetCamera("cam1")
+	require.NoError(t, err)
+	assert.Equal(t, uint64(55), c.TrafficUsed) // 40 + 15
 }
 
 func TestStartBillingTask(t *testing.T) {
 	tempDir := t.TempDir()
-	store, _ := storage.NewStorage(filepath.Join(tempDir, "db"))
+	store, err := storage.NewStorage(filepath.Join(tempDir, "db"))
+	require.NoError(t, err)
 	defer store.Close()
+
 	manager := NewManager()
-	
+	defer manager.Close()
+
+	_ = store.SaveCamera(&config.CameraConfig{ID: "cam_task", TrafficUsed: 0})
+	st := &Stream{ID: "cam_task"}
+	st.bytesReceived.Store(100)
+	manager.streams["cam_task"] = st
+
 	ctx, cancel := context.WithCancel(context.Background())
 	StartBillingTask(ctx, nil, manager, store)
-	
-	// Just let it start and cancel to cover the lines
+
+	// Cancel to trigger shutdown flush
+	time.Sleep(20 * time.Millisecond)
 	cancel()
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
+
+	c, err := store.GetCamera("cam_task")
+	require.NoError(t, err)
+	assert.Equal(t, uint64(100), c.TrafficUsed)
 }

@@ -164,6 +164,72 @@ func (s *Storage) UpdateCameraTx(id string, updateFn func(cam *config.CameraConf
 	})
 }
 
+// BatchUpdateTraffic пакетно обновляет TrafficUsed для списка камер пачками по 200 штук в одной транзакции.
+func (s *Storage) BatchUpdateTraffic(updates map[string]uint64, nowMonth string) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	type updateEntry struct {
+		id    string
+		delta uint64
+	}
+
+	entries := make([]updateEntry, 0, len(updates))
+	for id, delta := range updates {
+		entries = append(entries, updateEntry{id: id, delta: delta})
+	}
+
+	const batchSize = 200
+	for i := 0; i < len(entries); i += batchSize {
+		end := i + batchSize
+		if end > len(entries) {
+			end = len(entries)
+		}
+		chunk := entries[i:end]
+
+		err := s.db.Update(func(txn *badger.Txn) error {
+			for _, entry := range chunk {
+				key := []byte(PrefixCamera + entry.id)
+				item, err := txn.Get(key)
+				if err != nil {
+					continue // Камера была удалена из базы — пропускаем
+				}
+
+				var cam config.CameraConfig
+				if err := item.Value(func(v []byte) error {
+					return json.Unmarshal(v, &cam)
+				}); err != nil {
+					continue
+				}
+
+				if cam.LastResetMonth != nowMonth {
+					cam.TrafficUsed = 0
+					cam.LastResetMonth = nowMonth
+				}
+				if cam.TrafficLimit == 0 {
+					cam.TrafficLimit = 200 * 1024 * 1024 * 1024 // 200 GB default
+				}
+				cam.TrafficUsed += entry.delta
+
+				data, err := json.Marshal(&cam)
+				if err != nil {
+					continue
+				}
+				if err := txn.Set(key, data); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // GetCamera возвращает камеру по ID.
 func (s *Storage) GetCamera(id string) (*config.CameraConfig, error) {
 	key := []byte(PrefixCamera + id)

@@ -394,5 +394,78 @@ func TestRingBuffer_ParamsCloning(t *testing.T) {
 	}
 }
 
+func TestSubscribeSetParamsConcurrent(t *testing.T) {
+	rb := NewRingBuffer(100)
+	defer rb.Close()
+	if rb == nil {
+		t.Fatal("expected non-nil ring buffer")
+	}
+
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// 10 Goroutines calling Subscribe + Read + Close
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					reader := rb.Subscribe()
+					time.Sleep(100 * time.Microsecond)
+					reader.Close()
+				}
+			}
+		}()
+	}
+
+	// 10 Goroutines calling SetParams
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					rb.SetParams([]byte{byte(id)}, []byte{0x02}, []byte{0x03})
+					time.Sleep(100 * time.Microsecond)
+				}
+			}
+		}(i)
+	}
+
+	// 5 Goroutines calling Write
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			frameIdx := 0
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					rb.Write(&Frame{
+						Timestamp:  time.Duration(frameIdx) * time.Millisecond,
+						IsKeyFrame: frameIdx%5 == 0,
+						NALUs:      [][]byte{{0x01, byte(id)}},
+					})
+					frameIdx++
+					time.Sleep(200 * time.Microsecond)
+				}
+			}
+		}(i)
+	}
+
+	wg.Wait()
+}
+
+
 
 

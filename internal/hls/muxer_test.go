@@ -3,6 +3,7 @@ package hls
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,10 +23,11 @@ func TestMuxer_LazyGetPlaylist_Wait(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 		muxer.mu.Lock()
 		muxer.segments = append(muxer.segments, &Segment{
-			Name: "test_1.ts",
+			Name:     "test_1.ts",
 			Duration: 2 * time.Second,
 		})
 		muxer.seqCount = 1
+		muxer.firstSegOnce.Do(func() { close(muxer.firstSegReady) })
 		muxer.mu.Unlock()
 	}()
 	
@@ -280,4 +282,38 @@ func TestMuxer_CheckWatchdog(t *testing.T) {
 	assert.Equal(t, "stream_2.ts", muxer.segments[1].Name)
 	muxer.mu.RUnlock()
 }
+
+func TestGetPlaylistNoBlocking(t *testing.T) {
+	rb := buffer.NewRingBuffer(10)
+	defer rb.Close()
+	muxer := NewMuxer("test_noblock", rb, nil, nil)
+	defer muxer.Stop()
+
+	// 100 concurrent callers waiting for first segment
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			pl := muxer.GetPlaylist()
+			assert.Contains(t, pl, "test_first.ts")
+		}()
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Add segment and signal ready
+	muxer.mu.Lock()
+	muxer.segments = append(muxer.segments, &Segment{
+		Name:     "test_first.ts",
+		Duration: 2 * time.Second,
+		Data:     []byte{0x47, 0x01, 0x02},
+	})
+	muxer.seqCount = 1
+	muxer.firstSegOnce.Do(func() { close(muxer.firstSegReady) })
+	muxer.mu.Unlock()
+
+	wg.Wait()
+}
+
 

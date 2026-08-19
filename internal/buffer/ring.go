@@ -108,7 +108,7 @@ func (rb *RingBuffer) SetParams(vps, sps, pps []byte) {
 func (rb *RingBuffer) Close() {
 	rb.subMu.Lock()
 	defer rb.subMu.Unlock()
-	
+
 	rb.closed = true
 	for sub := range rb.subs {
 		close(sub.C)
@@ -131,6 +131,24 @@ type Reader struct {
 	rb          *RingBuffer
 }
 
+func (rb *RingBuffer) findLastIFrameLocked() (uint64, bool, uint64) {
+	head := rb.head
+	for i := 0; i < rb.capacity; i++ {
+		// #nosec G115 -- i is always non-negative
+		step := uint64(i + 1)
+		if head < step {
+			break
+		}
+		idx := head - step
+		// #nosec G115 -- rb.capacity is always positive
+		frame := rb.frames[idx%uint64(rb.capacity)]
+		if frame != nil && frame.IsKeyFrame {
+			return idx, true, head
+		}
+	}
+	return head, false, head
+}
+
 // Subscribe создает нового читателя. Если в истории есть кадры,
 // он начинает чтение с ближайшего прошлого ключевого кадра (I-frame).
 func (rb *RingBuffer) Subscribe() *Reader {
@@ -148,36 +166,16 @@ func (rb *RingBuffer) Subscribe() *Reader {
 	}
 
 	rb.mu.RLock()
-	// Ищем I-Frame в истории, чтобы сразу закинуть его в канал подписчика
-	startIdx := rb.head
-	found := false
-	for i := 0; i < rb.capacity; i++ {
-		// #nosec G115 -- i is always non-negative
-		step := uint64(i + 1)
-		if rb.head < step {
-			break
-		}
-		idx := rb.head - step
-		// #nosec G115 -- rb.capacity is always positive
-		frame := rb.frames[idx%uint64(rb.capacity)]
-		if frame != nil && frame.IsKeyFrame {
-			startIdx = idx
-			found = true
-			break
-		}
-	}
-
-	// Закидываем исторические кадры в канал (начиная с найденного I-Frame)
+	startIdx, found, head := rb.findLastIFrameLocked()
 	if found {
-		for i := startIdx; i < rb.head; i++ {
+		for i := startIdx; i < head; i++ {
 			// #nosec G115 -- rb.capacity is always positive
 			f := rb.frames[i%uint64(rb.capacity)]
 			if f != nil {
 				r.C <- f
 			}
 		}
-	} else if rb.head > 0 {
-		// Если I-кадр не найден в истории (Long-GOP > capacity), требуем дождаться следующего I-кадра
+	} else if head > 0 {
 		r.NeedsIFrame.Store(true)
 	}
 	rb.mu.RUnlock()

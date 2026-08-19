@@ -3,17 +3,17 @@ package stream
 import (
 	"context"
 	"time"
+
 	"github.com/rs/zerolog/log"
 
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
-// StartBillingTask запускает фоновую задачу для трекинга трафика
+// StartBillingTask запускает фоновую задачу для трекинга трафика с пакетной записью в базу.
 func StartBillingTask(ctx context.Context, _ *config.Config, manager *Manager, store registry.StateStore) {
-	
-	// Храним последние значения байт для вычисления дельты
 	lastBytes := make(map[string]uint64)
+	pendingDelta := make(map[string]uint64)
 
 	go func() {
 		defer func() {
@@ -21,58 +21,53 @@ func StartBillingTask(ctx context.Context, _ *config.Config, manager *Manager, s
 				log.Error().Interface("panic", r).Msg("Recovered from panic in BillingWorker")
 			}
 		}()
+
 		ticker := time.NewTicker(1 * time.Minute)
 		defer ticker.Stop()
+
 		for {
 			select {
 			case <-ctx.Done():
+				// При shutdown — сбрасываем накопленный трафик в базу
+				collectBillingDelta(manager, lastBytes, pendingDelta)
+				if len(pendingDelta) > 0 {
+					_ = flushBilling(store, pendingDelta)
+				}
 				return
 			case <-ticker.C:
-				processBilling(manager, store, lastBytes)
+				collectBillingDelta(manager, lastBytes, pendingDelta)
+				if len(pendingDelta) > 0 {
+					if err := flushBilling(store, pendingDelta); err != nil {
+						log.Error().Err(err).Msg("BillingTask: failed to flush traffic batch to DB")
+					} else {
+						// Очищаем мапу после успешного сброса
+						for k := range pendingDelta {
+							delete(pendingDelta, k)
+						}
+					}
+				}
 			}
 		}
 	}()
 }
 
-func processBilling(manager *Manager, store registry.StateStore, lastBytes map[string]uint64) {
-	nowMonth := time.Now().Format("2006-01")
-
-	cams, _ := store.ListCameras()
-	for _, camMeta := range cams {
-		_ = store.UpdateCameraTx(camMeta.ID, func(cam *config.CameraConfig) bool {
-			changed := false
-			
-			// 1. Проверяем сброс трафика (1-е число месяца обрабатывается сменой месяца)
-			if cam.LastResetMonth != nowMonth {
-				cam.TrafficUsed = 0
-				cam.LastResetMonth = nowMonth
-				changed = true
-			}
-
-			// Дефолтный лимит 200 ГБ, если не задан
-			if cam.TrafficLimit == 0 {
-				cam.TrafficLimit = 200 * 1024 * 1024 * 1024 // 200 GB
-				changed = true
-			}
-
-			// 2. Считаем дельту
-			if st, ok := manager.GetStream(cam.ID); ok {
-				currentBytes := st.GetStats().BytesReceived
-				prev := lastBytes[cam.ID]
-				
-				if currentBytes > prev {
-					delta := currentBytes - prev
-					cam.TrafficUsed += delta
-					changed = true
-				} else if currentBytes < prev {
-					// Поток был перезапущен, статистика обнулилась
-					cam.TrafficUsed += currentBytes
-					changed = true
-				}
-				lastBytes[cam.ID] = currentBytes
-			}
-			
-			return changed
-		})
+// collectBillingDelta вычисляет дельту трафика для всех стримов в памяти (без обращения к диску)
+func collectBillingDelta(manager *Manager, lastBytes, pendingDelta map[string]uint64) {
+	for _, st := range manager.GetStreams() {
+		current := st.GetStats().BytesReceived
+		prev := lastBytes[st.ID]
+		if current > prev {
+			pendingDelta[st.ID] += current - prev
+		} else if current < prev {
+			// Поток был перезапущен, счетчик обнулился
+			pendingDelta[st.ID] += current
+		}
+		lastBytes[st.ID] = current
 	}
+}
+
+// flushBilling сбрасывает накопленный трафик в хранилище за 1 пакетную транзакцию
+func flushBilling(store registry.StateStore, pendingDelta map[string]uint64) error {
+	nowMonth := time.Now().Format("2006-01")
+	return store.BatchUpdateTraffic(pendingDelta, nowMonth)
 }

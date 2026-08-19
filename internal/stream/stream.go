@@ -240,7 +240,9 @@ func (s *Stream) run() {
 // Метод является идемпотентным (защищен через sync.Once).
 func (s *Stream) Stop() {
 	s.stopOnce.Do(func() {
-		s.cancelCtx()
+		if s.cancelCtx != nil {
+			s.cancelCtx()
+		}
 		
 		s.rtspMu.Lock()
 		if s.rtspClient != nil {
@@ -248,7 +250,9 @@ func (s *Stream) Stop() {
 		}
 		s.rtspMu.Unlock()
 
-		s.ringBuffer.Close()
+		if s.ringBuffer != nil {
+			s.ringBuffer.Close()
+		}
 		
 		s.muxerMu.Lock()
 		if s.hlsMuxer != nil {
