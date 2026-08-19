@@ -196,3 +196,42 @@ func TestEventBus_WebhookEdgeCases(_ *testing.T) {
 	busInvalidURL.Stop()
 }
 
+func TestEventBus_Stop_ConcurrentAndIdempotent(_ *testing.T) {
+	cfg := config.EventsConfig{
+		Webhooks: []config.WebhookConfig{
+			{URL: "http://127.0.0.1:9999", Topics: []string{"*"}},
+		},
+	}
+	bus := New(cfg, 4)
+
+	var wg sync.WaitGroup
+
+	// 10 concurrent publishers
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				bus.Publish("topic", "cam", map[string]int{"id": id, "seq": j})
+				time.Sleep(1 * time.Millisecond)
+			}
+		}(i)
+	}
+
+	// Concurrent Stop calls
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			time.Sleep(10 * time.Millisecond)
+			bus.Stop()
+		}()
+	}
+
+	wg.Wait()
+
+	// Post-stop publish should not panic
+	bus.Publish("topic_post_stop", "cam", nil)
+}
+
+

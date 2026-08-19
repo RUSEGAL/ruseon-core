@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
@@ -32,7 +33,10 @@ type EventBus struct {
 	workers         []chan Event
 	circuitBreakers map[string]time.Time // Общий Circuit Breaker для всех воркеров (URL -> время разблокировки)
 	wg              sync.WaitGroup
-	// quit канал убран в пользу закрытия каналов workers
+
+	stopMu   sync.RWMutex
+	stopped  atomic.Bool
+	stopOnce sync.Once
 }
 
 // New создает новую шину событий и запускает воркеры.
@@ -57,14 +61,16 @@ func New(cfg config.EventsConfig, numWorkers int) Bus {
 }
 
 func (b *EventBus) Publish(topic string, cameraID string, data any) {
-	if len(b.webhooks) == 0 {
-		return // Нет смысла рассылать, если нет подписчиков
+	if b.stopped.Load() || len(b.webhooks) == 0 {
+		return // Нет смысла рассылать, если шина остановлена или нет подписчиков
 	}
 
-	// Защита от panic: send on closed channel во время Graceful Shutdown
-	defer func() {
-		_ = recover() // Канал уже закрыт (система останавливается), просто игнорируем событие
-	}()
+	b.stopMu.RLock()
+	defer b.stopMu.RUnlock()
+
+	if b.stopped.Load() {
+		return
+	}
 
 	event := Event{
 		TimestampMs: time.Now().UnixMilli(),
@@ -96,11 +102,16 @@ func (b *EventBus) Publish(topic string, cameraID string, data any) {
 }
 
 func (b *EventBus) Stop() {
-	// Закрываем каналы воркеров, чтобы они могли "доработать" оставшиеся события (Graceful Shutdown)
-	for _, ch := range b.workers {
-		close(ch)
-	}
-	b.wg.Wait()
+	b.stopOnce.Do(func() {
+		b.stopMu.Lock()
+		b.stopped.Store(true)
+		for _, ch := range b.workers {
+			close(ch)
+		}
+		b.stopMu.Unlock()
+
+		b.wg.Wait()
+	})
 }
 
 func (b *EventBus) workerLoop(_ int, ch <-chan Event) {
