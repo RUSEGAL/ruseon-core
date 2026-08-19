@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"sync"
 	"testing"
 	"time"
 )
@@ -112,3 +113,24 @@ func TestStream_StateAndStats(t *testing.T) {
 		t.Errorf("expected 10 reconnects, got %d", stats.Reconnects)
 	}
 }
+
+func TestStream_Stop_Idempotent(t *testing.T) {
+	s := NewStream("cam_idempotent", "synthetic://", false, true, "tcp")
+	
+	// Calling Stop multiple times concurrently or sequentially should never panic or hang
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.Stop()
+		}()
+	}
+	wg.Wait()
+
+	// Context should be cancelled
+	if s.ctx.Err() == nil {
+		t.Errorf("expected context to be cancelled after Stop()")
+	}
+}
+

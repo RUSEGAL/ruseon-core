@@ -101,13 +101,15 @@ func Run(cfg *config.Config) {
 	router := api.SetupRouter(handler, registry.CurrentAuthenticator, cfg.Server.Debug, cfg.Server.CORSAllowedOrigins)
 
 	// 6. Запуск сервера с Graceful Shutdown
+	// WriteTimeout установлен в 0 (отключен глобальный жесткий таймаут), чтобы поддерживать
+	// долгоживущие SSE-потоки логов (/api/logs/stream) и выгрузку больших fMP4 архивов без обрыва сокета.
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           router,
 		ReadHeaderTimeout: 10 * time.Second,
-		WriteTimeout:      15 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		WriteTimeout:      0,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	go func() {
@@ -160,7 +162,10 @@ func Run(cfg *config.Config) {
 	<-quit
 	log.Info().Msg("Shutting down server...")
 
-	// Даем 5 секунд на корректное завершение текущих соединений
+	// Останавливаем фоновые контекстные задачи
+	cancelAll()
+
+	// Даем 5 секунд на корректное завершение текущих HTTP соединений
 	ctxShutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -170,10 +175,8 @@ func Run(cfg *config.Config) {
 
 	grpcServer.Stop()
 
-	// Останавливаем потоки и менеджеры (опционально, если есть метод)
-	for _, st := range manager.GetStreams() {
-		manager.RemoveStream(st.ID)
-	}
+	// Останавливаем все медиа-потоки
+	manager.Close()
 
 	log.Info().Msg("Server exiting")
 }

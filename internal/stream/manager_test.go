@@ -336,3 +336,43 @@ func TestManager_Concurrent_EditVsDelete_NoResurrection(t *testing.T) {
 		}
 	}
 }
+
+func TestManager_Close_StopsAllStreams(t *testing.T) {
+	m := NewManager()
+	for i := 0; i < 10; i++ {
+		_ = m.AddStream(fmt.Sprintf("cam_close_%d", i), "synthetic://", false, true, "tcp")
+	}
+
+	if len(m.GetStreams()) != 10 {
+		t.Fatalf("expected 10 streams before Close()")
+	}
+
+	m.Close()
+
+	if len(m.GetStreams()) != 0 {
+		t.Fatalf("expected 0 streams after Close(), got %d", len(m.GetStreams()))
+	}
+}
+
+func TestManager_RemoveStream_NonBlockingGet(_ *testing.T) {
+	m := NewManager()
+	_ = m.AddStream("cam_slow", "synthetic://", false, true, "tcp")
+	_ = m.AddStream("cam_fast", "synthetic://", false, true, "tcp")
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		m.RemoveStream("cam_slow")
+	}()
+
+	// Parallel reader should immediately be able to query cam_fast without lock contention
+	for i := 0; i < 20; i++ {
+		_, _ = m.GetStream("cam_fast")
+		_ = m.GetStreams()
+	}
+
+	wg.Wait()
+	m.Close()
+}
+

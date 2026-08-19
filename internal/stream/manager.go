@@ -51,14 +51,19 @@ func (m *Manager) AddStream(id, url string, record bool, lazyHLS bool, transport
 	return nil
 }
 
-// RemoveStream останавливает и удаляет поток.
+// RemoveStream останавливает и удаляет поток без удержания блокировки менеджера во время Stop().
 func (m *Manager) RemoveStream(id string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	var toStop *Stream
 
+	m.mu.Lock()
 	if st, ok := m.streams[id]; ok {
-		st.Stop()
 		delete(m.streams, id)
+		toStop = st
+	}
+	m.mu.Unlock()
+
+	if toStop != nil {
+		toStop.Stop()
 	}
 }
 
@@ -92,38 +97,42 @@ func (m *Manager) HasStream(id string) bool {
 }
 
 // UpsertStream атомарно создает, обновляет или останавливает поток в зависимости от конфигурации.
-// Если поток отключен (disabled=true), он останавливается и удаляется из менеджера.
-// Если поток включен (disabled=false), он создается или обновляется при изменении параметров.
+// Остановка старого потока вынесена за пределы блокировки менеджера.
 func (m *Manager) UpsertStream(id, url string, record bool, lazyHLS bool, transport string, disabled bool) {
+	var toStop *Stream
+	var newStream *Stream
+
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	existing, exists := m.streams[id]
-	if disabled {
+	switch {
+	case disabled:
 		if exists {
-			existing.Stop()
 			delete(m.streams, id)
+			toStop = existing
+		}
+	case exists:
+		if !existing.MatchesConfig(url, record, lazyHLS, transport) {
+			toStop = existing
+			newStream = NewStream(id, url, record, lazyHLS, transport)
+			m.streams[id] = newStream
+		}
+	default:
+		newStream = NewStream(id, url, record, lazyHLS, transport)
+		m.streams[id] = newStream
+	}
+	m.mu.Unlock()
+
+	if toStop != nil {
+		toStop.Stop()
+		if disabled {
 			log.Info().Str("id", id).Msg("Stream stopped and removed (disabled)")
+		} else {
+			log.Info().Str("id", id).Msg("Stream parameters changed, recreating stream")
 		}
-		return
 	}
-
-	if exists {
-		if existing.MatchesConfig(url, record, lazyHLS, transport) {
-			// Параметры стрима не изменились, оставляем работать без прерывания
-			return
-		}
-		// Параметры изменились, пересоздаем стрим
-		existing.Stop()
-		delete(m.streams, id)
-		log.Info().Str("id", id).Msg("Stream parameters changed, recreating stream")
-	}
-
-	st := NewStream(id, url, record, lazyHLS, transport)
-	m.streams[id] = st
 }
 
-// SyncWithStorage синхронизирует состояние потоков с базой.
+// SyncWithStorage синхронизирует состояние потоков с базой без удержания блокировки во время остановок.
 func (m *Manager) SyncWithStorage(store registry.StateStore) error {
 	log.Info().Msg("Syncing stream manager with storage...")
 	
@@ -132,16 +141,16 @@ func (m *Manager) SyncWithStorage(store registry.StateStore) error {
 		return err
 	}
 	
+	var toStop []*Stream
+
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	
 	activeIDs := make(map[string]struct{}, len(cams))
 	for _, cam := range cams {
 		if !cam.Disabled {
 			activeIDs[cam.ID] = struct{}{}
 			if existing, exists := m.streams[cam.ID]; exists {
 				if !existing.MatchesConfig(cam.URL, cam.Record, cam.LazyHLS, cam.Transport) {
-					existing.Stop()
+					toStop = append(toStop, existing)
 					m.streams[cam.ID] = NewStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport)
 				}
 			} else {
@@ -156,11 +165,32 @@ func (m *Manager) SyncWithStorage(store registry.StateStore) error {
 	// Остановка потоков, которых больше нет в активном списке
 	for id, st := range m.streams {
 		if _, ok := activeIDs[id]; !ok {
-			st.Stop()
+			toStop = append(toStop, st)
 			delete(m.streams, id)
-			log.Info().Str("id", id).Msg("Stream stopped (removed or disabled in storage)")
+			log.Info().Str("id", id).Msg("Stream marked for stop (removed or disabled in storage)")
 		}
+	}
+	m.mu.Unlock()
+
+	// Останавливаем потоки вне блокировки менеджера
+	for _, st := range toStop {
+		st.Stop()
 	}
 	
 	return nil
+}
+
+// Close останавливает все зарегистрированные потоки.
+func (m *Manager) Close() {
+	m.mu.Lock()
+	all := make([]*Stream, 0, len(m.streams))
+	for id, st := range m.streams {
+		all = append(all, st)
+		delete(m.streams, id)
+	}
+	m.mu.Unlock()
+
+	for _, st := range all {
+		st.Stop()
+	}
 }
