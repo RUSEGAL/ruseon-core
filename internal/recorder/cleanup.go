@@ -9,6 +9,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/v4/disk"
+
+	"github.com/RUSEGAL/ruseon-core/internal/archive"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
@@ -91,6 +93,8 @@ func cleanupOldFiles(recordDir string, cfg *config.Config, store registry.StateS
 					log.Info().Str("file", filePath).Msg("Removing old record file")
 					if err := registry.CurrentBlobStore.Delete(filePath); err != nil {
 						log.Warn().Err(err).Str("file", filePath).Msg("Failed to delete record file")
+					} else {
+						archive.InvalidateFileIndex(filePath)
 					}
 				}
 			}
