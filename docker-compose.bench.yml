@@ -17,6 +17,7 @@ services:
       - "-cameras=100"
       - "-real-disk=false"
       - "-report-every=5"
+      - "-reconnect-rate=5"
     networks:
       - bench
     healthcheck:

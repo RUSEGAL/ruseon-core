@@ -1033,6 +1033,12 @@ func runServerMode() {
 		go runSyntheticCamera(ctx, id, manager)
 	}
 
+	if reconnectRate > 0 {
+		var recWg sync.WaitGroup
+		recWg.Add(1)
+		go runReconnectSimulator(ctx, manager, camIDs, reconnectRate, &recWg)
+	}
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	fmt.Println("[server] Ready.")
@@ -1048,8 +1054,6 @@ func runServerMode() {
 	manager.Close()
 	fmt.Println("[server] Shutdown complete.")
 }
-
-
 
 func authenticateClient(baseURL, username, password string) (string, error) {
 	loginPayload, _ := json.Marshal(map[string]string{
@@ -1106,8 +1110,10 @@ func fetchCamIDs(baseURL, token string, fallbackCount int) []string {
 }
 
 type serverStatsData struct {
-	TotalFrames uint64 `json:"totalFrames"`
-	TotalBytes  uint64 `json:"totalBytes"`
+	TotalFrames     uint64 `json:"totalFrames"`
+	TotalBytes      uint64 `json:"totalBytes"`
+	TotalDrops      uint64 `json:"totalDrops"`
+	TotalReconnects uint64 `json:"totalReconnects"`
 }
 
 func fetchServerStats(baseURL, token string) serverStatsData {
@@ -1150,39 +1156,6 @@ func runClientWebhookFlood(ctx context.Context, sinkURL string, wg *sync.WaitGro
 				if err == nil {
 					_ = resp.Body.Close()
 				}
-			}
-		}
-	}
-}
-
-func runClientReconnectSimulator(ctx context.Context, baseURL, token string, camIDs []string, rate int, wg *sync.WaitGroup) {
-	defer wg.Done()
-	interval := time.Second / time.Duration(rate)
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	client := &http.Client{Timeout: 3 * time.Second}
-
-	idx := 0
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			camID := camIDs[idx%len(camIDs)]
-			idx++
-			payload := []byte(fmt.Sprintf(`{"url":"synthetic://%s","record":false,"lazy_hls":true,"transport":"tcp"}`, camID))
-			req, err := http.NewRequestWithContext(ctx, http.MethodPut, baseURL+"/api/cameras/"+camID, bytes.NewReader(payload))
-			if err != nil {
-				continue
-			}
-			if token != "" {
-				req.Header.Set("Authorization", "Bearer "+token)
-			}
-			req.Header.Set("Content-Type", "application/json")
-			resp, err := client.Do(req)
-			if err == nil {
-				_ = resp.Body.Close()
-				cntReconnectsTotal.Add(1)
 			}
 		}
 	}
@@ -1240,17 +1213,18 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 				if st.TotalBytes > 0 {
 					cntIngestBytes.Store(st.TotalBytes)
 				}
+				if st.TotalDrops > 0 {
+					cntDrops.Store(st.TotalDrops)
+				}
+				if st.TotalReconnects > 0 {
+					cntReconnectsTotal.Store(st.TotalReconnects)
+				}
 			}
 		}
 	}()
 
-	// Layer 1: Reconnect Simulator (if enabled)
-	if reconnectRate > 0 {
-		wg.Add(1)
-		go runClientReconnectSimulator(ctx, targetServerURL, token, camIDs, reconnectRate, &wg)
-	}
-
 	// Layer 2: API Workers
+
 	for i := 0; i < apiWorkers; i++ {
 		wg.Add(1)
 		go runAPIWorker(ctx, targetServerURL, token, &wg)
@@ -1309,6 +1283,12 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 	}
 	if finalServerStats.TotalBytes > 0 {
 		cntIngestBytes.Store(finalServerStats.TotalBytes)
+	}
+	if finalServerStats.TotalDrops > 0 {
+		cntDrops.Store(finalServerStats.TotalDrops)
+	}
+	if finalServerStats.TotalReconnects > 0 {
+		cntReconnectsTotal.Store(finalServerStats.TotalReconnects)
 	}
 
 	ingestFrames := cntIngestFrames.Load()

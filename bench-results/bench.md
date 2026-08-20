@@ -1,6 +1,6 @@
 # 🚀 RUSEON Core — Результаты нагрузочного тестирования / Load Test Results
 
-> **Дата тестирования / Timestamp:** `2026-08-20 06:35:03` | **Длительность / Duration:** `60.0 сек / 60.0 s` | **CPU Cores:** `12`
+> **Дата тестирования / Timestamp:** `2026-08-20 06:42:07` | **Длительность / Duration:** `60.0 сек / 60.0 s` | **CPU Cores:** `12`
 
 ---
 
@@ -17,31 +17,32 @@
 | **WebRTC WHEP Клиенты** | `30` | Клиенты с SDP-хендшейком и приемом RTP видео |
 | **REST API Воркеры** | `150` | Параллельные запросы к роутеру Gin (с JWT авторизацией) |
 | **gRPC AI Воркеры** | `20` | Двунаправленный gRPC стриминг метаданных и кадров |
+| **Реконнекты RTSP** | `5/сек` | Симуляция обрывов и переподключений камер |
 | **Реальный диск (MP4)** | `false` | Запись видеоархива через `pkg/storage/localfs` |
 
 ### 📊 Ключевые показатели производительности
 
 | Компонент | Метрика | Значение | Латентность p50 / p95 / p99 |
 | :--- | :--- | :--- | :--- |
-| **Ingest (RTSP/NALU)** | Суммарный FPS | **0 FPS** (0.0 Mbps) | — (Drops: `0`) |
-| **REST API** | Throughput / RPS | **7265 RPS** (OK: `435930`, Err: `0`) | `0.38 ms` / `2.54 ms` / `8.35 ms` |
-| **HLS fMP4 Delivery** | Отдано сегментов | **2965 seg** (40.5 MB/s) | `1.55 ms` / `10.88 ms` / `41.61 ms` |
-| **WebRTC WHEP** | RTP Пакетов | **439111 pkts** (8.1 MB/s) | Handshake: `164.96 ms` / `247.70 ms` |
-| **gRPC Stream & AI** | Кадров / Метаданных | **3020 FPS** / **1990 RPS** | Stream: `32.98 ms` (Err: `0`) |
-| **EventBus Webhooks** | Published / Delivered / Dropped | **0** / **0** / **0** (0.0%) | — |
+| **Ingest (RTSP/NALU)** | Суммарный FPS | **13 FPS** (1.0 Mbps) | — (Drops: `0`, Reconn: `299`) |
+| **REST API** | Throughput / RPS | **7390 RPS** (OK: `443375`, Err: `0`) | `0.34 ms` / `1.15 ms` / `3.04 ms` |
+| **HLS fMP4 Delivery** | Отдано сегментов | **334 seg** (4.6 MB/s) | `2.03 ms` / `33.59 ms` / `66.50 ms` |
+| **WebRTC WHEP** | RTP Пакетов | **65317 pkts** (1.2 MB/s) | Handshake: `158.78 ms` / `210.58 ms` |
+| **gRPC Stream & AI** | Кадров / Метаданных | **502 FPS** / **1991 RPS** | Stream: `32.98 ms` (Err: `99`) |
+| **EventBus Webhooks** | Published / Delivered / Dropped | **23962** / **23962** / **0** (0.0%) | — |
 
 ### 🖥️ Потребление системных ресурсов
 
 | Ресурс | Значение |
 | :--- | :--- |
-| **Активные горутины** | `573` |
-| **Heap Alloc / In-Use** | `41 MB` / `53 MB` |
-| **System Memory (Sys)** | `214 MB` |
-| **RSS (Реальная память процесса)** | `142 MB` |
-| **CPU System (avg / peak)** | `38.5%` / `46.0%` |
-| **Process CPU Usage** | `207.6%` |
-| **Network RX / TX (OS)** | `1470.5 Mbps` / `31.6 Mbps` |
-| **GC Cycles / Pause Total** | `721 циклов` / `272.78 ms` (Max pause: `3.30 ms`) |
+| **Активные горутины** | `310` |
+| **Heap Alloc / In-Use** | `59 MB` / `69 MB` |
+| **System Memory (Sys)** | `169 MB` |
+| **RSS (Реальная память процесса)** | `123 MB` |
+| **CPU System (avg / peak)** | `31.1%` / `40.5%` |
+| **Process CPU Usage** | `166.6%` |
+| **Network RX / TX (OS)** | `875.1 Mbps` / `29.0 Mbps` |
+| **GC Cycles / Pause Total** | `504 циклов` / `111.93 ms` (Max pause: `2.03 ms`) |
 
 ### 💡 Инженерные примечания и продакшен-рекомендации
 
@@ -72,31 +73,32 @@
 | **WebRTC WHEP Clients** | `30` | Clients with SDP handshake and RTP video reception |
 | **REST API Workers** | `150` | Concurrent requests to Gin router (with JWT auth) |
 | **gRPC AI Workers** | `20` | Bidirectional gRPC streaming for frames and metadata |
+| **RTSP Reconnect Rate** | `5/sec` | Simulation of camera drops and reconnections |
 | **Real Disk (MP4)** | `false` | Video archive recording via `pkg/storage/localfs` |
 
 ### 📊 Key Performance Metrics
 
 | Component | Metric | Value | Latency p50 / p95 / p99 |
 | :--- | :--- | :--- | :--- |
-| **Ingest (RTSP/NALU)** | Total FPS | **0 FPS** (0.0 Mbps) | — (Drops: `0`) |
-| **REST API** | Throughput / RPS | **7265 RPS** (OK: `435930`, Err: `0`) | `0.38 ms` / `2.54 ms` / `8.35 ms` |
-| **HLS fMP4 Delivery** | Delivered Segments | **2965 seg** (40.5 MB/s) | `1.55 ms` / `10.88 ms` / `41.61 ms` |
-| **WebRTC WHEP** | RTP Packets | **439111 pkts** (8.1 MB/s) | Handshake: `164.96 ms` / `247.70 ms` |
-| **gRPC Stream & AI** | Frames / Metadata | **3020 FPS** / **1990 RPS** | Stream: `32.98 ms` (Err: `0`) |
-| **EventBus Webhooks** | Published / Delivered / Dropped | **0** / **0** / **0** (0.0%) | — |
+| **Ingest (RTSP/NALU)** | Total FPS | **13 FPS** (1.0 Mbps) | — (Drops: `0`, Reconn: `299`) |
+| **REST API** | Throughput / RPS | **7390 RPS** (OK: `443375`, Err: `0`) | `0.34 ms` / `1.15 ms` / `3.04 ms` |
+| **HLS fMP4 Delivery** | Delivered Segments | **334 seg** (4.6 MB/s) | `2.03 ms` / `33.59 ms` / `66.50 ms` |
+| **WebRTC WHEP** | RTP Packets | **65317 pkts** (1.2 MB/s) | Handshake: `158.78 ms` / `210.58 ms` |
+| **gRPC Stream & AI** | Frames / Metadata | **502 FPS** / **1991 RPS** | Stream: `32.98 ms` (Err: `99`) |
+| **EventBus Webhooks** | Published / Delivered / Dropped | **23962** / **23962** / **0** (0.0%) | — |
 
 ### 🖥️ System Resource Consumption
 
 | Resource | Value |
 | :--- | :--- |
-| **Active Goroutines** | `573` |
-| **Heap Alloc / In-Use** | `41 MB` / `53 MB` |
-| **System Memory (Sys)** | `214 MB` |
-| **Process RSS Memory** | `142 MB` |
-| **System CPU (avg / peak)** | `38.5%` / `46.0%` |
-| **Process CPU Usage** | `207.6%` |
-| **Network RX / TX (OS)** | `1470.5 Mbps` / `31.6 Mbps` |
-| **GC Cycles / Pause Total** | `721 cycles` / `272.78 ms` (Max pause: `3.30 ms`) |
+| **Active Goroutines** | `310` |
+| **Heap Alloc / In-Use** | `59 MB` / `69 MB` |
+| **System Memory (Sys)** | `169 MB` |
+| **Process RSS Memory** | `123 MB` |
+| **System CPU (avg / peak)** | `31.1%` / `40.5%` |
+| **Process CPU Usage** | `166.6%` |
+| **Network RX / TX (OS)** | `875.1 Mbps` / `29.0 Mbps` |
+| **GC Cycles / Pause Total** | `504 cycles` / `111.93 ms` (Max pause: `2.03 ms`) |
 
 ### 💡 Engineering Notes & Production Recommendations
 

@@ -670,6 +670,8 @@ func (h *Handler) GetServerStats(c *gin.Context) {
 	var totalBytes uint64
 	var totalBytesSent uint64
 	var totalFrames uint64
+	var totalDrops uint64
+	var totalReconnects uint64
 	var onlineCameras int
 
 	for _, st := range streams {
@@ -677,6 +679,10 @@ func (h *Handler) GetServerStats(c *gin.Context) {
 		totalBytes += stats.BytesReceived
 		totalBytesSent += stats.BytesSent
 		totalFrames += stats.Frames
+		totalReconnects += stats.Reconnects
+		if st.GetRingBuffer() != nil {
+			totalDrops += st.GetRingBuffer().GetTotalDrops()
+		}
 		if stats.State == models.StateOnline {
 			onlineCameras++
 		}
@@ -718,9 +724,12 @@ func (h *Handler) GetServerStats(c *gin.Context) {
 		"totalBytes":      totalBytes,
 		"totalBytesSent":  totalBytesSent,
 		"totalFrames":     totalFrames,
+		"totalDrops":      totalDrops,
+		"totalReconnects": totalReconnects,
 		"activeClients":   len(activeClients),
 		"clients":         activeClients,
 	})
+
 }
 
 // GetTags возвращает глобальный список тегов
