@@ -44,8 +44,8 @@ services:
       - "-duration=${DURATION:-60}"
       - "-report-every=${REPORT_EVERY:-5}"
       - "-profile=${BENCH_PROFILE:-baseline}"
-      - "-output-json=/results/bench.json"
-      - "-output-md=/results/bench.md"
+      - "-output-json=/results/bench-${BENCH_PROFILE:-baseline}.json"
+      - "-output-md=/results/bench-${BENCH_PROFILE:-baseline}.md"
     networks:
       - bench
     depends_on:

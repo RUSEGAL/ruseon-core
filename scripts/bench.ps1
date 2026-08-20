@@ -22,8 +22,8 @@ docker compose -f docker-compose.bench.yml up `
     --abort-on-container-exit `
     --exit-code-from bench-client
 
-Write-Host "=== Results saved to $resultsDir ===" -ForegroundColor Green
-Get-ChildItem $resultsDir
+Write-Host "=== Results for Profile '$Profile' saved to $resultsDir ===" -ForegroundColor Green
+Get-ChildItem -Path "$resultsDir\bench-$Profile.*"
 
 Write-Host "=== Cleaning up benchmark containers ===" -ForegroundColor Yellow
 docker compose -f docker-compose.bench.yml down --volumes --remove-orphans

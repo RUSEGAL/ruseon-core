@@ -20,8 +20,8 @@ docker compose -f "$COMPOSE_FILE" up \
   --abort-on-container-exit \
   --exit-code-from bench-client
 
-echo "=== Results saved to $RESULTS_DIR ==="
-ls -lh "$RESULTS_DIR"
+echo "=== Results for Profile '$PROFILE' saved to $RESULTS_DIR ==="
+ls -lh "$RESULTS_DIR/bench-$PROFILE."* 2>/dev/null || ls -lh "$RESULTS_DIR"
 
 echo "=== Cleaning up benchmark containers ==="
 docker compose -f "$COMPOSE_FILE" down --volumes --remove-orphans
