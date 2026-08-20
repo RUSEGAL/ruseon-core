@@ -165,6 +165,8 @@ type BenchmarkConfig struct {
 	GRPCPushers   int  `json:"grpc_pushers"`
 	DurationSec   int  `json:"duration_sec"`
 	RealDisk      bool `json:"real_disk"`
+	ReconnectRate int  `json:"reconnect_rate,omitempty"`
+	Mode          string `json:"mode,omitempty"`
 }
 
 type IngestMetrics struct {
@@ -174,6 +176,7 @@ type IngestMetrics struct {
 	FPS         float64 `json:"fps"`
 	BitrateMbps float64 `json:"bitrate_mbps"`
 	Drops       uint64  `json:"dropped_frames"`
+	Reconnects  uint64  `json:"reconnects_total,omitempty"`
 }
 
 type HTTPMetrics struct {
@@ -219,6 +222,8 @@ type GRPCMetrics struct {
 type EventBusMetrics struct {
 	Published  uint64  `json:"published"`
 	Delivered  uint64  `json:"delivered"`
+	Dropped    uint64  `json:"dropped"`
+	DropPct    float64 `json:"drop_pct"`
 	RatePerSec float64 `json:"rate_per_sec"`
 }
 
@@ -240,6 +245,12 @@ type SystemMetrics struct {
 	NumGC         uint32  `json:"num_gc"`
 	GCPauseTotal  float64 `json:"gc_pause_total_ms"`
 	GCPauseMax    float64 `json:"gc_pause_max_ms"`
+	CPUPctAvg     float64 `json:"cpu_pct_avg"`
+	CPUPctPeak    float64 `json:"cpu_pct_peak"`
+	ProcCPUPct    float64 `json:"proc_cpu_pct"`
+	RSSMB         uint64  `json:"rss_mb"`
+	NetRxMbps     float64 `json:"net_rx_mbps"`
+	NetTxMbps     float64 `json:"net_tx_mbps"`
 }
 
 // ExportJSON сохраняет результаты бенчмарка в JSON-файл.
@@ -268,6 +279,8 @@ func (r *BenchmarkResult) FormatMarkdown() string {
 	// 🇷🇺 РУССКИЙ ЯЗЫК
 	// ─────────────────────────────────────────────────────────────────────────
 	sb += "---\n\n## 🇷🇺 Отчет на русском языке\n\n"
+	sb += "> ⚠️ **In-process benchmark:** REST API и HLS latency измеряются через `httptest.Server` loopback " +
+		"(сетевой RTT не включён). WebRTC WHEP использует реальный стек Pion P2P.\n\n"
 
 	sb += "### ⚙️ Конфигурация нагрузки\n\n"
 	sb += "| Параметр | Значение | Описание |\n"
@@ -277,13 +290,20 @@ func (r *BenchmarkResult) FormatMarkdown() string {
 	sb += fmt.Sprintf("| **WebRTC WHEP Клиенты** | `%d` | Клиенты с SDP-хендшейком и приемом RTP видео |\n", r.Config.WebRTCViewers)
 	sb += fmt.Sprintf("| **REST API Воркеры** | `%d` | Параллельные запросы к роутеру Gin (с JWT авторизацией) |\n", r.Config.APIWorkers)
 	sb += fmt.Sprintf("| **gRPC AI Воркеры** | `%d` | Двунаправленный gRPC стриминг метаданных и кадров |\n", r.Config.GRPCPushers)
+	if r.Config.ReconnectRate > 0 {
+		sb += fmt.Sprintf("| **Реконнекты RTSP** | `%d/сек` | Симуляция обрывов и переподключений камер |\n", r.Config.ReconnectRate)
+	}
 	sb += fmt.Sprintf("| **Реальный диск (MP4)** | `%t` | Запись видеоархива через `pkg/storage/localfs` |\n\n", r.Config.RealDisk)
 
 	sb += "### 📊 Ключевые показатели производительности\n\n"
 	sb += "| Компонент | Метрика | Значение | Латентность p50 / p95 / p99 |\n"
 	sb += "| :--- | :--- | :--- | :--- |\n"
-	sb += fmt.Sprintf("| **Ingest (RTSP/NALU)** | Суммарный FPS | **%.0f FPS** (%.1f Mbps) | — (Drops: `%d`) |\n",
-		r.Ingest.FPS, r.Ingest.BitrateMbps, r.Ingest.Drops)
+	ingestExtra := fmt.Sprintf("Drops: `%d`", r.Ingest.Drops)
+	if r.Ingest.Reconnects > 0 {
+		ingestExtra += fmt.Sprintf(", Reconn: `%d`", r.Ingest.Reconnects)
+	}
+	sb += fmt.Sprintf("| **Ingest (RTSP/NALU)** | Суммарный FPS | **%.0f FPS** (%.1f Mbps) | — (%s) |\n",
+		r.Ingest.FPS, r.Ingest.BitrateMbps, ingestExtra)
 	sb += fmt.Sprintf("| **REST API** | Throughput / RPS | **%.0f RPS** (OK: `%d`, Err: `%d`) | `%.2f ms` / `%.2f ms` / `%.2f ms` |\n",
 		r.HTTP.RPS, r.HTTP.TotalOK, r.HTTP.TotalErr, r.HTTP.Latency.P50Ms, r.HTTP.Latency.P95Ms, r.HTTP.Latency.P99Ms)
 	sb += fmt.Sprintf("| **HLS fMP4 Delivery** | Отдано сегментов | **%d seg** (%.1f MB/s) | `%.2f ms` / `%.2f ms` / `%.2f ms` |\n",
@@ -292,8 +312,8 @@ func (r *BenchmarkResult) FormatMarkdown() string {
 		r.WebRTC.RTPPacketsRx, r.WebRTC.ThroughputMBs, r.WebRTC.HandshakeLat.P50Ms, r.WebRTC.HandshakeLat.P95Ms)
 	sb += fmt.Sprintf("| **gRPC Stream & AI** | Кадров / Метаданных | **%.0f FPS** / **%.0f RPS** | Stream: `%.2f ms` (Err: `%d`) |\n",
 		r.GRPC.FPS, r.GRPC.MetaRPS, r.GRPC.StreamLat.P50Ms, r.GRPC.Errors)
-	sb += fmt.Sprintf("| **EventBus Webhooks** | Доставлено событий | **%d events** (%.0f/sec) | — |\n",
-		r.EventBus.Delivered, r.EventBus.RatePerSec)
+	sb += fmt.Sprintf("| **EventBus Webhooks** | Published / Delivered / Dropped | **%d** / **%d** / **%d** (%.1f%%) | — |\n",
+		r.EventBus.Published, r.EventBus.Delivered, r.EventBus.Dropped, r.EventBus.DropPct)
 	if r.Storage.RealDisk {
 		sb += fmt.Sprintf("| **Disk Storage (MP4)** | Скорость записи | **%.2f MB/s** (%d файлов) | — |\n",
 			r.Storage.WriteMBs, r.Storage.FilesCreated)
@@ -306,6 +326,18 @@ func (r *BenchmarkResult) FormatMarkdown() string {
 	sb += fmt.Sprintf("| **Активные горутины** | `%d` |\n", r.System.GoroutinesEnd)
 	sb += fmt.Sprintf("| **Heap Alloc / In-Use** | `%d MB` / `%d MB` |\n", r.System.HeapAllocMB, r.System.HeapInuseMB)
 	sb += fmt.Sprintf("| **System Memory (Sys)** | `%d MB` |\n", r.System.SysMB)
+	if r.System.RSSMB > 0 {
+		sb += fmt.Sprintf("| **RSS (Реальная память процесса)** | `%d MB` |\n", r.System.RSSMB)
+	}
+	if r.System.CPUPctAvg > 0 || r.System.CPUPctPeak > 0 {
+		sb += fmt.Sprintf("| **CPU System (avg / peak)** | `%.1f%%` / `%.1f%%` |\n", r.System.CPUPctAvg, r.System.CPUPctPeak)
+	}
+	if r.System.ProcCPUPct > 0 {
+		sb += fmt.Sprintf("| **Process CPU Usage** | `%.1f%%` |\n", r.System.ProcCPUPct)
+	}
+	if r.System.NetRxMbps > 0 || r.System.NetTxMbps > 0 {
+		sb += fmt.Sprintf("| **Network RX / TX (OS)** | `%.1f Mbps` / `%.1f Mbps` |\n", r.System.NetRxMbps, r.System.NetTxMbps)
+	}
 	sb += fmt.Sprintf("| **GC Cycles / Pause Total** | `%d циклов` / `%.2f ms` (Max pause: `%.2f ms`) |\n\n",
 		r.System.NumGC, r.System.GCPauseTotal, r.System.GCPauseMax)
 
@@ -326,6 +358,8 @@ func (r *BenchmarkResult) FormatMarkdown() string {
 	// 🇬🇧 ENGLISH
 	// ─────────────────────────────────────────────────────────────────────────
 	sb += "---\n\n## 🇬🇧 English Report\n\n"
+	sb += "> ⚠️ **In-process benchmark:** REST API and HLS latency are measured via `httptest.Server` loopback " +
+		"(network RTT not included). WebRTC WHEP uses real Pion P2P stack.\n\n"
 
 	sb += "### ⚙️ Load Configuration\n\n"
 	sb += "| Parameter | Value | Description |\n"
@@ -335,13 +369,16 @@ func (r *BenchmarkResult) FormatMarkdown() string {
 	sb += fmt.Sprintf("| **WebRTC WHEP Clients** | `%d` | Clients with SDP handshake and RTP video reception |\n", r.Config.WebRTCViewers)
 	sb += fmt.Sprintf("| **REST API Workers** | `%d` | Concurrent requests to Gin router (with JWT auth) |\n", r.Config.APIWorkers)
 	sb += fmt.Sprintf("| **gRPC AI Workers** | `%d` | Bidirectional gRPC streaming for frames and metadata |\n", r.Config.GRPCPushers)
+	if r.Config.ReconnectRate > 0 {
+		sb += fmt.Sprintf("| **RTSP Reconnect Rate** | `%d/sec` | Simulation of camera drops and reconnections |\n", r.Config.ReconnectRate)
+	}
 	sb += fmt.Sprintf("| **Real Disk (MP4)** | `%t` | Video archive recording via `pkg/storage/localfs` |\n\n", r.Config.RealDisk)
 
 	sb += "### 📊 Key Performance Metrics\n\n"
 	sb += "| Component | Metric | Value | Latency p50 / p95 / p99 |\n"
 	sb += "| :--- | :--- | :--- | :--- |\n"
-	sb += fmt.Sprintf("| **Ingest (RTSP/NALU)** | Total FPS | **%.0f FPS** (%.1f Mbps) | — (Drops: `%d`) |\n",
-		r.Ingest.FPS, r.Ingest.BitrateMbps, r.Ingest.Drops)
+	sb += fmt.Sprintf("| **Ingest (RTSP/NALU)** | Total FPS | **%.0f FPS** (%.1f Mbps) | — (%s) |\n",
+		r.Ingest.FPS, r.Ingest.BitrateMbps, ingestExtra)
 	sb += fmt.Sprintf("| **REST API** | Throughput / RPS | **%.0f RPS** (OK: `%d`, Err: `%d`) | `%.2f ms` / `%.2f ms` / `%.2f ms` |\n",
 		r.HTTP.RPS, r.HTTP.TotalOK, r.HTTP.TotalErr, r.HTTP.Latency.P50Ms, r.HTTP.Latency.P95Ms, r.HTTP.Latency.P99Ms)
 	sb += fmt.Sprintf("| **HLS fMP4 Delivery** | Delivered Segments | **%d seg** (%.1f MB/s) | `%.2f ms` / `%.2f ms` / `%.2f ms` |\n",
@@ -350,8 +387,8 @@ func (r *BenchmarkResult) FormatMarkdown() string {
 		r.WebRTC.RTPPacketsRx, r.WebRTC.ThroughputMBs, r.WebRTC.HandshakeLat.P50Ms, r.WebRTC.HandshakeLat.P95Ms)
 	sb += fmt.Sprintf("| **gRPC Stream & AI** | Frames / Metadata | **%.0f FPS** / **%.0f RPS** | Stream: `%.2f ms` (Err: `%d`) |\n",
 		r.GRPC.FPS, r.GRPC.MetaRPS, r.GRPC.StreamLat.P50Ms, r.GRPC.Errors)
-	sb += fmt.Sprintf("| **EventBus Webhooks** | Delivered Events | **%d events** (%.0f/sec) | — |\n",
-		r.EventBus.Delivered, r.EventBus.RatePerSec)
+	sb += fmt.Sprintf("| **EventBus Webhooks** | Published / Delivered / Dropped | **%d** / **%d** / **%d** (%.1f%%) | — |\n",
+		r.EventBus.Published, r.EventBus.Delivered, r.EventBus.Dropped, r.EventBus.DropPct)
 	if r.Storage.RealDisk {
 		sb += fmt.Sprintf("| **Disk Storage (MP4)** | Write Rate | **%.2f MB/s** (%d files) | — |\n",
 			r.Storage.WriteMBs, r.Storage.FilesCreated)
@@ -364,6 +401,18 @@ func (r *BenchmarkResult) FormatMarkdown() string {
 	sb += fmt.Sprintf("| **Active Goroutines** | `%d` |\n", r.System.GoroutinesEnd)
 	sb += fmt.Sprintf("| **Heap Alloc / In-Use** | `%d MB` / `%d MB` |\n", r.System.HeapAllocMB, r.System.HeapInuseMB)
 	sb += fmt.Sprintf("| **System Memory (Sys)** | `%d MB` |\n", r.System.SysMB)
+	if r.System.RSSMB > 0 {
+		sb += fmt.Sprintf("| **Process RSS Memory** | `%d MB` |\n", r.System.RSSMB)
+	}
+	if r.System.CPUPctAvg > 0 || r.System.CPUPctPeak > 0 {
+		sb += fmt.Sprintf("| **System CPU (avg / peak)** | `%.1f%%` / `%.1f%%` |\n", r.System.CPUPctAvg, r.System.CPUPctPeak)
+	}
+	if r.System.ProcCPUPct > 0 {
+		sb += fmt.Sprintf("| **Process CPU Usage** | `%.1f%%` |\n", r.System.ProcCPUPct)
+	}
+	if r.System.NetRxMbps > 0 || r.System.NetTxMbps > 0 {
+		sb += fmt.Sprintf("| **Network RX / TX (OS)** | `%.1f Mbps` / `%.1f Mbps` |\n", r.System.NetRxMbps, r.System.NetTxMbps)
+	}
 	sb += fmt.Sprintf("| **GC Cycles / Pause Total** | `%d cycles` / `%.2f ms` (Max pause: `%.2f ms`) |\n\n",
 		r.System.NumGC, r.System.GCPauseTotal, r.System.GCPauseMax)
 
@@ -380,6 +429,6 @@ func (r *BenchmarkResult) FormatMarkdown() string {
 	sb += "5. **Security & WebRTC:**\n"
 	sb += "   * Modern web browsers (Chrome, Safari, Firefox) require HTTPS/TLS (Secure Context) to initiate WebRTC sessions.\n\n"
 
-	sb += "---\n*Отчет сгенерирован автоматически встроенным инструментом `cmd/loadtest` / Report automatically generated by `cmd/loadtest`.*\n"
+	sb += "---\n*Report automatically generated by `cmd/loadtest`.*\n"
 	return sb
 }

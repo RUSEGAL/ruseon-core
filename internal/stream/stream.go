@@ -445,3 +445,10 @@ func (s *Stream) GetStats() models.CameraStats {
 		Bitrate:       float64(s.currentBitrate.Load()),
 	}
 }
+
+// Context returns the stream's lifecycle context.
+func (s *Stream) Context() context.Context {
+	return s.ctx
+}
+
+

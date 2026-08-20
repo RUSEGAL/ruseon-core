@@ -28,6 +28,8 @@ type RingBuffer struct {
 	// Подписчики
 	subMu sync.RWMutex
 	subs  map[*Reader]struct{}
+
+	totalDrops atomic.Uint64
 }
 
 // NewRingBuffer создает новый буфер заданного размера.
@@ -49,6 +51,11 @@ func NewRingBuffer(capacity int) *RingBuffer {
 func (rb *RingBuffer) SetCameraID(id string) {
 	rb.cameraID = id
 	rb.metricDrops = metrics.RingbufferDropsTotal.WithLabelValues(id)
+}
+
+// GetTotalDrops возвращает суммарное число дропнутых кадров за все время существования буфера.
+func (rb *RingBuffer) GetTotalDrops() uint64 {
+	return rb.totalDrops.Load()
 }
 
 // Write добавляет новый кадр в буфер и рассылает его подписчикам.
@@ -81,6 +88,7 @@ func (rb *RingBuffer) Write(f *Frame) {
 			// Клиент тормозит, канал забит. Пропускаем кадр (Drop).
 			atomic.AddUint64(&sub.Drops, 1)
 			rb.metricDrops.Inc()
+			rb.totalDrops.Add(1)
 			sub.NeedsIFrame.Store(true) // Требуем I-Frame для возобновления
 		}
 	}

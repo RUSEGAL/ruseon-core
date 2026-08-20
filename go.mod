@@ -19,6 +19,7 @@ require (
 	github.com/rs/zerolog v1.32.0
 	github.com/samber/ro v0.4.0
 	github.com/samber/ro/plugins/cron v0.0.0-20260809183515-1fb54ba10cbf
+	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/shirou/gopsutil/v4 v4.26.6
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
@@ -134,6 +135,7 @@ require (
 	github.com/quic-go/quic-go v0.61.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/samber/lo v1.53.0 // indirect
+	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/tklauser/go-sysconf v0.4.0 // indirect

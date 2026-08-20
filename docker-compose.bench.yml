@@ -1,0 +1,54 @@
+# docker-compose.bench.yml
+# Run: docker compose -f docker-compose.bench.yml up --abort-on-container-exit
+name: ruseon-bench
+
+networks:
+  bench:
+    driver: bridge
+
+services:
+  bench-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.loadtest
+    container_name: bench-server
+    command:
+      - "-mode=server"
+      - "-cameras=100"
+      - "-real-disk=false"
+      - "-report-every=5"
+    networks:
+      - bench
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:4197/api/stats || exit 1"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+      start_period: 5s
+
+  bench-client:
+    build:
+      context: .
+      dockerfile: Dockerfile.loadtest
+    container_name: bench-client
+    command:
+      - "-mode=client"
+      - "-server-url=http://bench-server:4197"
+      - "-grpc-url=bench-server:4198"
+      - "-cameras=100"
+      - "-api-workers=150"
+      - "-hls-viewers=150"
+      - "-webrtc-viewers=30"
+      - "-grpc-pushers=20"
+      - "-duration=60"
+      - "-report-every=5"
+      - "-reconnect-rate=5"
+      - "-output-json=/results/bench.json"
+      - "-output-md=/results/bench.md"
+    networks:
+      - bench
+    depends_on:
+      bench-server:
+        condition: service_healthy
+    volumes:
+      - ./bench-results:/results
