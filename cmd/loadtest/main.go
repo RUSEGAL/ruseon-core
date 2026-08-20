@@ -1283,34 +1283,7 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 	start := time.Now()
 	fmt.Println("[client] Running load test...")
 
-	// Server stats poller loop (polls server ingest and memory)
-	go func() {
-		t := time.NewTicker(1 * time.Second)
-		defer t.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-t.C:
-				st := fetchServerStats(targetServerURL, token)
-				if st.TotalFrames >= baselineFrames {
-					cntIngestFrames.Store(st.TotalFrames - baselineFrames)
-				}
-				if st.TotalBytes >= baselineBytes {
-					cntIngestBytes.Store(st.TotalBytes - baselineBytes)
-				}
-				if st.TotalDrops > 0 {
-					cntDrops.Store(st.TotalDrops)
-				}
-				if st.TotalReconnects > 0 {
-					cntReconnectsTotal.Store(st.TotalReconnects)
-				}
-			}
-		}
-	}()
-
 	// Layer 2: API Workers
-
 	for i := 0; i < apiWorkers; i++ {
 		wg.Add(1)
 		go runAPIWorker(ctx, targetServerURL, token, &wg)
@@ -1353,10 +1326,24 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 			case <-ctx.Done():
 				return
 			case <-statsTick.C:
+				st := fetchServerStats(targetServerURL, token)
+				if st.TotalFrames >= baselineFrames {
+					cntIngestFrames.Store(st.TotalFrames - baselineFrames)
+				}
+				if st.TotalBytes >= baselineBytes {
+					cntIngestBytes.Store(st.TotalBytes - baselineBytes)
+				}
+				if st.TotalDrops > 0 {
+					cntDrops.Store(st.TotalDrops)
+				}
+				if st.TotalReconnects > 0 {
+					cntReconnectsTotal.Store(st.TotalReconnects)
+				}
 				printLive(time.Since(start))
 			}
 		}
 	}()
+
 
 	wg.Wait()
 	elapsed := time.Since(start)
