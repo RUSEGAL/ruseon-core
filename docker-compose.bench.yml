@@ -13,6 +13,8 @@ services:
       dockerfile: Dockerfile.loadtest
     container_name: bench-server
     # cpuset: "0-5"  # Linux only: pin server to CPU cores 0-5 for hardware isolation
+    environment:
+      - GOGC=${GOGC:-100}
     command:
       - "-mode=server"
       - "-cameras=${CAMERAS:-100}"
@@ -34,6 +36,8 @@ services:
       dockerfile: Dockerfile.loadtest
     container_name: bench-client
     # cpuset: "6-11"  # Linux only: pin client to CPU cores 6-11 for hardware isolation
+    environment:
+      - GOGC=${GOGC:-100}
     command:
       - "-mode=client"
       - "-server-url=http://bench-server:4197"
