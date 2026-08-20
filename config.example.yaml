@@ -7,6 +7,8 @@ server:
   record_retention_days: 7
   gc_percent: 50
   gc_memory_limit_mb: 2048
+  hls:
+    live_segments_in_memory: 3 # Number of TS segments retained in RAM (3 for High-Density 600+ cams, 5 for high latency networks)
   grpc:
     address: "0.0.0.0"
     port: 50051

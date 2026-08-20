@@ -17,6 +17,8 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
 )
 
+var emptyVTTData = []byte("WEBVTT\n\n")
+
 // Segment представляет один HLS ts-сегмент.
 type Segment struct {
 	Name            string
@@ -65,6 +67,7 @@ type Muxer struct {
 	ctx            context.Context
 	cancel         context.CancelFunc
 	targetDuration time.Duration
+	maxSegments    int
 	wg             sync.WaitGroup
 
 	metaChan    <-chan *pb.MetadataRequest
@@ -81,18 +84,27 @@ type Muxer struct {
 
 	firstSegReady chan struct{}
 	firstSegOnce  sync.Once
+
+	cachedPlaylist     atomic.Pointer[string]
+	cachedSubsPlaylist atomic.Pointer[string]
 }
 
-// NewMuxer создает новый Muxer для потока.
-func NewMuxer(streamID string, rb *buffer.RingBuffer, metaChan <-chan *pb.MetadataRequest, unsubscribe func()) *Muxer {
+// NewMuxer создает новый Muxer для потока с настраиваемым скользящим окном сегментов.
+func NewMuxer(streamID string, rb *buffer.RingBuffer, metaChan <-chan *pb.MetadataRequest, unsubscribe func(), maxSegments ...int) *Muxer {
 	ctx, cancel := context.WithCancel(context.Background())
+	maxSegs := 3
+	if len(maxSegments) > 0 && maxSegments[0] >= 3 {
+		maxSegs = maxSegments[0]
+	}
+
 	m := &Muxer{
 		streamID:       streamID,
 		ringBuffer:     rb,
 		ctx:            ctx,
 		cancel:         cancel,
 		targetDuration: 2 * time.Second, // Целевая длина сегмента: 2 секунды (хорошо для low-latency)
-		segments:       make([]*Segment, 0, 10),
+		maxSegments:    maxSegs,
+		segments:       make([]*Segment, 0, maxSegs+2),
 		metaChan:       metaChan,
 		unsubscribe:    unsubscribe,
 		firstSegReady:  make(chan struct{}),
@@ -164,47 +176,53 @@ func (m *Muxer) run() {
 			meta := m.currentMeta
 			m.currentMeta = nil
 
-			segmentStartPts := int64(segmentStart * 90000 / time.Second)
-			var vttBuf bytes.Buffer
-			vttBuf.WriteString("WEBVTT\n")
-			fmt.Fprintf(&vttBuf, "X-TIMESTAMP-MAP=MPEGTS:%d,LOCAL:00:00:00.000\n\n", segmentStartPts)
+			var vttData []byte
+			if len(meta) == 0 {
+				vttData = emptyVTTData
+			} else {
+				segmentStartPts := int64(segmentStart * 90000 / time.Second)
+				var vttBuf bytes.Buffer
+				vttBuf.WriteString("WEBVTT\n")
+				fmt.Fprintf(&vttBuf, "X-TIMESTAMP-MAP=MPEGTS:%d,LOCAL:00:00:00.000\n\n", segmentStartPts)
 
-			for _, req := range meta {
-				var localPts int64
-				if int64(req.Pts) > segmentStartPts {
-					localPts = int64(req.Pts) - segmentStartPts
-				}
+				for _, req := range meta {
+					var localPts int64
+					if int64(req.Pts) > segmentStartPts {
+						localPts = int64(req.Pts) - segmentStartPts
+					}
 
-				ms := localPts / 90
-				sec := ms / 1000
-				ms %= 1000
-				minutes := sec / 60
-				sec %= 60
-				hr := minutes / 60
-				minutes %= 60
+					ms := localPts / 90
+					sec := ms / 1000
+					ms %= 1000
+					minutes := sec / 60
+					sec %= 60
+					hr := minutes / 60
+					minutes %= 60
 
-				// Сделаем cue длительностью 300мс
-				msEnd := ms + 300
-				secEnd := sec
-				if msEnd >= 1000 {
-					msEnd -= 1000
-					secEnd++
-				}
-				minEnd := minutes
-				if secEnd >= 60 {
-					secEnd -= 60
-					minEnd++
-				}
-				hrEnd := hr
-				if minEnd >= 60 {
-					minEnd -= 60
-					hrEnd++
-				}
+					// Сделаем cue длительностью 300мс
+					msEnd := ms + 300
+					secEnd := sec
+					if msEnd >= 1000 {
+						msEnd -= 1000
+						secEnd++
+					}
+					minEnd := minutes
+					if secEnd >= 60 {
+						secEnd -= 60
+						minEnd++
+					}
+					hrEnd := hr
+					if minEnd >= 60 {
+						minEnd -= 60
+						hrEnd++
+					}
 
-				fmt.Fprintf(&vttBuf, "%02d:%02d:%02d.%03d --> %02d:%02d:%02d.%03d\n", hr, minutes, sec, ms, hrEnd, minEnd, secEnd, msEnd)
-				data, _ := json.Marshal(req)
-				vttBuf.Write(data)
-				vttBuf.WriteString("\n\n")
+					fmt.Fprintf(&vttBuf, "%02d:%02d:%02d.%03d --> %02d:%02d:%02d.%03d\n", hr, minutes, sec, ms, hrEnd, minEnd, secEnd, msEnd)
+					data, _ := json.Marshal(req)
+					vttBuf.Write(data)
+					vttBuf.WriteString("\n\n")
+				}
+				vttData = vttBuf.Bytes()
 			}
 
 			m.mu.Lock()
@@ -215,18 +233,19 @@ func (m *Muxer) run() {
 				Data:            currentBuf.Bytes(),
 				buf:             currentBuf,
 				IsDiscontinuity: m.needsDiscontinuity,
-				VTTData:         vttBuf.Bytes(),
+				VTTData:         vttData,
 			}
 			seg.refCount.Store(1)
 			m.needsDiscontinuity = false
 			m.segments = append(m.segments, seg)
 			m.firstSegOnce.Do(func() { close(m.firstSegReady) })
-			// Оставляем в памяти только последние 5 сегментов (окно Live в 10 секунд)
-			if len(m.segments) > 5 {
+			// Оставляем в памяти только последние maxSegments сегментов
+			if len(m.segments) > m.maxSegments {
 				oldSeg := m.segments[0]
 				m.segments = m.segments[1:]
 				oldSeg.Release()
 			}
+			m.rebuildPlaylistsLocked()
 			m.mu.Unlock()
 
 			currentBuf = nil
@@ -347,11 +366,12 @@ func (m *Muxer) CheckWatchdog(now time.Time) {
 			seg.refCount.Store(1)
 			m.segments = append(m.segments, seg)
 			m.firstSegOnce.Do(func() { close(m.firstSegReady) })
-			if len(m.segments) > 5 {
+			if len(m.segments) > m.maxSegments {
 				oldSeg := m.segments[0]
 				m.segments = m.segments[1:]
 				oldSeg.Release()
 			}
+			m.rebuildPlaylistsLocked()
 			// Сбрасываем таймер, чтобы следующий дубликат добавился еще через 5 секунд
 			m.lastFrameTime.Store(now.UnixNano())
 			// Следующий РЕАЛЬНЫЙ сегмент (когда связь восстановится) тоже должен начаться с разрыва,
@@ -361,37 +381,14 @@ func (m *Muxer) CheckWatchdog(now time.Time) {
 	}
 }
 
-// GetPlaylist генерирует M3U8 манифест со сверхнизким числом аллокаций.
-// Принимает ctx для отслеживания отмены запроса клиентом.
-// Возвращает (playlist, true) при успехе, либо ("", false) если контекст отменен или муксер остановлен.
-func (m *Muxer) GetPlaylist(ctx context.Context) (string, bool) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	m.mu.RLock()
-	hasSegments := len(m.segments) > 0
-	m.mu.RUnlock()
-
-	if !hasSegments {
-		// Ждем первого сегмента эффективно через channel.
-		// Завершается немедленно при готовности, остановке муксера или отмене HTTP-запроса клиентом.
-		select {
-		case <-m.firstSegReady:
-		case <-m.ctx.Done():
-			return "", false
-		case <-ctx.Done():
-			return "", false
-		}
-	}
-
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
+// rebuildPlaylistsLocked генерирует строки манифестов M3U8 и атомарно обновляет их кэш.
+// Вызывается ТОЛЬКО под удержанием m.mu.Lock() при смене сегментов (раз в 2 секунды).
+func (m *Muxer) rebuildPlaylistsLocked() {
 	if len(m.segments) == 0 {
-		return "", false
+		return
 	}
 
+	// 1. Сборка основного видео-манифеста
 	pBuf := playlistPool.Get().(*[]byte)
 	buf := (*pBuf)[:0]
 
@@ -407,12 +404,10 @@ func (m *Muxer) GetPlaylist(ctx context.Context) (string, bool) {
 	buf = strconv.AppendInt(buf, int64(maxDuration+1), 10)
 	buf = append(buf, '\n')
 
-	if len(m.segments) > 0 {
-		seq := m.seqCount - uint64(len(m.segments)) + 1
-		buf = append(buf, "#EXT-X-MEDIA-SEQUENCE:"...)
-		buf = strconv.AppendUint(buf, seq, 10)
-		buf = append(buf, '\n')
-	}
+	seq := m.seqCount - uint64(len(m.segments)) + 1
+	buf = append(buf, "#EXT-X-MEDIA-SEQUENCE:"...)
+	buf = strconv.AppendUint(buf, seq, 10)
+	buf = append(buf, '\n')
 
 	for _, seg := range m.segments {
 		if seg.IsDiscontinuity {
@@ -431,57 +426,103 @@ func (m *Muxer) GetPlaylist(ctx context.Context) (string, bool) {
 	}
 	*pBuf = buf
 	playlistPool.Put(pBuf)
-	return res, true
-}
+	m.cachedPlaylist.Store(&res)
 
+	// 2. Сборка манифеста субтитров (VTT)
+	pBufSubs := playlistPool.Get().(*[]byte)
+	bufSubs := (*pBufSubs)[:0]
 
-// GetSubsPlaylist генерирует M3U8 манифест для субтитров (WebVTT).
-func (m *Muxer) GetSubsPlaylist() string {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	bufSubs = append(bufSubs, "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:"...)
+	bufSubs = strconv.AppendInt(bufSubs, int64(maxDuration+1), 10)
+	bufSubs = append(bufSubs, '\n')
 
-	pBuf := playlistPool.Get().(*[]byte)
-	buf := (*pBuf)[:0]
-
-	buf = append(buf, "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:"...)
-
-	maxDuration := 2
-	for _, seg := range m.segments {
-		d := int(seg.Duration.Seconds())
-		if d > maxDuration {
-			maxDuration = d
-		}
-	}
-	buf = strconv.AppendInt(buf, int64(maxDuration+1), 10)
-	buf = append(buf, '\n')
-
-	if len(m.segments) > 0 {
-		seq := m.seqCount - uint64(len(m.segments)) + 1
-		buf = append(buf, "#EXT-X-MEDIA-SEQUENCE:"...)
-		buf = strconv.AppendUint(buf, seq, 10)
-		buf = append(buf, '\n')
-	}
+	bufSubs = append(bufSubs, "#EXT-X-MEDIA-SEQUENCE:"...)
+	bufSubs = strconv.AppendUint(bufSubs, seq, 10)
+	bufSubs = append(bufSubs, '\n')
 
 	for _, seg := range m.segments {
 		if seg.IsDiscontinuity {
-			buf = append(buf, "#EXT-X-DISCONTINUITY\n"...)
+			bufSubs = append(bufSubs, "#EXT-X-DISCONTINUITY\n"...)
 		}
-		buf = append(buf, "#EXTINF:"...)
-		buf = strconv.AppendFloat(buf, seg.Duration.Seconds(), 'f', 3, 64)
-		buf = append(buf, ",\n"...)
+		bufSubs = append(bufSubs, "#EXTINF:"...)
+		bufSubs = strconv.AppendFloat(bufSubs, seg.Duration.Seconds(), 'f', 3, 64)
+		bufSubs = append(bufSubs, ",\n"...)
 		if len(seg.Name) > 3 {
-			buf = append(buf, seg.Name[:len(seg.Name)-3]...)
+			bufSubs = append(bufSubs, seg.Name[:len(seg.Name)-3]...)
 		}
-		buf = append(buf, ".vtt\n"...)
+		bufSubs = append(bufSubs, ".vtt\n"...)
 	}
 
-	res := string(buf)
-	if cap(buf) > 4096 {
-		buf = make([]byte, 0, 1024)
+	subsRes := string(bufSubs)
+	if cap(bufSubs) > 4096 {
+		bufSubs = make([]byte, 0, 1024)
 	}
-	*pBuf = buf
-	playlistPool.Put(pBuf)
-	return res
+	*pBufSubs = bufSubs
+	playlistPool.Put(pBufSubs)
+	m.cachedSubsPlaylist.Store(&subsRes)
+}
+
+// GetPlaylist возвращает M3U8 манифест за 0 ns из атомарного кэша (Zero-Alloc, Zero-Lock).
+// Принимает ctx для отслеживания отмены запроса клиентом при холодном старте.
+func (m *Muxer) GetPlaylist(ctx context.Context) (string, bool) {
+	// Fast-path: если кэшированный манифест уже готов (99.9% запросов)
+	if p := m.cachedPlaylist.Load(); p != nil {
+		return *p, true
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	m.mu.RLock()
+	hasSegments := len(m.segments) > 0
+	m.mu.RUnlock()
+
+	if !hasSegments {
+		// Ждем первого сегмента эффективно через channel
+		select {
+		case <-m.firstSegReady:
+		case <-m.ctx.Done():
+			return "", false
+		case <-ctx.Done():
+			return "", false
+		}
+	}
+
+	if p := m.cachedPlaylist.Load(); p != nil {
+		return *p, true
+	}
+
+	// Fallback при ручном добавлении сегментов (в unit-тестах)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if len(m.segments) == 0 {
+		return "", false
+	}
+	m.rebuildPlaylistsLocked()
+	if p := m.cachedPlaylist.Load(); p != nil {
+		return *p, true
+	}
+
+	return "", false
+}
+
+// GetSubsPlaylist возвращает M3U8 манифест субтитров из атомарного кэша.
+func (m *Muxer) GetSubsPlaylist() string {
+	if p := m.cachedSubsPlaylist.Load(); p != nil {
+		return *p
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if len(m.segments) == 0 {
+		return ""
+	}
+	m.rebuildPlaylistsLocked()
+	if p := m.cachedSubsPlaylist.Load(); p != nil {
+		return *p
+	}
+	return ""
 }
 
 // AcquireSegment возвращает сегмент без копирования памяти с атомарным захватом ссылки (Zero-Alloc, Zero-Copy).

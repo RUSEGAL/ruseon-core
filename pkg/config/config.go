@@ -17,10 +17,13 @@ type Config struct {
 		Debug               bool `yaml:"debug"`
 		PprofPort           int  `yaml:"pprof_port"`            // Порт для профилирования (0 - выключено)
 		RecordRetentionDays int  `yaml:"record_retention_days"` // Количество дней для хранения записей (0 - бесконечно)
-		GCPercent           int  `yaml:"gc_percent"`            // Тюнинг GOGC (по умолчанию 50)
+		GCPercent           int      `yaml:"gc_percent"`            // Тюнинг GOGC (по умолчанию 50)
 		GCMemoryLimitMB     int      `yaml:"gc_memory_limit_mb"`    // Тюнинг GOMEMLIMIT (в мегабайтах)
 		CORSAllowedOrigins  []string `yaml:"cors_allowed_origins" json:"corsAllowedOrigins"`
-		GRPC                struct {
+		HLS struct {
+			LiveSegmentsInMemory int `yaml:"live_segments_in_memory" json:"liveSegmentsInMemory"` // Количество сегментов в RAM (по умолчанию 3)
+		} `yaml:"hls" json:"hls"`
+		GRPC struct {
 			Address string `yaml:"address" json:"address"`
 			Port    int    `yaml:"port" json:"port"`
 		} `yaml:"grpc" json:"grpc"`
@@ -145,6 +148,11 @@ func Load(path string) (*Config, error) {
 	// Устанавливаем дефолты для GC (если не заданы)
 	if cfg.Server.GCPercent == 0 {
 		cfg.Server.GCPercent = 50
+	}
+
+	// Устанавливаем дефолты для HLS (минимум 3 по RFC 8216)
+	if cfg.Server.HLS.LiveSegmentsInMemory < 3 {
+		cfg.Server.HLS.LiveSegmentsInMemory = 3
 	}
 
 	// Устанавливаем дефолты для gRPC

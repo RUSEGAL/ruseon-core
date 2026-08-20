@@ -1216,7 +1216,10 @@ type serverStatsData struct {
 }
 
 func fetchServerStats(baseURL, token string) serverStatsData {
-	client := &http.Client{Timeout: 2 * time.Second}
+	client := &http.Client{
+		Timeout:   5 * time.Second,
+		Transport: sharedHTTPTransport,
+	}
 	req, err := http.NewRequest(http.MethodGet, baseURL+"/api/stats", nil)
 	if err != nil {
 		return serverStatsData{}
