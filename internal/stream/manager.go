@@ -112,6 +112,8 @@ func (m *Manager) RemoveStream(id string) {
 	if st, ok := m.streams[id]; ok {
 		delete(m.streams, id)
 		toStop = st
+		// Сохраняем исторические метрики удаляемого потока в кумулятивный пул менеджера,
+		// чтобы они не терялись при реконнектах или динамическом редактировании камер.
 		m.cumFrames.Add(st.framesReceived.Load())
 		m.cumBytes.Add(st.bytesReceived.Load())
 		m.cumBytesSent.Add(st.bytesSent.Load())
@@ -128,6 +130,7 @@ func (m *Manager) RemoveStream(id string) {
 }
 
 // GetCumulativeStats возвращает агрегированные счетчики за все время работы сервера.
+// Суммирует исторически накопленные данные удаленных потоков (cum*) и живые метрики активных потоков.
 func (m *Manager) GetCumulativeStats() (frames, bytesIn, bytesOut, drops, reconnects uint64) {
 	frames = m.cumFrames.Load()
 	bytesIn = m.cumBytes.Load()

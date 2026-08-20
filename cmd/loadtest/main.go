@@ -424,7 +424,11 @@ func (s *loadtestStore) BackupBadger(_ io.Writer) error           { return nil }
 // Layer 1: Ingest Simulation (Synthetic 30 FPS Cameras)
 // ─────────────────────────────────────────────────────────────────────────────
 
-func runSyntheticCamera(ctx context.Context, camID string, manager *stream.Manager) {
+func runSyntheticCamera(ctx context.Context, camID string, manager *stream.Manager, wg *sync.WaitGroup) {
+	if wg != nil {
+		defer wg.Done()
+	}
+
 	st, ok := manager.GetStream(camID)
 	if !ok {
 		return
@@ -496,11 +500,15 @@ func runReconnectSimulator(ctx context.Context, manager *stream.Manager, camIDs 
 			}
 			manager.RemoveStream(camID)
 			_ = manager.AddStream(camID, "synthetic://"+camID, useRealDisk, true /*lazyHLS*/, "tcp")
-			go runSyntheticCamera(ctx, camID, manager)
+			if wg != nil {
+				wg.Add(1)
+			}
+			go runSyntheticCamera(ctx, camID, manager, wg)
 			cntReconnectsTotal.Add(1)
 		}
 	}
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Layer 2: REST API Load Workers
@@ -1106,12 +1114,13 @@ func runServerMode() {
 
 	fmt.Printf("[server] HTTP: http://0.0.0.0:%d\n", httpPort)
 	fmt.Printf("[server] gRPC: 0.0.0.0:%d\n", grpcPort)
+	fmt.Printf("[server] Admin password: %s (pass via -password flag to client)\n", adminPassword)
 	fmt.Printf("[server] Ingesting %d synthetic camera streams...\n", len(camIDs))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	for _, id := range camIDs {
-		go runSyntheticCamera(ctx, id, manager)
+		go runSyntheticCamera(ctx, id, manager, nil)
 	}
 
 	if reconnectRate > 0 {
@@ -1163,27 +1172,31 @@ func authenticateClient(baseURL, username, password string) (string, error) {
 
 func fetchCamIDs(baseURL, token string, fallbackCount int) []string {
 	client := &http.Client{Timeout: 5 * time.Second}
-	req, _ := http.NewRequest(http.MethodGet, baseURL+"/api/cameras", nil)
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-	resp, err := client.Do(req)
-	if err == nil && resp.StatusCode == http.StatusOK {
-		var cams []struct {
-			ID string `json:"id"`
+	req, err := http.NewRequest(http.MethodGet, baseURL+"/api/cameras", nil)
+	if err == nil {
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
 		}
-		if json.NewDecoder(resp.Body).Decode(&cams) == nil && len(cams) > 0 {
-			_ = resp.Body.Close()
-			ids := make([]string, len(cams))
-			for i, c := range cams {
-				ids[i] = c.ID
+		resp, err := client.Do(req)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			defer resp.Body.Close()
+			var cams []struct {
+				ID string `json:"id"`
 			}
-			return ids
+			if json.NewDecoder(resp.Body).Decode(&cams) == nil && len(cams) > 0 {
+				ids := make([]string, len(cams))
+				for i, c := range cams {
+					ids[i] = c.ID
+				}
+				return ids
+			}
+		} else if resp != nil {
+			_ = resp.Body.Close()
 		}
-		_ = resp.Body.Close()
 	}
 
 	ids := make([]string, fallbackCount)
+
 	for i := 0; i < fallbackCount; i++ {
 		ids[i] = fmt.Sprintf("cam_%03d", i)
 	}
@@ -1609,7 +1622,8 @@ func runAllInProcess() {
 
 	// Layer 1: Ingest (one synthetic camera per cameraID)
 	for _, id := range camIDs {
-		go runSyntheticCamera(ctx, id, manager)
+		wg.Add(1)
+		go runSyntheticCamera(ctx, id, manager, &wg)
 	}
 
 	// L5: Reconnect simulator (if enabled)
@@ -1935,6 +1949,7 @@ func printFinalDashboard(r *BenchmarkResult) {
 	fmt.Println("║                                  FINAL BENCHMARK REPORT                                      ║")
 	fmt.Println("╠══════════════════════════════════════════════════════════════════════════════════════════════╣")
 	fmt.Println("║  ⚠  In-process: API/HLS latency excludes network RTT. WebRTC uses real Pion P2P.            ║")
+	fmt.Println("║  ⚠  Network note: Loopback (127.0.0.1) doubles RX/TX. Webhooks in client mode measure sink.  ║")
 	fmt.Println("╠══════════════════════════════════════════════════════════════════════════════════════════════╣")
 	fmt.Printf("║  Elapsed: %-8.1fs   CPU Cores: %-4d   Goroutines: %-5d   Heap: %-4dMB   Sys: %-5dMB     ║\n",
 		r.DurationSec, r.System.NumCPU, r.System.GoroutinesEnd, r.System.HeapAllocMB, r.System.SysMB)
@@ -2020,6 +2035,11 @@ func banner() {
 	fmt.Println("  ╔═══════════════════════════════════════════════════════════════════════╗")
 	fmt.Println("  ║              RUSEON Core — Full-Stack Load Test v2.0                  ║")
 	fmt.Println("  ╠═══════════════════════════════════════════════════════════════════════╣")
+	modeInfo := fmt.Sprintf("mode=%s profile=%s", mode, profile)
+	if mode == "client" && serverURL != "" {
+		modeInfo += fmt.Sprintf(" target=%s", serverURL)
+	}
+	fmt.Printf("  ║  %-67s║\n", modeInfo)
 	fmt.Printf("  ║  cameras=%-4d  api-workers=%-4d  hls-viewers=%-4d  webrtc-viewers=%-3d  ║\n",
 		cameraCount, apiWorkers, hlsViewers, webrtcViewers)
 	fmt.Printf("  ║  duration=%-3ds  real-disk=%-5v    report-every=%-2ds   grpc-pushers=%-3d   ║\n",
