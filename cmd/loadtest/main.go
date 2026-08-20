@@ -964,7 +964,8 @@ func main() {
 }
 
 func runServerMode() {
-	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+	// Suppress verbose internal logs in benchmark mode
+	log.Logger = zerolog.New(io.Discard)
 	fmt.Printf("[server] Starting in server mode (cameras=%d, real-disk=%v)\n", cameraCount, useRealDisk)
 
 	cfg := &config.Config{}
@@ -991,8 +992,6 @@ func runServerMode() {
 
 	authenticator := auth.NewLocalAuthenticator(cfg)
 	registry.RegisterAuthenticator(authenticator)
-
-
 
 	manager := stream.NewManager()
 	camIDs := make([]string, cameraCount)
@@ -1026,8 +1025,7 @@ func runServerMode() {
 
 	fmt.Printf("[server] HTTP: http://0.0.0.0:%d\n", httpPort)
 	fmt.Printf("[server] gRPC: 0.0.0.0:%d\n", grpcPort)
-	fmt.Printf("[server] Admin credentials: admin / %s\n", adminPassword)
-	fmt.Println("[server] Ingesting synthetic camera streams...")
+	fmt.Printf("[server] Ingesting %d synthetic camera streams...\n", len(camIDs))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -1037,22 +1035,20 @@ func runServerMode() {
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	fmt.Println("[server] Ready. Waiting for SIGINT/SIGTERM...")
+	fmt.Println("[server] Ready.")
 	<-quit
 
 	fmt.Println("[server] Shutting down...")
 	cancel()
-	manager.Close()
-	shutCtx, shutCancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer shutCancel()
-	_ = srv.Shutdown(shutCtx)
 	_ = srv.Close()
 	grpcSrv.Stop()
 	if webrtcEngine != nil {
 		_ = webrtcEngine.Close()
 	}
+	manager.Close()
 	fmt.Println("[server] Shutdown complete.")
 }
+
 
 
 func authenticateClient(baseURL, username, password string) (string, error) {
