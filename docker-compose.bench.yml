@@ -20,11 +20,11 @@ services:
     networks:
       - bench
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:4197/api/stats || exit 1"]
-      interval: 3s
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:4197/livez || exit 1"]
+      interval: 2s
       timeout: 2s
       retries: 10
-      start_period: 5s
+      start_period: 2s
 
   bench-client:
     build:

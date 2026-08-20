@@ -981,9 +981,6 @@ func runServerMode() {
 		registry.RegisterBlobStore(&discardBlobStore{})
 	}
 
-	authenticator := auth.NewLocalAuthenticator(cfg)
-	registry.RegisterAuthenticator(authenticator)
-
 	// Create admin user for client authentication
 	hash, _ := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 	_ = store.SaveUser(&models.User{
@@ -991,6 +988,10 @@ func runServerMode() {
 		PasswordHash: string(hash),
 		Role:         models.RoleAdmin,
 	})
+
+	authenticator := auth.NewLocalAuthenticator(cfg)
+	registry.RegisterAuthenticator(authenticator)
+
 
 
 	manager := stream.NewManager()
