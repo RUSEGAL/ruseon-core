@@ -1,7 +1,6 @@
 .git
 .github
 web/node_modules
-web/dist
 data
 recordings
 backups
