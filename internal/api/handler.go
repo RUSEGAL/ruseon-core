@@ -560,11 +560,17 @@ func (h *Handler) GetHLSVideoPlaylist(c *gin.Context) {
 	}
 
 	muxer := st.WakeUpHLSMuxer()
-	playlist := muxer.GetPlaylist()
+	playlist, ok := muxer.GetPlaylist(c.Request.Context())
+	if !ok {
+		if c.Request.Context().Err() != nil {
+			return
+		}
+		c.String(http.StatusServiceUnavailable, "Stream not ready")
+		return
+	}
 
 	c.Header("Content-Type", "application/vnd.apple.mpegurl")
 	c.String(http.StatusOK, playlist)
-
 	st.AddBytesSent(uint64(len(playlist)))
 }
 

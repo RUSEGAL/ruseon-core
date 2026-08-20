@@ -1,6 +1,7 @@
 package hls
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -23,7 +24,7 @@ func BenchmarkGetPlaylist(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			_ = muxer.GetPlaylist()
+			_, _ = muxer.GetPlaylist(context.Background())
 		}
 	})
 }

@@ -362,25 +362,35 @@ func (m *Muxer) CheckWatchdog(now time.Time) {
 }
 
 // GetPlaylist генерирует M3U8 манифест со сверхнизким числом аллокаций.
-func (m *Muxer) GetPlaylist() string {
+// Принимает ctx для отслеживания отмены запроса клиентом.
+// Возвращает (playlist, true) при успехе, либо ("", false) если контекст отменен или муксер остановлен.
+func (m *Muxer) GetPlaylist(ctx context.Context) (string, bool) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	m.mu.RLock()
 	hasSegments := len(m.segments) > 0
 	m.mu.RUnlock()
 
 	if !hasSegments {
-		// Ждем первого сегмента эффективно (нулевой CPU) до 5 секунд.
-		// При нормальной работе сигнал приходит через 2-3 секунды (один GOP).
+		// Ждем первого сегмента эффективно через channel.
+		// Завершается немедленно при готовности, остановке муксера или отмене HTTP-запроса клиентом.
 		select {
 		case <-m.firstSegReady:
 		case <-m.ctx.Done():
-			return ""
-		case <-time.After(5 * time.Second):
-			// Таймаут: возвращаем текущий плейлист (поведение как раньше)
+			return "", false
+		case <-ctx.Done():
+			return "", false
 		}
 	}
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+
+	if len(m.segments) == 0 {
+		return "", false
+	}
 
 	pBuf := playlistPool.Get().(*[]byte)
 	buf := (*pBuf)[:0]
@@ -421,8 +431,9 @@ func (m *Muxer) GetPlaylist() string {
 	}
 	*pBuf = buf
 	playlistPool.Put(pBuf)
-	return res
+	return res, true
 }
+
 
 // GetSubsPlaylist генерирует M3U8 манифест для субтитров (WebVTT).
 func (m *Muxer) GetSubsPlaylist() string {
@@ -511,4 +522,3 @@ func (m *Muxer) GetSegment(name string) ([]byte, string) {
 	copy(resp, seg.Data)
 	return resp, mimeType
 }
-
