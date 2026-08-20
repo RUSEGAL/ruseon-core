@@ -14,10 +14,10 @@ services:
     container_name: bench-server
     command:
       - "-mode=server"
-      - "-cameras=100"
-      - "-real-disk=false"
-      - "-report-every=5"
-      - "-reconnect-rate=5"
+      - "-cameras=${CAMERAS:-100}"
+      - "-real-disk=${REAL_DISK:-false}"
+      - "-report-every=${REPORT_EVERY:-5}"
+      - "-profile=${BENCH_PROFILE:-baseline}"
     networks:
       - bench
     healthcheck:
@@ -36,14 +36,14 @@ services:
       - "-mode=client"
       - "-server-url=http://bench-server:4197"
       - "-grpc-url=bench-server:4198"
-      - "-cameras=100"
-      - "-api-workers=150"
-      - "-hls-viewers=150"
-      - "-webrtc-viewers=30"
-      - "-grpc-pushers=20"
-      - "-duration=60"
-      - "-report-every=5"
-      - "-reconnect-rate=5"
+      - "-cameras=${CAMERAS:-100}"
+      - "-api-workers=${API_WORKERS:-150}"
+      - "-hls-viewers=${HLS_VIEWERS:-150}"
+      - "-webrtc-viewers=${WEBRTC_VIEWERS:-30}"
+      - "-grpc-pushers=${GRPC_PUSHERS:-20}"
+      - "-duration=${DURATION:-60}"
+      - "-report-every=${REPORT_EVERY:-5}"
+      - "-profile=${BENCH_PROFILE:-baseline}"
       - "-output-json=/results/bench.json"
       - "-output-md=/results/bench.md"
     networks:

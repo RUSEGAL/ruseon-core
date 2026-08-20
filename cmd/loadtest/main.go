@@ -41,6 +41,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -84,6 +85,7 @@ var (
 	useRealDisk   bool
 	reportEvery   int
 	reconnectRate int
+	profile       string
 	mode          string
 	serverURL     string
 	grpcURL       string
@@ -102,6 +104,7 @@ func init() {
 	flag.BoolVar(&useRealDisk, "real-disk", false, "Use real localfs MP4 recording instead of /dev/null")
 	flag.IntVar(&reportEvery, "report-every", 5, "Print live stats every N seconds")
 	flag.IntVar(&reconnectRate, "reconnect-rate", 0, "Cameras to reconnect per second (simulates RTSP drops). 0 = disabled")
+	flag.StringVar(&profile, "profile", "baseline", "Benchmark profile: 'baseline' (max throughput, 0 reconnects) or 'chaos' (stress-test with reconnects)")
 	flag.StringVar(&mode, "mode", "all", "Run mode: 'all' (in-process), 'server' (start server only), 'client' (connect to external server)")
 	flag.StringVar(&serverURL, "server-url", "", "HTTP base URL of external server for client mode (e.g. http://bench-server:4197)")
 	flag.StringVar(&grpcURL, "grpc-url", "", "gRPC address of external server for client mode (e.g. bench-server:4198)")
@@ -110,6 +113,7 @@ func init() {
 	flag.StringVar(&outputMD, "output-md", "", "Optional file path to export benchmark results as Markdown")
 	flag.Parse()
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Latency Samplers & Atomic Counters
@@ -595,6 +599,7 @@ func runHLSViewer(ctx context.Context, baseURL string, camIDs []string, viewerId
 
 	camID := camIDs[viewerIdx%len(camIDs)]
 	seenSegments := make(map[string]bool)
+	var lastMediaSeq int64 = -1
 
 	// L4: Initial jitter (0-500ms) to prevent thundering herd
 	select {
@@ -628,7 +633,9 @@ func runHLSViewer(ctx context.Context, baseURL string, camIDs []string, viewerId
 			body, _ := io.ReadAll(resp.Body)
 			_ = resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
-				cntHLSErr.Add(1)
+				if ctx.Err() == nil {
+					cntHLSErr.Add(1)
+				}
 				continue
 			}
 
@@ -636,8 +643,28 @@ func runHLSViewer(ctx context.Context, baseURL string, camIDs []string, viewerId
 			cntHLSPlaylistsOK.Add(1)
 			cntHLSBytesSent.Add(uint64(len(body)))
 
-			// 2. Parse segment URIs from playlist
+			// 2. Parse segment URIs and check for sequence reset (camera restart)
 			lines := strings.Split(string(body), "\n")
+			var currentSeq int64 = -1
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "#EXT-X-MEDIA-SEQUENCE:") {
+					seqStr := strings.TrimPrefix(line, "#EXT-X-MEDIA-SEQUENCE:")
+					if val, parseErr := strconv.ParseInt(strings.TrimSpace(seqStr), 10, 64); parseErr == nil {
+						currentSeq = val
+					}
+					break
+				}
+			}
+
+			// If stream was reconnected and sequence restarted, reset seen cache
+			if currentSeq >= 0 && lastMediaSeq >= 0 && currentSeq < lastMediaSeq {
+				seenSegments = make(map[string]bool)
+			}
+			if currentSeq >= 0 {
+				lastMediaSeq = currentSeq
+			}
+
 			for _, line := range lines {
 				line = strings.TrimSpace(line)
 				if line == "" || strings.HasPrefix(line, "#") {
@@ -647,6 +674,12 @@ func runHLSViewer(ctx context.Context, baseURL string, camIDs []string, viewerId
 				// Download new segment
 				if !seenSegments[line] {
 					seenSegments[line] = true
+
+					// Cap map size to prevent unbounded memory growth in long tests
+					if len(seenSegments) > 200 {
+						seenSegments = make(map[string]bool)
+						seenSegments[line] = true
+					}
 
 					tSeg := time.Now()
 					segURL := baseURL + "/stream/hls/" + camID + "/" + line
@@ -669,7 +702,7 @@ func runHLSViewer(ctx context.Context, baseURL string, camIDs []string, viewerId
 						hlsSegmentSampler.Add(time.Since(tSeg))
 						cntHLSSegmentsOK.Add(1)
 						cntHLSBytesSent.Add(uint64(len(segBody)))
-					} else {
+					} else if ctx.Err() == nil {
 						cntHLSErr.Add(1)
 					}
 				}
@@ -685,109 +718,145 @@ func runHLSViewer(ctx context.Context, baseURL string, camIDs []string, viewerId
 func runWebRTCViewer(ctx context.Context, baseURL string, camIDs []string, engine *iwebrtc.Engine, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	camID := camIDs[randIntn(len(camIDs))]
-
 	if engine == nil {
 		return
 	}
 
-	pc, err := engine.NewPeerConnection(webrtc.Configuration{})
-	if err != nil {
-		cntWebRTCSessionsErr.Add(1)
-		return
-	}
-	defer pc.Close()
+	for ctx.Err() == nil {
+		camID := camIDs[randIntn(len(camIDs))]
+		sessionDone := make(chan struct{})
 
-	_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RTPTransceiverInit{
-		Direction: webrtc.RTPTransceiverDirectionRecvonly,
-	})
-	if err != nil {
-		cntWebRTCSessionsErr.Add(1)
-		return
-	}
-
-	pc.OnTrack(func(track *webrtc.TrackRemote, _ *webrtc.RTPReceiver) {
-		buf := make([]byte, 1600)
-		for {
-			if ctx.Err() != nil {
-				return
-			}
-			n, _, rtpErr := track.Read(buf)
-			if rtpErr != nil {
-				return
-			}
-			cntWebRTCRTPPackets.Add(1)
-			// #nosec G115 -- packet size is non-negative
-			cntWebRTCBytesRx.Add(uint64(n))
+		pc, err := engine.NewPeerConnection(webrtc.Configuration{})
+		if err != nil {
+			cntWebRTCSessionsErr.Add(1)
+			time.Sleep(200 * time.Millisecond)
+			continue
 		}
-	})
 
-	t0 := time.Now()
-	offer, err := pc.CreateOffer(nil)
-	if err != nil {
-		cntWebRTCSessionsErr.Add(1)
-		return
+		_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RTPTransceiverInit{
+			Direction: webrtc.RTPTransceiverDirectionRecvonly,
+		})
+		if err != nil {
+			_ = pc.Close()
+			cntWebRTCSessionsErr.Add(1)
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+
+		pc.OnTrack(func(track *webrtc.TrackRemote, _ *webrtc.RTPReceiver) {
+			buf := make([]byte, 1600)
+			for {
+				if ctx.Err() != nil {
+					return
+				}
+				n, _, rtpErr := track.Read(buf)
+				if rtpErr != nil {
+					select {
+					case <-sessionDone:
+					default:
+						close(sessionDone)
+					}
+					return
+				}
+				cntWebRTCRTPPackets.Add(1)
+				// #nosec G115 -- packet size is non-negative
+				cntWebRTCBytesRx.Add(uint64(n))
+			}
+		})
+
+		t0 := time.Now()
+		offer, err := pc.CreateOffer(nil)
+		if err != nil {
+			_ = pc.Close()
+			cntWebRTCSessionsErr.Add(1)
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+
+		gatherComplete := webrtc.GatheringCompletePromise(pc)
+		if err := pc.SetLocalDescription(offer); err != nil {
+			_ = pc.Close()
+			cntWebRTCSessionsErr.Add(1)
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+
+		select {
+		case <-gatherComplete:
+		case <-time.After(1 * time.Second):
+		case <-ctx.Done():
+			_ = pc.Close()
+			return
+		}
+
+		localDesc := pc.LocalDescription()
+		if localDesc == nil {
+			_ = pc.Close()
+			cntWebRTCSessionsErr.Add(1)
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/stream/webrtc/whep/"+camID, strings.NewReader(localDesc.SDP))
+		if err != nil {
+			_ = pc.Close()
+			cntWebRTCSessionsErr.Add(1)
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+		req.Header.Set("Content-Type", "application/sdp")
+
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			_ = pc.Close()
+			cntWebRTCSessionsErr.Add(1)
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+
+		if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+			_ = resp.Body.Close()
+			_ = pc.Close()
+			cntWebRTCSessionsErr.Add(1)
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+
+		answerSDP, err := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if err != nil || len(answerSDP) == 0 {
+			_ = pc.Close()
+			cntWebRTCSessionsErr.Add(1)
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+
+		if err := pc.SetRemoteDescription(webrtc.SessionDescription{
+			Type: webrtc.SDPTypeAnswer,
+			SDP:  string(answerSDP),
+		}); err != nil {
+			_ = pc.Close()
+			cntWebRTCSessionsErr.Add(1)
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
+
+		webrtcHandshakeSampler.Add(time.Since(t0))
+		cntWebRTCSessionsOK.Add(1)
+
+		// Wait until session ends (camera drops/track closed) or global context cancelled
+		select {
+		case <-ctx.Done():
+			_ = pc.Close()
+			return
+		case <-sessionDone:
+			_ = pc.Close()
+			time.Sleep(time.Duration(100+randIntn(100)) * time.Millisecond)
+		}
 	}
-
-	gatherComplete := webrtc.GatheringCompletePromise(pc)
-	if err := pc.SetLocalDescription(offer); err != nil {
-		cntWebRTCSessionsErr.Add(1)
-		return
-	}
-
-	select {
-	case <-gatherComplete:
-	case <-time.After(1 * time.Second):
-	case <-ctx.Done():
-		return
-	}
-
-	localDesc := pc.LocalDescription()
-	if localDesc == nil {
-		cntWebRTCSessionsErr.Add(1)
-		return
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/stream/webrtc/whep/"+camID, strings.NewReader(localDesc.SDP))
-	if err != nil {
-		cntWebRTCSessionsErr.Add(1)
-		return
-	}
-	req.Header.Set("Content-Type", "application/sdp")
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		cntWebRTCSessionsErr.Add(1)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		cntWebRTCSessionsErr.Add(1)
-		return
-	}
-
-	answerSDP, err := io.ReadAll(resp.Body)
-	if err != nil || len(answerSDP) == 0 {
-		cntWebRTCSessionsErr.Add(1)
-		return
-	}
-
-	if err := pc.SetRemoteDescription(webrtc.SessionDescription{
-		Type: webrtc.SDPTypeAnswer,
-		SDP:  string(answerSDP),
-	}); err != nil {
-		cntWebRTCSessionsErr.Add(1)
-		return
-	}
-
-	webrtcHandshakeSampler.Add(time.Since(t0))
-	cntWebRTCSessionsOK.Add(1)
-
-	// Keep session alive for the test duration
-	<-ctx.Done()
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Layer 5: gRPC StreamFrames Consumer
@@ -954,6 +1023,12 @@ func printLive(elapsed time.Duration) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func main() {
+	if profile == "chaos" && reconnectRate == 0 {
+		reconnectRate = 5
+	} else if profile == "baseline" {
+		reconnectRate = 0
+	}
+
 	switch mode {
 	case "server":
 		runServerMode()
@@ -967,6 +1042,7 @@ func main() {
 		runAllInProcess()
 	}
 }
+
 
 func runServerMode() {
 	// Suppress verbose internal logs in benchmark mode
@@ -1198,6 +1274,11 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 		defer clientWebRTCEngine.Close()
 	}
 
+	// Baseline snapshot of server frames/bytes at t=0
+	initialStats := fetchServerStats(targetServerURL, token)
+	baselineFrames := initialStats.TotalFrames
+	baselineBytes := initialStats.TotalBytes
+
 	var wg sync.WaitGroup
 	start := time.Now()
 	fmt.Println("[client] Running load test...")
@@ -1212,11 +1293,11 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 				return
 			case <-t.C:
 				st := fetchServerStats(targetServerURL, token)
-				if st.TotalFrames > 0 {
-					cntIngestFrames.Store(st.TotalFrames)
+				if st.TotalFrames >= baselineFrames {
+					cntIngestFrames.Store(st.TotalFrames - baselineFrames)
 				}
-				if st.TotalBytes > 0 {
-					cntIngestBytes.Store(st.TotalBytes)
+				if st.TotalBytes >= baselineBytes {
+					cntIngestBytes.Store(st.TotalBytes - baselineBytes)
 				}
 				if st.TotalDrops > 0 {
 					cntDrops.Store(st.TotalDrops)
@@ -1283,11 +1364,11 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 
 	// Final fetch of server ingest stats
 	finalServerStats := fetchServerStats(targetServerURL, token)
-	if finalServerStats.TotalFrames > 0 {
-		cntIngestFrames.Store(finalServerStats.TotalFrames)
+	if finalServerStats.TotalFrames >= baselineFrames {
+		cntIngestFrames.Store(finalServerStats.TotalFrames - baselineFrames)
 	}
-	if finalServerStats.TotalBytes > 0 {
-		cntIngestBytes.Store(finalServerStats.TotalBytes)
+	if finalServerStats.TotalBytes >= baselineBytes {
+		cntIngestBytes.Store(finalServerStats.TotalBytes - baselineBytes)
 	}
 	if finalServerStats.TotalDrops > 0 {
 		cntDrops.Store(finalServerStats.TotalDrops)
@@ -1327,6 +1408,7 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 			GRPCPushers:   grpcPushers,
 			DurationSec:   durationSec,
 			ReconnectRate: reconnectRate,
+			Profile:       profile,
 			Mode:          "client",
 		},
 		Ingest: IngestMetrics{
@@ -1335,9 +1417,10 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 			TotalBytes:  ingestBytes,
 			FPS:         math.Round(float64(ingestFrames)/sec*10) / 10,
 			BitrateMbps: math.Round(ingestMbps*10) / 10,
-			Drops:       0,
+			Drops:       cntDrops.Load(),
 			Reconnects:  cntReconnectsTotal.Load(),
 		},
+
 		HTTP: HTTPMetrics{
 			TotalOK:   cntHTTPOK.Load(),
 			TotalErr:  cntHTTPErr.Load(),
@@ -1730,6 +1813,7 @@ func runAllInProcess() {
 			DurationSec:   durationSec,
 			RealDisk:      useRealDisk,
 			ReconnectRate: reconnectRate,
+			Profile:       profile,
 			Mode:          "all",
 		},
 		Ingest: IngestMetrics{

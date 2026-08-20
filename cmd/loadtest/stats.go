@@ -158,16 +158,18 @@ type BenchmarkResult struct {
 }
 
 type BenchmarkConfig struct {
-	Cameras       int  `json:"cameras"`
-	APIWorkers    int  `json:"api_workers"`
-	HLSViewers    int  `json:"hls_viewers"`
-	WebRTCViewers int  `json:"webrtc_viewers"`
-	GRPCPushers   int  `json:"grpc_pushers"`
-	DurationSec   int  `json:"duration_sec"`
-	RealDisk      bool `json:"real_disk"`
-	ReconnectRate int  `json:"reconnect_rate,omitempty"`
+	Cameras       int    `json:"cameras"`
+	APIWorkers    int    `json:"api_workers"`
+	HLSViewers    int    `json:"hls_viewers"`
+	WebRTCViewers int    `json:"webrtc_viewers"`
+	GRPCPushers   int    `json:"grpc_pushers"`
+	DurationSec   int    `json:"duration_sec"`
+	RealDisk      bool   `json:"real_disk"`
+	ReconnectRate int    `json:"reconnect_rate,omitempty"`
+	Profile       string `json:"profile,omitempty"`
 	Mode          string `json:"mode,omitempty"`
 }
+
 
 type IngestMetrics struct {
 	TotalFrames uint64  `json:"total_frames"`

@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 # scripts/bench.sh — Run Docker-isolated benchmark
-
 set -euo pipefail
+
+PROFILE="${1:-baseline}"
+export BENCH_PROFILE="$PROFILE"
 
 COMPOSE_FILE="docker-compose.bench.yml"
 RESULTS_DIR="./bench-results"
 
 mkdir -p "$RESULTS_DIR"
+
+echo "=== Running Benchmark Profile: $PROFILE ==="
 
 echo "=== Building benchmark container ==="
 docker compose -f "$COMPOSE_FILE" build
