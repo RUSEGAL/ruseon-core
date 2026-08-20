@@ -1043,13 +1043,17 @@ func runServerMode() {
 	fmt.Println("[server] Shutting down...")
 	cancel()
 	manager.Close()
-	_ = srv.Shutdown(context.Background())
+	shutCtx, shutCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer shutCancel()
+	_ = srv.Shutdown(shutCtx)
+	_ = srv.Close()
 	grpcSrv.Stop()
 	if webrtcEngine != nil {
 		_ = webrtcEngine.Close()
 	}
 	fmt.Println("[server] Shutdown complete.")
 }
+
 
 func authenticateClient(baseURL, username, password string) (string, error) {
 	loginPayload, _ := json.Marshal(map[string]string{
