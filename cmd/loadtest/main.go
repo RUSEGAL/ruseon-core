@@ -1105,6 +1105,89 @@ func fetchCamIDs(baseURL, token string, fallbackCount int) []string {
 	return ids
 }
 
+type serverStatsData struct {
+	TotalFrames uint64 `json:"totalFrames"`
+	TotalBytes  uint64 `json:"totalBytes"`
+}
+
+func fetchServerStats(baseURL, token string) serverStatsData {
+	client := &http.Client{Timeout: 2 * time.Second}
+	req, err := http.NewRequest(http.MethodGet, baseURL+"/api/stats", nil)
+	if err != nil {
+		return serverStatsData{}
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+		return serverStatsData{}
+	}
+	defer resp.Body.Close()
+	var s serverStatsData
+	_ = json.NewDecoder(resp.Body).Decode(&s)
+	return s
+}
+
+func runClientWebhookFlood(ctx context.Context, sinkURL string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	client := &http.Client{Timeout: 3 * time.Second}
+	ticker := time.NewTicker(5 * time.Millisecond) // 200 events/sec
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			cntEventsPub.Add(1)
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, sinkURL, strings.NewReader(`{"event":"camera_online","source":"loadtest"}`))
+			if err == nil {
+				resp, err := client.Do(req)
+				if err == nil {
+					_ = resp.Body.Close()
+				}
+			}
+		}
+	}
+}
+
+func runClientReconnectSimulator(ctx context.Context, baseURL, token string, camIDs []string, rate int, wg *sync.WaitGroup) {
+	defer wg.Done()
+	interval := time.Second / time.Duration(rate)
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	client := &http.Client{Timeout: 3 * time.Second}
+
+	idx := 0
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			camID := camIDs[idx%len(camIDs)]
+			idx++
+			payload := []byte(fmt.Sprintf(`{"url":"synthetic://%s","record":false,"lazy_hls":true,"transport":"tcp"}`, camID))
+			req, err := http.NewRequestWithContext(ctx, http.MethodPut, baseURL+"/api/cameras/"+camID, bytes.NewReader(payload))
+			if err != nil {
+				continue
+			}
+			if token != "" {
+				req.Header.Set("Authorization", "Bearer "+token)
+			}
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := client.Do(req)
+			if err == nil {
+				_ = resp.Body.Close()
+				cntReconnectsTotal.Add(1)
+			}
+		}
+	}
+}
+
 func runClientMode(targetServerURL, targetGRPCURL string) {
 	log.Logger = zerolog.New(io.Discard)
 
@@ -1129,6 +1212,9 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 	hw := newHWCollector()
 	go hw.runSampler(ctx)
 
+	sink := startWebhookSink()
+	defer sink.Close()
+
 	clientWebRTCEngine, _ := iwebrtc.NewEngine(nil)
 	if clientWebRTCEngine != nil {
 		defer clientWebRTCEngine.Close()
@@ -1137,6 +1223,32 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 	var wg sync.WaitGroup
 	start := time.Now()
 	fmt.Println("[client] Running load test...")
+
+	// Server stats poller loop (polls server ingest and memory)
+	go func() {
+		t := time.NewTicker(1 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				st := fetchServerStats(targetServerURL, token)
+				if st.TotalFrames > 0 {
+					cntIngestFrames.Store(st.TotalFrames)
+				}
+				if st.TotalBytes > 0 {
+					cntIngestBytes.Store(st.TotalBytes)
+				}
+			}
+		}
+	}()
+
+	// Layer 1: Reconnect Simulator (if enabled)
+	if reconnectRate > 0 {
+		wg.Add(1)
+		go runClientReconnectSimulator(ctx, targetServerURL, token, camIDs, reconnectRate, &wg)
+	}
 
 	// Layer 2: API Workers
 	for i := 0; i < apiWorkers; i++ {
@@ -1168,6 +1280,11 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 		go runGRPCMetaPusher(ctx, targetGRPCURL, camIDs, &wg)
 	}
 
+	// Layer 7: EventBus / Webhook Flood
+	wg.Add(2)
+	go runClientWebhookFlood(ctx, sink.URL, &wg)
+	go runClientWebhookFlood(ctx, sink.URL, &wg)
+
 	statsTick := time.NewTicker(time.Duration(reportEvery) * time.Second)
 	defer statsTick.Stop()
 	go func() {
@@ -1185,6 +1302,30 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 	elapsed := time.Since(start)
 	sec := elapsed.Seconds()
 
+	// Final fetch of server ingest stats
+	finalServerStats := fetchServerStats(targetServerURL, token)
+	if finalServerStats.TotalFrames > 0 {
+		cntIngestFrames.Store(finalServerStats.TotalFrames)
+	}
+	if finalServerStats.TotalBytes > 0 {
+		cntIngestBytes.Store(finalServerStats.TotalBytes)
+	}
+
+	ingestFrames := cntIngestFrames.Load()
+	ingestBytes := cntIngestBytes.Load()
+	ingestMbps := float64(ingestBytes*8) / sec / 1e6
+
+	wh := cntWebhooks.Load()
+	evPub := cntEventsPub.Load()
+	droppedEvents := uint64(0)
+	if evPub > wh {
+		droppedEvents = evPub - wh
+	}
+	dropPct := 0.0
+	if evPub > 0 {
+		dropPct = math.Round(float64(droppedEvents)/float64(evPub)*1000) / 10
+	}
+
 	cpuAvg, cpuPeak, procCPU, rssMB, rxMbps, txMbps := hw.result()
 
 	var m runtime.MemStats
@@ -1200,7 +1341,17 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 			WebRTCViewers: webrtcViewers,
 			GRPCPushers:   grpcPushers,
 			DurationSec:   durationSec,
+			ReconnectRate: reconnectRate,
 			Mode:          "client",
+		},
+		Ingest: IngestMetrics{
+			TotalFrames: ingestFrames,
+			KeyFrames:   ingestFrames / 30,
+			TotalBytes:  ingestBytes,
+			FPS:         math.Round(float64(ingestFrames)/sec*10) / 10,
+			BitrateMbps: math.Round(ingestMbps*10) / 10,
+			Drops:       0,
+			Reconnects:  cntReconnectsTotal.Load(),
 		},
 		HTTP: HTTPMetrics{
 			TotalOK:   cntHTTPOK.Load(),
@@ -1238,6 +1389,13 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 			BytesSent:  cntGRPCBytesSent.Load(),
 			StreamLat:  grpcStreamSampler.Calculate(),
 		},
+		EventBus: EventBusMetrics{
+			Published:  evPub,
+			Delivered:  wh,
+			Dropped:    droppedEvents,
+			DropPct:    dropPct,
+			RatePerSec: math.Round(float64(wh)/sec*10) / 10,
+		},
 		System: SystemMetrics{
 			NumCPU:        runtime.NumCPU(),
 			GoroutinesEnd: runtime.NumGoroutine(),
@@ -1253,7 +1411,6 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 			ProcCPUPct:    math.Round(procCPU*10) / 10,
 			RSSMB:         rssMB,
 			NetRxMbps:     math.Round(rxMbps*10) / 10,
-
 			NetTxMbps:     math.Round(txMbps*10) / 10,
 		},
 	}
@@ -1270,6 +1427,7 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 		fmt.Printf("[export] Markdown saved to: %s\n", outputMD)
 	}
 }
+
 
 func runAllInProcess() {
 	// Suppress internal zerolog so it doesn't pollute benchmark stats
