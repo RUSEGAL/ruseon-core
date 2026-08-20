@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 	
 	"github.com/rs/zerolog/log"
@@ -17,10 +18,17 @@ type Manager struct {
 	mu      sync.RWMutex
 	streams map[string]*Stream
 
+	cumFrames     atomic.Uint64
+	cumBytes      atomic.Uint64
+	cumBytesSent  atomic.Uint64
+	cumDrops      atomic.Uint64
+	cumReconnects atomic.Uint64
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 }
+
 
 // NewManager создает новый менеджер потоков и запускает фоновый цикл обслуживания.
 func NewManager() *Manager {
@@ -104,6 +112,13 @@ func (m *Manager) RemoveStream(id string) {
 	if st, ok := m.streams[id]; ok {
 		delete(m.streams, id)
 		toStop = st
+		m.cumFrames.Add(st.framesReceived.Load())
+		m.cumBytes.Add(st.bytesReceived.Load())
+		m.cumBytesSent.Add(st.bytesSent.Load())
+		m.cumReconnects.Add(st.reconnects.Load())
+		if st.ringBuffer != nil {
+			m.cumDrops.Add(st.ringBuffer.GetTotalDrops())
+		}
 	}
 	m.mu.Unlock()
 
@@ -111,6 +126,28 @@ func (m *Manager) RemoveStream(id string) {
 		toStop.Stop()
 	}
 }
+
+// GetCumulativeStats возвращает агрегированные счетчики за все время работы сервера.
+func (m *Manager) GetCumulativeStats() (frames, bytesIn, bytesOut, drops, reconnects uint64) {
+	frames = m.cumFrames.Load()
+	bytesIn = m.cumBytes.Load()
+	bytesOut = m.cumBytesSent.Load()
+	drops = m.cumDrops.Load()
+	reconnects = m.cumReconnects.Load()
+
+	for _, st := range m.GetStreams() {
+		stats := st.GetStats()
+		frames += stats.Frames
+		bytesIn += stats.BytesReceived
+		bytesOut += stats.BytesSent
+		reconnects += stats.Reconnects
+		if st.GetRingBuffer() != nil {
+			drops += st.GetRingBuffer().GetTotalDrops()
+		}
+	}
+	return
+}
+
 
 // GetStream возвращает поток по ID, если он существует.
 func (m *Manager) GetStream(id string) (*Stream, bool) {

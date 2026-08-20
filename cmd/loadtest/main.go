@@ -486,7 +486,10 @@ func runReconnectSimulator(ctx context.Context, manager *stream.Manager, camIDs 
 		case <-ticker.C:
 			camID := camIDs[idx%len(camIDs)]
 			idx++
-			// Симулируем обрыв: удаляем и создаем заново
+			// Симулируем обрыв: регистрируем счетчик реконнектов и перезапускаем синтетический поток
+			if st, ok := manager.GetStream(camID); ok {
+				st.AddReconnects(1)
+			}
 			manager.RemoveStream(camID)
 			_ = manager.AddStream(camID, "synthetic://"+camID, useRealDisk, true /*lazyHLS*/, "tcp")
 			go runSyntheticCamera(ctx, camID, manager)
@@ -793,35 +796,37 @@ func runWebRTCViewer(ctx context.Context, baseURL string, camIDs []string, engin
 func runGRPCFrameConsumer(ctx context.Context, grpcAddr, camID string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		cntGRPCErr.Add(1)
-		return
-	}
-	defer conn.Close()
-
-	streamClient, err := pb.NewFrameServiceClient(conn).StreamFrames(ctx, &pb.StreamRequest{CameraId: camID})
-	if err != nil {
-		cntGRPCErr.Add(1)
-		return
-	}
-
-	for {
-		t0 := time.Now()
-		resp, err := streamClient.Recv()
+	for ctx.Err() == nil {
+		conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
-			if ctx.Err() == nil {
-				cntGRPCErr.Add(1)
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
+		streamClient, err := pb.NewFrameServiceClient(conn).StreamFrames(ctx, &pb.StreamRequest{CameraId: camID})
+		if err != nil {
+			_ = conn.Close()
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
+		for {
+			t0 := time.Now()
+			resp, err := streamClient.Recv()
+			if err != nil {
+				_ = conn.Close()
+				break
 			}
-			return
+			grpcStreamSampler.Add(time.Since(t0))
+			cntGRPCFrames.Add(1)
+			if resp != nil {
+				cntGRPCBytesSent.Add(uint64(len(resp.Payload)))
+			}
 		}
-		grpcStreamSampler.Add(time.Since(t0))
-		cntGRPCFrames.Add(1)
-		if resp != nil {
-			cntGRPCBytesSent.Add(uint64(len(resp.Payload)))
-		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Layer 6: gRPC Metadata Pusher (AI Ingestion Simulation)

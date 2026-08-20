@@ -446,6 +446,19 @@ func (s *Stream) GetStats() models.CameraStats {
 	}
 }
 
+// GetState returns the current camera state.
+func (s *Stream) GetState() models.CameraState {
+	if val, ok := s.state.Load().(models.CameraState); ok {
+		return val
+	}
+	return models.StateOffline
+}
+
+// AddReconnects increases reconnects counter.
+func (s *Stream) AddReconnects(n uint64) {
+	s.reconnects.Add(n)
+}
+
 // Context returns the stream's lifecycle context.
 func (s *Stream) Context() context.Context {
 	return s.ctx

@@ -666,24 +666,10 @@ func (h *Handler) GetServerStats(c *gin.Context) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	streams := h.manager.GetStreams()
-	var totalBytes uint64
-	var totalBytesSent uint64
-	var totalFrames uint64
-	var totalDrops uint64
-	var totalReconnects uint64
-	var onlineCameras int
-
-	for _, st := range streams {
-		stats := st.GetStats()
-		totalBytes += stats.BytesReceived
-		totalBytesSent += stats.BytesSent
-		totalFrames += stats.Frames
-		totalReconnects += stats.Reconnects
-		if st.GetRingBuffer() != nil {
-			totalDrops += st.GetRingBuffer().GetTotalDrops()
-		}
-		if stats.State == models.StateOnline {
+	totalFrames, totalBytes, totalBytesSent, totalDrops, totalReconnects := h.manager.GetCumulativeStats()
+	onlineCameras := 0
+	for _, st := range h.manager.GetStreams() {
+		if st.GetState() == models.StateOnline {
 			onlineCameras++
 		}
 	}
