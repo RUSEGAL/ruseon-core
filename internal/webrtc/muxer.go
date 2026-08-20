@@ -251,6 +251,9 @@ func (h *WHEPHandler) pumpFrames(ctx context.Context, pc *webrtc.PeerConnection,
 	var lastPTS time.Duration
 	var hasLastPTS bool
 
+	// Reusable buffer per WebRTC viewer goroutine (Zero-Alloc hot path)
+	annexB := make([]byte, 0, 64*1024)
+
 	for {
 		frame, err := reader.ReadContext(ctx)
 		if err != nil || frame == nil {
@@ -260,7 +263,7 @@ func (h *WHEPHandler) pumpFrames(ctx context.Context, pc *webrtc.PeerConnection,
 		var duration time.Duration
 		duration, lastPTS, hasLastPTS = calculateFrameDuration(frame.Timestamp, lastPTS, hasLastPTS)
 
-		annexB := make([]byte, 0, 1024*100) // pre-allocate
+		annexB = annexB[:0]
 		
 		if frame.IsKeyFrame {
 			// На ключевом кадре внедряем SPS/PPS (Annex-B)

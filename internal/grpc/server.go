@@ -88,32 +88,49 @@ func (s *Server) StreamFrames(req *pb.StreamRequest, srv pb.FrameService_StreamF
 				codec = "H265"
 			}
 
-			// Собираем полезную нагрузку в формате Annex B (с префиксом 0x00 0x00 0x00 0x01)
-			// Это стандартный формат, который ожидают FFmpeg, OpenCV и большинство AI-моделей
-			var payload []byte
-			
-			// Отправляем параметры кодека перед каждым ключевым кадром для гарантии декодирования
-			if frame.IsKeyFrame {
-				if len(vps) > 0 {
-					payload = append(payload, []byte{0, 0, 0, 1}...)
-					payload = append(payload, vps...)
-				}
-				_, sps, pps := st.GetRingBuffer().GetParams()
-				if len(sps) > 0 {
-					payload = append(payload, []byte{0, 0, 0, 1}...)
-					payload = append(payload, sps...)
-				}
-				if len(pps) > 0 {
-					payload = append(payload, []byte{0, 0, 0, 1}...)
-					payload = append(payload, pps...)
-				}
+		// Собираем полезную нагрузку в формате Annex B (с префиксом 0x00 0x00 0x00 0x01)
+		// Предварительно вычисляем точный размер для исключения реаллокаций слайса (Zero-Overhead)
+		totalSize := 0
+		var sps, pps []byte
+		if frame.IsKeyFrame {
+			if len(vps) > 0 {
+				totalSize += 4 + len(vps)
 			}
+			_, sps, pps = st.GetRingBuffer().GetParams()
+			if len(sps) > 0 {
+				totalSize += 4 + len(sps)
+			}
+			if len(pps) > 0 {
+				totalSize += 4 + len(pps)
+			}
+		}
+		for _, nalu := range frame.NALUs {
+			totalSize += 4 + len(nalu)
+		}
 
-			// Добавляем сами NAL-юниты кадра
-			for _, nalu := range frame.NALUs {
-				payload = append(payload, []byte{0, 0, 0, 1}...)
-				payload = append(payload, nalu...)
+		payload := make([]byte, 0, totalSize)
+
+		// Отправляем параметры кодека перед каждым ключевым кадром для гарантии декодирования
+		if frame.IsKeyFrame {
+			if len(vps) > 0 {
+				payload = append(payload, 0, 0, 0, 1)
+				payload = append(payload, vps...)
 			}
+			if len(sps) > 0 {
+				payload = append(payload, 0, 0, 0, 1)
+				payload = append(payload, sps...)
+			}
+			if len(pps) > 0 {
+				payload = append(payload, 0, 0, 0, 1)
+				payload = append(payload, pps...)
+			}
+		}
+
+		// Добавляем сами NAL-юниты кадра
+		for _, nalu := range frame.NALUs {
+			payload = append(payload, 0, 0, 0, 1)
+			payload = append(payload, nalu...)
+		}
 
 			resp := &pb.FrameResponse{
 				Codec:      codec,

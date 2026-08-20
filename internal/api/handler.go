@@ -33,36 +33,79 @@ type ClientInfo struct {
 	StreamID string `json:"streamId"`
 }
 
-type ClientTracker struct {
-	mu      sync.Mutex
+const clientTrackerShards = 32
+
+type clientShard struct {
+	mu      sync.RWMutex
 	clients map[string]map[string]time.Time
 }
 
-func (c *ClientTracker) Mark(ip, streamID string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.clients[ip] == nil {
-		c.clients[ip] = make(map[string]time.Time)
+type ClientTracker struct {
+	shards [clientTrackerShards]clientShard
+}
+
+func NewClientTracker() *ClientTracker {
+	ct := &ClientTracker{}
+	for i := range ct.shards {
+		ct.shards[i].clients = make(map[string]map[string]time.Time)
 	}
-	c.clients[ip][streamID] = time.Now()
+	return ct
+}
+
+func (c *ClientTracker) getShard(ip, streamID string) *clientShard {
+	var h uint32 = 2166136261
+	for i := 0; i < len(ip); i++ {
+		h = (h ^ uint32(ip[i])) * 16777619
+	}
+	for i := 0; i < len(streamID); i++ {
+		h = (h ^ uint32(streamID[i])) * 16777619
+	}
+	return &c.shards[h%clientTrackerShards]
+}
+
+func (c *ClientTracker) Mark(ip, streamID string) {
+	shard := c.getShard(ip, streamID)
+	now := time.Now()
+
+	// Fast path: если активность уже обновлялась недавно (< 5с назад), пропускаем блокировку на запись
+	shard.mu.RLock()
+	if streams, ok := shard.clients[ip]; ok {
+		if lastSeen, ok := streams[streamID]; ok && now.Sub(lastSeen) < 5*time.Second {
+			shard.mu.RUnlock()
+			return
+		}
+	}
+	shard.mu.RUnlock()
+
+	// Slow path: обновляем временную метку
+	shard.mu.Lock()
+	if shard.clients[ip] == nil {
+		shard.clients[ip] = make(map[string]time.Time)
+	}
+	shard.clients[ip][streamID] = now
+	shard.mu.Unlock()
 }
 
 func (c *ClientTracker) GetActiveClients(timeout time.Duration) []ClientInfo {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	now := time.Now()
 	var active []ClientInfo
-	for ip, streams := range c.clients {
-		for streamID, lastSeen := range streams {
-			if now.Sub(lastSeen) <= timeout {
-				active = append(active, ClientInfo{IP: ip, StreamID: streamID})
-			} else {
-				delete(streams, streamID)
+
+	for i := range c.shards {
+		shard := &c.shards[i]
+		shard.mu.Lock()
+		for ip, streams := range shard.clients {
+			for streamID, lastSeen := range streams {
+				if now.Sub(lastSeen) <= timeout {
+					active = append(active, ClientInfo{IP: ip, StreamID: streamID})
+				} else {
+					delete(streams, streamID)
+				}
+			}
+			if len(streams) == 0 {
+				delete(shard.clients, ip)
 			}
 		}
-		if len(streams) == 0 {
-			delete(c.clients, ip)
-		}
+		shard.mu.Unlock()
 	}
 	return active
 }
@@ -72,17 +115,23 @@ type cachedCamerasResponse struct {
 	timestamp time.Time
 }
 
+type cachedMemStatsResponse struct {
+	stats     runtime.MemStats
+	timestamp time.Time
+}
+
 // Handler хранит зависимости для API.
 type Handler struct {
-	manager      *stream.Manager
-	cfg          *config.Config
-	store        registry.StateStore
-	startTime    time.Time
-	tracker      *ClientTracker
-	camerasCache atomic.Pointer[cachedCamerasResponse]
-	camerasSf    singleflight.Group
-	cacheTTL     time.Duration
-	webrtcEngine *webrtc.Engine
+	manager       *stream.Manager
+	cfg           *config.Config
+	store         registry.StateStore
+	startTime     time.Time
+	tracker       *ClientTracker
+	camerasCache  atomic.Pointer[cachedCamerasResponse]
+	camerasSf     singleflight.Group
+	cacheTTL      time.Duration
+	webrtcEngine  *webrtc.Engine
+	memStatsCache atomic.Pointer[cachedMemStatsResponse]
 }
 
 // NewHandler создает новый обработчик API.
@@ -95,13 +144,11 @@ func NewHandler(manager *stream.Manager, cfg *config.Config, store registry.Stat
 	}
 
 	return &Handler{
-		manager:   manager,
-		cfg:       cfg,
-		store:     store,
-		startTime: time.Now(),
-		tracker: &ClientTracker{
-			clients: make(map[string]map[string]time.Time),
-		},
+		manager:      manager,
+		cfg:          cfg,
+		store:        store,
+		startTime:    time.Now(),
+		tracker:      NewClientTracker(),
 		cacheTTL:     250 * time.Millisecond,
 		webrtcEngine: engine,
 	}
@@ -670,7 +717,15 @@ func (h *Handler) GetStreamToken(c *gin.Context) {
 // GetServerStats
 func (h *Handler) GetServerStats(c *gin.Context) {
 	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
+	if cached := h.memStatsCache.Load(); cached != nil && time.Since(cached.timestamp) < 500*time.Millisecond {
+		m = cached.stats
+	} else {
+		runtime.ReadMemStats(&m)
+		h.memStatsCache.Store(&cachedMemStatsResponse{
+			stats:     m,
+			timestamp: time.Now(),
+		})
+	}
 
 	totalFrames, totalBytes, totalBytesSent, totalDrops, totalReconnects := h.manager.GetCumulativeStats()
 	onlineCameras := 0

@@ -305,6 +305,15 @@ func (s *Stream) GetMetadataBroadcaster() *MetadataBroadcaster {
 func (s *Stream) WakeUpHLSMuxer() *hls.Muxer {
 	s.lastHLSRequest.Store(time.Now().UnixNano())
 
+	// Fast-path: если муксер уже активен, возвращаем его без входа в SingleFlight и без аллокаций
+	s.muxerMu.Lock()
+	m := s.hlsMuxer
+	s.muxerMu.Unlock()
+	if m != nil {
+		return m
+	}
+
+	// Slow-path: конкурентная инициализация через singleflight при первом запросе
 	v, _, _ := s.sfGroup.Do("wakeup", func() (interface{}, error) {
 		s.muxerMu.Lock()
 		defer s.muxerMu.Unlock()

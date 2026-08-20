@@ -120,6 +120,14 @@ func init() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 var (
+	// Shared High-Throughput HTTP Transport for all benchmark clients
+	sharedHTTPTransport = &http.Transport{
+		MaxIdleConns:        5000,
+		MaxIdleConnsPerHost: 2500,
+		IdleConnTimeout:     90 * time.Second,
+		DisableCompression:  true,
+	}
+
 	// Samplers
 	apiLatencySampler      = NewLatencySampler(20000)
 	hlsPlaylistSampler     = NewLatencySampler(20000)
@@ -518,11 +526,8 @@ func runAPIWorker(ctx context.Context, baseURL, token string, wg *sync.WaitGroup
 	defer wg.Done()
 
 	client := &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			MaxIdleConnsPerHost: 10,
-			IdleConnTimeout:     30 * time.Second,
-		},
+		Timeout:   10 * time.Second,
+		Transport: sharedHTTPTransport,
 	}
 
 	endpoints := []string{
@@ -598,11 +603,8 @@ func runHLSViewer(ctx context.Context, baseURL string, camIDs []string, viewerId
 	defer wg.Done()
 
 	client := &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			MaxIdleConnsPerHost: 10,
-			IdleConnTimeout:     30 * time.Second,
-		},
+		Timeout:   10 * time.Second,
+		Transport: sharedHTTPTransport,
 	}
 
 	camID := camIDs[viewerIdx%len(camIDs)]
@@ -814,7 +816,10 @@ func runWebRTCViewer(ctx context.Context, baseURL string, camIDs []string, engin
 		}
 		req.Header.Set("Content-Type", "application/sdp")
 
-		client := &http.Client{Timeout: 5 * time.Second}
+		client := &http.Client{
+			Timeout:   15 * time.Second,
+			Transport: sharedHTTPTransport,
+		}
 		resp, err := client.Do(req)
 		if err != nil {
 			_ = pc.Close()
