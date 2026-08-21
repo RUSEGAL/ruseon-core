@@ -1,6 +1,7 @@
 package recorder
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -226,13 +227,7 @@ func TestRecorder_EventExclusivity_OnFailure(t *testing.T) {
 }
 
 func BenchmarkRecorder_FMP4_Write_GOP(b *testing.B) {
-	tempDir := b.TempDir()
-	filePath := filepath.Join(tempDir, "bench.mp4")
-	file, err := os.Create(filePath)
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer file.Close()
+	file := &discardWriteSeekCloser{Writer: io.Discard}
 
 	sps := []byte{0x67, 0x42, 0x00, 0x0a, 0xf8, 0x41, 0xa2}
 	pps := []byte{0x68, 0xce, 0x38, 0x80}
@@ -266,9 +261,11 @@ func BenchmarkRecorder_FMP4_Write_GOP(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		part.SequenceNumber = uint32(i + 1)
-		part.Tracks[0].BaseTime = uint64(i * 90000)
+	var seq uint32
+	for b.Loop() {
+		seq++
+		part.SequenceNumber = seq
+		part.Tracks[0].BaseTime = uint64(seq) * 90000
 		_ = part.Marshal(file)
 	}
 }

@@ -207,6 +207,7 @@ func BenchmarkMuxer_GetPlaylist(b *testing.B) {
 	rb := buffer.NewRingBuffer(10)
 	defer rb.Close()
 	muxer := NewMuxer("bench", rb, nil, nil)
+	defer muxer.Stop()
 	
 	muxer.mu.Lock()
 	for i := 0; i < 5; i++ {
@@ -220,7 +221,7 @@ func BenchmarkMuxer_GetPlaylist(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = muxer.GetPlaylist(context.Background())
 	}
 }
@@ -229,6 +230,7 @@ func BenchmarkMuxer_GetSegment(b *testing.B) {
 	rb := buffer.NewRingBuffer(10)
 	defer rb.Close()
 	muxer := NewMuxer("bench", rb, nil, nil)
+	defer muxer.Stop()
 	
 	data := make([]byte, 1024*1024) // 1MB segment
 	muxer.mu.Lock()
@@ -242,7 +244,7 @@ func BenchmarkMuxer_GetSegment(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = muxer.GetSegment("stream_1.ts")
 	}
 }
