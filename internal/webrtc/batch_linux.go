@@ -171,11 +171,12 @@ func (b *platformBatcher) flushLocked(pb *peerBatch, isIPv6 bool) error {
 		var n int
 		var err error
 
-		if isIPv6 && b.pc6 != nil {
+		switch {
+		case isIPv6 && b.pc6 != nil:
 			n, err = b.pc6.WriteBatch(pb.msgs[sent:total], 0)
-		} else if b.pc4 != nil {
+		case b.pc4 != nil:
 			n, err = b.pc4.WriteBatch(pb.msgs[sent:total], 0)
-		} else {
+		default:
 			// Fallback if raw packet conn unavailable
 			for i := sent; i < total; i++ {
 				_, writeErr := b.udpConn.WriteToUDPAddrPort(pb.msgs[i].Buffers[0], pb.udpAddr.AddrPort())
