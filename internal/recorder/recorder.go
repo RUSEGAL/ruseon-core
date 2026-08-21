@@ -64,6 +64,9 @@ func (r *Recorder) run() {
 	var currentFilename string
 	var lastGoodDuration uint32 = 90000 / 25
 
+	partTrack := &fmp4.PartTrack{ID: 1}
+	part := &fmp4.Part{Tracks: []*fmp4.PartTrack{partTrack}}
+
 	finalize := func(isError bool) {
 		if file != nil {
 			_ = file.Close()
@@ -155,14 +158,9 @@ func (r *Recorder) run() {
 				partSamples = append(partSamples, pendingSample)
 			}
 			if len(partSamples) > 0 {
-				part := &fmp4.Part{
-					SequenceNumber: seq,
-					Tracks: []*fmp4.PartTrack{{
-						ID:       1,
-						BaseTime: partStartBaseTime,
-						Samples:  partSamples,
-					}},
-				}
+				part.SequenceNumber = seq
+				partTrack.BaseTime = partStartBaseTime
+				partTrack.Samples = partSamples
 				if err := part.Marshal(file); err != nil {
 					if r.onDegraded != nil {
 						r.onDegraded(true)
@@ -286,14 +284,9 @@ func (r *Recorder) run() {
 
 		// Формируем и сбрасываем Part в файл на каждом I-кадре (новый GOP)
 		if frame.IsKeyFrame && len(partSamples) > 0 {
-			part := &fmp4.Part{
-				SequenceNumber: seq,
-				Tracks: []*fmp4.PartTrack{{
-					ID:       1,
-					BaseTime: partStartBaseTime,
-					Samples:  partSamples,
-				}},
-			}
+			part.SequenceNumber = seq
+			partTrack.BaseTime = partStartBaseTime
+			partTrack.Samples = partSamples
 
 			if err := part.Marshal(file); err != nil {
 				log.Error().Err(err).Msg("Failed to write fMP4 part")
@@ -332,14 +325,9 @@ ExitLoop:
 			partSamples = append(partSamples, pendingSample)
 		}
 		if len(partSamples) > 0 {
-			part := &fmp4.Part{
-				SequenceNumber: seq,
-				Tracks: []*fmp4.PartTrack{{
-					ID:       1,
-					BaseTime: partStartBaseTime,
-					Samples:  partSamples,
-				}},
-			}
+			part.SequenceNumber = seq
+			partTrack.BaseTime = partStartBaseTime
+			partTrack.Samples = partSamples
 			if err := part.Marshal(file); err == nil {
 				partsWritten++
 			}

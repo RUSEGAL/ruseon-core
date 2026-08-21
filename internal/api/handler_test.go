@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/RUSEGAL/ruseon-core/internal/models"
@@ -530,4 +532,49 @@ func TestArchiveEndpoints(t *testing.T) {
 	if w2.Code != http.StatusNotFound && w2.Code != http.StatusBadRequest {
 		t.Errorf("expected 404 or 400, got %d", w2.Code)
 	}
+}
+
+func TestUserManagement_LastAdminProtection(t *testing.T) {
+	router, handler, store := setupTestRouter(t)
+	defer store.Close()
+
+	router.POST("/api/users", handler.AddUser)
+	router.PUT("/api/users/:username", handler.EditUser)
+	router.DELETE("/api/users/:username", handler.DeleteUser)
+
+	// 1. Создаем первого администратора admin1
+	u1 := models.User{
+		Username:     "admin1",
+		PasswordHash: "hash",
+		Role:         models.RoleAdmin,
+	}
+	require.NoError(t, store.SaveUser(&u1))
+
+	// 2. Попытка удалить единственного администратора -> 400 Bad Request
+	wDel := httptest.NewRecorder()
+	reqDel, _ := http.NewRequest("DELETE", "/api/users/admin1", nil)
+	router.ServeHTTP(wDel, reqDel)
+	assert.Equal(t, http.StatusBadRequest, wDel.Code)
+
+	// 3. Попытка понизить роль единственного администратора до viewer -> 400 Bad Request
+	bodyDemote := bytes.NewBufferString(`{"role":"viewer"}`)
+	wDemote := httptest.NewRecorder()
+	reqDemote, _ := http.NewRequest("PUT", "/api/users/admin1", bodyDemote)
+	reqDemote.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(wDemote, reqDemote)
+	assert.Equal(t, http.StatusBadRequest, wDemote.Code)
+
+	// 4. Добавляем второго администратора admin2
+	u2 := models.User{
+		Username:     "admin2",
+		PasswordHash: "hash",
+		Role:         models.RoleAdmin,
+	}
+	require.NoError(t, store.SaveUser(&u2))
+
+	// 5. Теперь удаление admin1 разрешено, так как остается admin2
+	wDel2 := httptest.NewRecorder()
+	reqDel2, _ := http.NewRequest("DELETE", "/api/users/admin1", nil)
+	router.ServeHTTP(wDel2, reqDel2)
+	assert.Equal(t, http.StatusOK, wDel2.Code)
 }

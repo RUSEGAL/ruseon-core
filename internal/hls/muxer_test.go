@@ -105,15 +105,20 @@ func TestMuxer_Lifecycle_And_GetSegment(t *testing.T) {
 		t.Errorf("Expected playlist to contain stream_1.ts, got: %s", playlist)
 	}
 
-	seg, _ := muxer.GetSegment("stream_1.ts")
+	seg, mime := muxer.AcquireSegment("stream_1.ts")
 	if seg == nil {
 		t.Fatalf("Expected segment stream_1.ts to be found")
 	}
-	if len(seg) == 0 {
+	defer seg.Release()
+	if len(seg.Data) == 0 {
 		t.Fatalf("Segment is empty")
 	}
+	if mime != "video/mp2t" {
+		t.Errorf("Expected mime video/mp2t, got %s", mime)
+	}
 
-	if s, _ := muxer.GetSegment("unknown.ts"); s != nil {
+	if s, _ := muxer.AcquireSegment("unknown.ts"); s != nil {
+		s.Release()
 		t.Errorf("Expected nil for unknown segment")
 	}
 
@@ -226,7 +231,7 @@ func BenchmarkMuxer_GetPlaylist(b *testing.B) {
 	}
 }
 
-func BenchmarkMuxer_GetSegment(b *testing.B) {
+func BenchmarkMuxer_AcquireSegment(b *testing.B) {
 	rb := buffer.NewRingBuffer(10)
 	defer rb.Close()
 	muxer := NewMuxer("bench", rb, nil, nil)
@@ -240,12 +245,16 @@ func BenchmarkMuxer_GetSegment(b *testing.B) {
 		Data:     data,
 	})
 	muxer.seqCount = 1
+	muxer.rebuildPlaylistsLocked()
 	muxer.mu.Unlock()
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
-		_, _ = muxer.GetSegment("stream_1.ts")
+		seg, _ := muxer.AcquireSegment("stream_1.ts")
+		if seg != nil {
+			seg.Release()
+		}
 	}
 }
 

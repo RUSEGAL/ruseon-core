@@ -1169,9 +1169,6 @@ func (h *Handler) AddUser(c *gin.Context) {
 func (h *Handler) EditUser(c *gin.Context) {
 	username := c.Param("username")
 
-	// Запрещаем изменять роль последнего/себя или хотя бы "admin" в простом виде?
-	// Пока оставим просто как есть.
-
 	var input struct {
 		Password string      `json:"password"`
 		Role     models.Role `json:"role"`
@@ -1197,6 +1194,21 @@ func (h *Handler) EditUser(c *gin.Context) {
 	}
 
 	if input.Role != "" {
+		if input.Role != user.Role && user.Role == models.RoleAdmin {
+			users, err := registry.CurrentStateStore.ListUsers()
+			if err == nil {
+				adminCount := 0
+				for _, u := range users {
+					if u.Role == models.RoleAdmin {
+						adminCount++
+					}
+				}
+				if adminCount <= 1 {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot demote the last remaining administrator"})
+					return
+				}
+			}
+		}
 		user.Role = input.Role
 	}
 
@@ -1209,14 +1221,30 @@ func (h *Handler) EditUser(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-// DeleteUser удаляет пользователя.
+// DeleteUser удаляет пользователя с защитой от удаления последнего администратора.
 func (h *Handler) DeleteUser(c *gin.Context) {
 	username := c.Param("username")
 
-	if username == "admin" {
-		// Опциональная защита, чтобы случайно не удалить админа
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete default admin"})
+	user, err := registry.CurrentStateStore.GetUser(username)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
+	}
+
+	if user.Role == models.RoleAdmin {
+		users, err := registry.CurrentStateStore.ListUsers()
+		if err == nil {
+			adminCount := 0
+			for _, u := range users {
+				if u.Role == models.RoleAdmin {
+					adminCount++
+				}
+			}
+			if adminCount <= 1 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete the last remaining administrator"})
+				return
+			}
+		}
 	}
 
 	if err := registry.CurrentStateStore.DeleteUser(username); err != nil {
