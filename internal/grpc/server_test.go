@@ -48,7 +48,7 @@ func TestServer_PushMetadata(t *testing.T) {
 	srv := NewServer(manager, nil, "", "")
 
 	// Добавляем тестовый стрим
-	manager.AddStream("cam_test", "rtsp://test", false, true, "tcp")
+	manager.AddStream("cam_test", "rtsp://test", false, true, "tcp", false)
 
 	st, exists := manager.GetStream("cam_test")
 	if !exists {
@@ -132,7 +132,7 @@ func TestServer_StreamFrames(t *testing.T) {
 	srv := NewServer(manager, nil, "", "")
 
 	// Добавляем тестовый стрим
-	manager.AddStream("cam_yolo", "rtsp://yolo", false, true, "tcp")
+	manager.AddStream("cam_yolo", "rtsp://yolo", false, true, "tcp", false)
 	st, exists := manager.GetStream("cam_yolo")
 	if !exists {
 		t.Fatal("stream not created")

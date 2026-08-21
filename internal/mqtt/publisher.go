@@ -8,7 +8,6 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/ruseon-core/internal/buffer"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
 )
@@ -17,7 +16,7 @@ import (
 type Publisher struct {
 	client    mqtt.Client
 	config    config.MQTTConfig
-	queue     *buffer.LockFreeRingBuffer[pb.MetadataRequest]
+	queue     chan *pb.MetadataRequest
 	tokenChan chan mqtt.Token
 	cancel    context.CancelFunc
 }
@@ -51,7 +50,7 @@ func NewPublisher(cfg config.MQTTConfig) (*Publisher, error) {
 	pub := &Publisher{
 		client:    client,
 		config:    cfg,
-		queue:     buffer.NewLockFreeRingBuffer[pb.MetadataRequest](1024), // capacity 1024
+		queue:     make(chan *pb.MetadataRequest, 1024),
 		tokenChan: make(chan mqtt.Token, 256),
 		cancel:    cancel,
 	}
@@ -62,12 +61,16 @@ func NewPublisher(cfg config.MQTTConfig) (*Publisher, error) {
 	return pub, nil
 }
 
-// Push adds metadata to the lock-free queue for asynchronous publishing.
+// Push adds metadata to the channel queue for asynchronous publishing.
 func (p *Publisher) Push(meta *pb.MetadataRequest) {
-	if p == nil {
+	if p == nil || meta == nil {
 		return
 	}
-	p.queue.Push(meta)
+	select {
+	case p.queue <- meta:
+	default:
+		// Queue full, drop newest to avoid blocking producer
+	}
 }
 
 // Close stops the worker and disconnects the client.
@@ -96,38 +99,32 @@ func (p *Publisher) tokenWaiter(ctx context.Context) {
 }
 
 func (p *Publisher) worker(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Millisecond) // Poll queue
-	defer ticker.Stop()
-
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			// Drain queue
-			for {
-				item := p.queue.Pop()
-				if item == nil {
-					break
-				}
-				
-				// Publish to MQTT
-				payload, err := json.Marshal(item)
-				if err != nil {
-					log.Error().Err(err).Msg("Failed to marshal metadata for MQTT")
-					continue
-				}
+		case item := <-p.queue:
+			if item == nil {
+				continue
+			}
 
-				// QoS 0, not retained
-				token := p.client.Publish(p.config.Topic, 0, false, payload)
-				if token != nil && p.tokenChan != nil {
-					select {
-					case p.tokenChan <- token:
-					default:
-						// Token queue is full, skip waiting to keep publishing non-blocking
-					}
+			// Publish to MQTT
+			payload, err := json.Marshal(item)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to marshal metadata for MQTT")
+				continue
+			}
+
+			// QoS 0, not retained
+			token := p.client.Publish(p.config.Topic, 0, false, payload)
+			if token != nil && p.tokenChan != nil {
+				select {
+				case p.tokenChan <- token:
+				default:
+					// Token queue is full, skip waiting to keep publishing non-blocking
 				}
 			}
 		}
 	}
 }
+

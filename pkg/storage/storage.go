@@ -274,10 +274,14 @@ func (s *Storage) DeleteCamera(id string) error {
 	})
 }
 
-// ListCameras возвращает список всех камер с in-memory атомарным кэшированием.
+// ListCameras возвращает список всех камер с in-memory атомарным кэшированием и защитным глубоким копированием.
 func (s *Storage) ListCameras() ([]config.CameraConfig, error) {
 	if cached := s.cachedCameras.Load(); cached != nil {
-		return *cached, nil
+		res := make([]config.CameraConfig, len(*cached))
+		for i, cam := range *cached {
+			res[i] = cam.Clone()
+		}
+		return res, nil
 	}
 
 	cameras := make([]config.CameraConfig, 0)
@@ -308,7 +312,11 @@ func (s *Storage) ListCameras() ([]config.CameraConfig, error) {
 		s.cachedCameras.Store(&cameras)
 	}
 
-	return cameras, err
+	res := make([]config.CameraConfig, len(cameras))
+	for i, cam := range cameras {
+		res[i] = cam.Clone()
+	}
+	return res, err
 }
 
 // SaveTag сохраняет тег.

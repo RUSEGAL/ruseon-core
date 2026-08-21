@@ -60,4 +60,10 @@ func TestBroadcaster(t *testing.T) {
 	if len(b.clients) != 0 {
 		t.Fatalf("expected 0 clients, got %d", len(b.clients))
 	}
+
+	// 6. Double Unsubscribe should not panic
+	b.Unsubscribe(ch)
+	if len(b.clients) != 0 {
+		t.Fatalf("expected 0 clients after double unsubscribe, got %d", len(b.clients))
+	}
 }

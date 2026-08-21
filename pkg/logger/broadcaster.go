@@ -47,10 +47,12 @@ func (b *Broadcaster) Subscribe() chan []byte {
 	return ch
 }
 
-// Unsubscribe removes a client channel.
+// Unsubscribe removes a client channel idempotently.
 func (b *Broadcaster) Unsubscribe(ch chan []byte) {
 	b.mu.Lock()
-	delete(b.clients, ch)
-	b.mu.Unlock()
-	close(ch)
+	defer b.mu.Unlock()
+	if _, ok := b.clients[ch]; ok {
+		delete(b.clients, ch)
+		close(ch)
+	}
 }

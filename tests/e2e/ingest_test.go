@@ -111,7 +111,7 @@ func TestE2E_IngestAndHLS(t *testing.T) {
 	manager := stream.NewManager()
 
 	// Подключаем камеру (RTSP поток от MediaMTX)
-	err = manager.AddStream("e2e-cam", rtspURL, false, false, "tcp")
+	err = manager.AddStream("e2e-cam", rtspURL, false, false, "tcp", false)
 	if err != nil {
 		t.Fatalf("Failed to add stream: %v", err)
 	}

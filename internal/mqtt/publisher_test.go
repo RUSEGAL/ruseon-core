@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/RUSEGAL/ruseon-core/internal/buffer"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
 )
@@ -84,7 +83,7 @@ func TestPublisher_Worker_PublishAndDrain(t *testing.T) {
 			Enabled: true,
 			Topic:   "ruseon/metadata",
 		},
-		queue:     buffer.NewLockFreeRingBuffer[pb.MetadataRequest](1024),
+		queue:     make(chan *pb.MetadataRequest, 1024),
 		tokenChan: make(chan mqtt.Token, 256),
 		cancel:    cancel,
 	}
@@ -132,7 +131,7 @@ func TestPublisher_Worker_TokenError(t *testing.T) {
 			Enabled: true,
 			Topic:   "ruseon/metadata",
 		},
-		queue:     buffer.NewLockFreeRingBuffer[pb.MetadataRequest](1024),
+		queue:     make(chan *pb.MetadataRequest, 1024),
 		tokenChan: make(chan mqtt.Token, 256),
 		cancel:    cancel,
 	}

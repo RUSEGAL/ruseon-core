@@ -62,3 +62,20 @@ var (
 		Help: "The total number of HTTP requests to HLS playlists and segments",
 	}, []string{"camera_id"})
 )
+
+// DeleteCameraMetrics удаляет все time series метрики, ассоциированные с удаленной камерой,
+// предотвращая медленную утечку памяти в Prometheus Registry при частом удалении камер.
+func DeleteCameraMetrics(cameraID string) {
+	ActiveStreams.DeleteLabelValues(cameraID)
+	StreamReconnectsTotal.DeleteLabelValues(cameraID)
+	FramesReceivedTotal.DeleteLabelValues(cameraID)
+	KeyFramesTotal.DeleteLabelValues(cameraID)
+	NetworkReceiveBytesTotal.DeleteLabelValues(cameraID)
+	DiskWriteBytesTotal.DeleteLabelValues(cameraID)
+	ArchiveSegmentsWrittenTotal.DeleteLabelValues(cameraID)
+	ArchiveErrorsTotal.DeleteLabelValues(cameraID)
+	RingbufferDropsTotal.DeleteLabelValues(cameraID)
+	WebRTCPeersActive.DeleteLabelValues(cameraID)
+	HLSRequestsTotal.DeleteLabelValues(cameraID)
+}
+

@@ -1,6 +1,9 @@
 package rtsp
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 // TimestampUnwrapper преобразует 32-битные циклические RTP-таймстампы (переполняющиеся каждые ~13.2 часа при 90 кГц)
 // в непрерывную монотонно возрастающую 64-битную временную шкалу.
@@ -41,4 +44,20 @@ func (u *TimestampUnwrapper) Unwrap(ts uint32) uint64 {
 
 	u.lastTS = ts
 	return u.epoch + uint64(ts)
+}
+
+// RTP90kToDuration переводит 90kHz RTP timestamp (uint64) в time.Duration.
+// Полностью исключает промежуточное переполнение uint64 и гарантирует точную шкалу до наносекунд.
+func RTP90kToDuration(ts uint64) time.Duration {
+	sec := ts / 90000
+	rem := ts % 90000
+	return time.Duration(sec)*time.Second + time.Duration(rem)*time.Second/90000
+}
+
+// DurationTo90k переводит time.Duration (int64) в тики 90kHz.
+// Безопасный диапазон превышает 3.2 миллиона лет без риска знакового переполнения int64.
+func DurationTo90k(d time.Duration) int64 {
+	sec := int64(d / time.Second)
+	rem := int64(d % time.Second)
+	return sec*90000 + (rem*90000)/int64(time.Second)
 }

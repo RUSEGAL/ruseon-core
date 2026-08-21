@@ -451,7 +451,7 @@ func (h *Handler) AddCamera(c *gin.Context) {
 	}
 
 	// Атомарно синхронизируем рантайм-менеджер потоков
-	h.manager.UpsertStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport, cam.Disabled)
+	h.manager.UpsertStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport, cam.TokenAuth, cam.Disabled)
 
 	log.Info().Str("audit", "true").Str("action", "camera_added").Str("camera_id", cam.ID).Str("user", c.GetString("username")).Msg("Camera added")
 	h.InvalidateCamerasCache()
@@ -483,6 +483,7 @@ func (h *Handler) DeleteCamera(c *gin.Context) {
 
 	// Останавливаем поток и удаляем из менеджера
 	h.manager.RemoveStream(id)
+	metrics.DeleteCameraMetrics(id)
 
 	log.Info().Str("audit", "true").Str("action", "camera_deleted").Str("camera_id", id).Str("user", c.GetString("username")).Msg("Camera deleted")
 	h.InvalidateCamerasCache()
@@ -563,7 +564,7 @@ func (h *Handler) EditCamera(c *gin.Context) {
 	}
 
 	// Атомарно обновляем рантайм-поток
-	h.manager.UpsertStream(id, req.URL, req.Record, req.LazyHLS, req.Transport, req.Disabled)
+	h.manager.UpsertStream(id, req.URL, req.Record, req.LazyHLS, req.Transport, req.TokenAuth, req.Disabled)
 
 	log.Info().Str("audit", "true").Str("action", "camera_edited").Str("camera_id", id).Str("user", c.GetString("username")).Msg("Camera edited")
 	h.InvalidateCamerasCache()

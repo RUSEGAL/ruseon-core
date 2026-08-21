@@ -184,8 +184,7 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool, corsOrigin
 	streamMiddleware := auth.StreamMiddleware()
 	streamAuth := func(c *gin.Context) {
 		id := c.Param("id")
-		cam, err := registry.CurrentStateStore.GetCamera(id)
-		if err == nil && cam != nil && cam.TokenAuth {
+		if st, ok := h.manager.GetStream(id); ok && st.IsTokenAuth() {
 			streamMiddleware(c)
 		} else {
 			c.Next()
