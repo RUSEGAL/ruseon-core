@@ -71,6 +71,9 @@ func (s *Server) StreamFrames(req *pb.StreamRequest, srv pb.FrameService_StreamF
 	
 	log.Info().Str("camera_id", req.CameraId).Msg("gRPC client subscribed to stream frames")
 
+	// Reusable payload buffer per gRPC client stream (Zero-Alloc hot path, saving ~500 slice allocations/sec)
+	payload := make([]byte, 0, 64*1024)
+
 	for {
 		frame, err := reader.ReadContext(srv.Context())
 		if err != nil || frame == nil {
@@ -81,54 +84,50 @@ func (s *Server) StreamFrames(req *pb.StreamRequest, srv pb.FrameService_StreamF
 			return fmt.Errorf("stream closed")
 		}
 
-			// Определяем кодек
-			codec := "H264"
-			vps, _, _ := st.GetRingBuffer().GetParams()
-			if len(vps) > 0 {
-				codec = "H265"
-			}
+		params := st.GetRingBuffer().GetCodecParams()
+		codec := "H264"
+		if params != nil && len(params.VPS) > 0 {
+			codec = "H265"
+		}
 
-			// Собираем полезную нагрузку в формате Annex B (с префиксом 0x00 0x00 0x00 0x01)
-			// Это стандартный формат, который ожидают FFmpeg, OpenCV и большинство AI-моделей
-			var payload []byte
-			
-			// Отправляем параметры кодека перед каждым ключевым кадром для гарантии декодирования
-			if frame.IsKeyFrame {
-				if len(vps) > 0 {
-					payload = append(payload, []byte{0, 0, 0, 1}...)
-					payload = append(payload, vps...)
-				}
-				_, sps, pps := st.GetRingBuffer().GetParams()
-				if len(sps) > 0 {
-					payload = append(payload, []byte{0, 0, 0, 1}...)
-					payload = append(payload, sps...)
-				}
-				if len(pps) > 0 {
-					payload = append(payload, []byte{0, 0, 0, 1}...)
-					payload = append(payload, pps...)
-				}
-			}
+		payload = payload[:0]
 
-			// Добавляем сами NAL-юниты кадра
-			for _, nalu := range frame.NALUs {
-				payload = append(payload, []byte{0, 0, 0, 1}...)
-				payload = append(payload, nalu...)
+		// Отправляем параметры кодека перед каждым ключевым кадром для гарантии декодирования
+		if frame.IsKeyFrame && params != nil {
+			if len(params.VPS) > 0 {
+				payload = append(payload, 0, 0, 0, 1)
+				payload = append(payload, params.VPS...)
 			}
+			if len(params.SPS) > 0 {
+				payload = append(payload, 0, 0, 0, 1)
+				payload = append(payload, params.SPS...)
+			}
+			if len(params.PPS) > 0 {
+				payload = append(payload, 0, 0, 0, 1)
+				payload = append(payload, params.PPS...)
+			}
+		}
 
-			resp := &pb.FrameResponse{
-				Codec:      codec,
-				IsKeyframe: frame.IsKeyFrame,
-				Pts:        frame.Timestamp.Milliseconds(),
-				Payload:    payload,
-			}
+		// Добавляем сами NAL-юниты кадра
+		for _, nalu := range frame.NALUs {
+			payload = append(payload, 0, 0, 0, 1)
+			payload = append(payload, nalu...)
+		}
 
-			if err := srv.Send(resp); err != nil {
-				log.Error().Err(err).Str("camera_id", req.CameraId).Msg("Failed to send frame to gRPC client")
-				return err
-			}
-			
-			// Обновляем статистику трафика потока
-			st.AddBytesSent(uint64(len(payload)))
+		resp := &pb.FrameResponse{
+			Codec:      codec,
+			IsKeyframe: frame.IsKeyFrame,
+			Pts:        frame.Timestamp.Milliseconds(),
+			Payload:    payload,
+		}
+
+		if err := srv.Send(resp); err != nil {
+			log.Error().Err(err).Str("camera_id", req.CameraId).Msg("Failed to send frame to gRPC client")
+			return err
+		}
+
+		// Обновляем статистику трафика потока
+		st.AddBytesSent(uint64(len(payload)))
 	}
 }
 

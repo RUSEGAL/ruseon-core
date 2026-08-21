@@ -7,6 +7,8 @@ import (
 	"net"
 	"sync"
 
+	"github.com/pion/interceptor"
+	"github.com/pion/interceptor/pkg/nack"
 	"github.com/pion/webrtc/v4"
 	"github.com/rs/zerolog/log"
 
@@ -44,16 +46,24 @@ func NewEngine(cfg *config.Config) (*Engine, error) {
 	settingEngine := webrtc.SettingEngine{}
 
 	var udpListener *net.UDPConn
+	listenPort := 0
 	if cfg != nil && cfg.Server.WebRTC.ListenPort > 0 {
-		l, err := net.ListenUDP("udp", &net.UDPAddr{Port: cfg.Server.WebRTC.ListenPort})
-		if err != nil {
-			log.Warn().Err(err).Int("port", cfg.Server.WebRTC.ListenPort).Msg("Failed to bind WebRTC UDP Mux port, falling back to dynamic ports")
-		} else {
-			udpListener = l
-			udpMux := webrtc.NewICEUDPMux(nil, udpListener)
-			settingEngine.SetICEUDPMux(udpMux)
-			log.Info().Int("port", cfg.Server.WebRTC.ListenPort).Msg("WebRTC UDP Muxer listening")
-		}
+		listenPort = cfg.Server.WebRTC.ListenPort
+	}
+
+	l, err := net.ListenUDP("udp", &net.UDPAddr{Port: listenPort})
+	if err != nil {
+		log.Warn().Err(err).Int("port", listenPort).Msg("Failed to bind WebRTC UDP Mux port, falling back to dynamic ports")
+	} else {
+		udpListener = l
+		// Оптимизация системных буферов сокетов UDP для сглаживания всплесков трафика
+		_ = udpListener.SetReadBuffer(4 * 1024 * 1024)
+		_ = udpListener.SetWriteBuffer(4 * 1024 * 1024)
+		batchConn := NewBatchingUDPMuxConn(udpListener)
+		udpMux := webrtc.NewICEUDPMux(nil, batchConn)
+		settingEngine.SetICEUDPMux(udpMux)
+		actualPort := udpListener.LocalAddr().(*net.UDPAddr).Port
+		log.Info().Int("port", actualPort).Msg("WebRTC UDP Muxer listening with adaptive sendmmsg batching")
 	}
 
 	if cfg != nil && len(cfg.Server.WebRTC.NAT1To1IPs) > 0 {
@@ -61,9 +71,16 @@ func NewEngine(cfg *config.Config) (*Engine, error) {
 		log.Info().Strs("ips", cfg.Server.WebRTC.NAT1To1IPs).Msg("WebRTC configured with NAT 1:1 IPs")
 	}
 
+	// 4. Облегченный Interceptor Registry: компактный NACK responder (256 пакетов = ~500-1000мс истории)
+	ir := &interceptor.Registry{}
+	if nackResponder, err := nack.NewResponderInterceptor(nack.ResponderSize(256)); err == nil {
+		ir.Add(nackResponder)
+	}
+
 	api := webrtc.NewAPI(
 		webrtc.WithMediaEngine(mediaEngine),
 		webrtc.WithSettingEngine(settingEngine),
+		webrtc.WithInterceptorRegistry(ir),
 	)
 
 	return &Engine{

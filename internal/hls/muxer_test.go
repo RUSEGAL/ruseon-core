@@ -1,6 +1,7 @@
 package hls
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -31,9 +32,10 @@ func TestMuxer_LazyGetPlaylist_Wait(t *testing.T) {
 		muxer.mu.Unlock()
 	}()
 	
-	playlist := muxer.GetPlaylist()
+	playlist, ok := muxer.GetPlaylist(context.Background())
 	elapsed := time.Since(start)
 	
+	assert.True(t, ok)
 	// Мы должны были прождать как минимум 150мс
 	if elapsed < 150*time.Millisecond {
 		t.Errorf("GetPlaylist returned too early, elapsed: %v", elapsed)
@@ -45,23 +47,20 @@ func TestMuxer_LazyGetPlaylist_Wait(t *testing.T) {
 }
 
 func TestMuxer_LazyGetPlaylist_Timeout(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
-	}
 	rb := buffer.NewRingBuffer(10)
 	muxer := NewMuxer("test", rb, nil, nil)
 	
-	// Ничего не генерируем. Muxer должен прождать ~3 секунды и вернуть пустой плейлист.
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
 	start := time.Now()
-	playlist := muxer.GetPlaylist()
+	playlist, ok := muxer.GetPlaylist(ctx)
 	elapsed := time.Since(start)
 	
-	if elapsed < 2500*time.Millisecond {
+	assert.False(t, ok)
+	assert.Empty(t, playlist)
+	if elapsed < 150*time.Millisecond {
 		t.Errorf("GetPlaylist returned too early for timeout, elapsed: %v", elapsed)
-	}
-	
-	if !strings.Contains(playlist, "#EXT-X-TARGETDURATION") {
-		t.Errorf("Playlist should have target duration even if empty")
 	}
 }
 
@@ -100,7 +99,8 @@ func TestMuxer_Lifecycle_And_GetSegment(t *testing.T) {
 	// Wait a bit for Muxer to process
 	time.Sleep(100 * time.Millisecond)
 	
-	playlist := muxer.GetPlaylist()
+	playlist, ok := muxer.GetPlaylist(context.Background())
+	assert.True(t, ok)
 	if !strings.Contains(playlist, "stream_1.ts") {
 		t.Errorf("Expected playlist to contain stream_1.ts, got: %s", playlist)
 	}
@@ -196,7 +196,8 @@ func TestMuxer_DynamicCodecChange_Discontinuity(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	playlist := muxer.GetPlaylist()
+	playlist, ok := muxer.GetPlaylist(context.Background())
+	assert.True(t, ok)
 	if !strings.Contains(playlist, "#EXT-X-DISCONTINUITY") {
 		t.Fatalf("expected playlist to contain #EXT-X-DISCONTINUITY on codec param change, got:\n%s", playlist)
 	}
@@ -220,7 +221,7 @@ func BenchmarkMuxer_GetPlaylist(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = muxer.GetPlaylist()
+		_, _ = muxer.GetPlaylist(context.Background())
 	}
 }
 
@@ -295,7 +296,8 @@ func TestGetPlaylistNoBlocking(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			pl := muxer.GetPlaylist()
+			pl, ok := muxer.GetPlaylist(context.Background())
+			assert.True(t, ok)
 			assert.Contains(t, pl, "test_first.ts")
 		}()
 	}
@@ -316,4 +318,81 @@ func TestGetPlaylistNoBlocking(t *testing.T) {
 	wg.Wait()
 }
 
+func TestMuxer_Discontinuity(t *testing.T) {
+	rb := buffer.NewRingBuffer(10)
+	defer rb.Close()
 
+	// Initial SPS/PPS
+	sps1 := []byte{0x67, 0x42, 0x00, 0x0a, 0xf8, 0x41, 0xa2}
+	pps1 := []byte{0x68, 0xce, 0x38, 0x80}
+	rb.SetParams(nil, sps1, pps1)
+
+	muxer := NewMuxer("test_discontinuity", rb, nil, nil)
+	muxer.targetDuration = 100 * time.Millisecond
+	defer muxer.Stop()
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Write first segment
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: true,
+		Timestamp:  0,
+		NALUs:      [][]byte{{0x65, 0x01}},
+	})
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: true,
+		Timestamp:  100 * time.Millisecond,
+		NALUs:      [][]byte{{0x65, 0x02}},
+	})
+
+	time.Sleep(100 * time.Millisecond)
+
+	// Change SPS (simulating on-the-fly resolution change or camera stream switch)
+	sps2 := []byte{0x67, 0x42, 0x00, 0x1f, 0xf8, 0x41, 0xa2} // different profile/level
+	rb.SetParams(nil, sps2, pps1)
+
+	// Write keyframe with new SPS parameters
+	rb.Write(&buffer.Frame{
+		IsKeyFrame: true,
+		Timestamp:  200 * time.Millisecond,
+		NALUs:      [][]byte{{0x65, 0x05}},
+	})
+
+	time.Sleep(100 * time.Millisecond)
+
+	playlist, ok := muxer.GetPlaylist(context.Background())
+	assert.True(t, ok)
+	if !strings.Contains(playlist, "#EXT-X-DISCONTINUITY") {
+		t.Fatalf("expected playlist to contain #EXT-X-DISCONTINUITY on codec param change, got:\n%s", playlist)
+	}
+}
+
+func TestMuxer_DiscontinuityDetection(t *testing.T) {
+	rb := buffer.NewRingBuffer(10)
+	muxer := NewMuxer("test", rb, nil, nil)
+
+	// First segment
+	muxer.mu.Lock()
+	muxer.segments = append(muxer.segments, &Segment{
+		Name:            "stream_1.ts",
+		Duration:        2 * time.Second,
+		IsDiscontinuity: false,
+	})
+	muxer.mu.Unlock()
+
+	// Add second segment with discontinuity
+	muxer.mu.Lock()
+	muxer.segments = append(muxer.segments, &Segment{
+		Name:            "stream_2.ts",
+		Duration:        2 * time.Second,
+		IsDiscontinuity: true,
+	})
+	muxer.mu.Unlock()
+
+	muxer.mu.RLock()
+	assert.Equal(t, 2, len(muxer.segments))
+	assert.False(t, muxer.segments[0].IsDiscontinuity)
+	assert.True(t, muxer.segments[1].IsDiscontinuity)
+	assert.Equal(t, "stream_2.ts", muxer.segments[1].Name)
+	muxer.mu.RUnlock()
+}

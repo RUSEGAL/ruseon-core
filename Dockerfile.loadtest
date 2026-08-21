@@ -1,0 +1,16 @@
+# Dockerfile.loadtest
+FROM golang:1.26-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN mkdir -p web/dist && touch web/dist/placeholder.txt && \
+    CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-s -w" \
+    -o /loadtest \
+    ./cmd/loadtest
+
+FROM alpine:3.19
+RUN apk --no-cache add ca-certificates tzdata
+COPY --from=builder /loadtest /loadtest
+ENTRYPOINT ["/loadtest"]

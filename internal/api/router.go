@@ -65,17 +65,19 @@ func SetupRouter(h *Handler, auth registry.Authenticator, debug bool, corsOrigin
 
 	// Zerolog middleware for Gin
 	r.Use(func(c *gin.Context) {
+		path := c.Request.URL.Path
+
+		// Fast-bypass для медиапотоков (HLS/WebRTC/Logs): исключаем миллионы аллокаций логгера в секунду
+		if strings.HasPrefix(path, "/stream/") || path == "/api/logs/stream" {
+			c.Next()
+			return
+		}
+
 		start := time.Now()
 		c.Next()
 		duration := time.Since(start)
 
-		// Игнорируем логирование самого лог-стрима, чтобы не было бесконечного цикла
-		if c.Request.URL.Path == "/api/logs/stream" {
-			return
-		}
-
 		status := c.Writer.Status()
-		path := c.Request.URL.Path
 		
 		l := log.Info()
 		

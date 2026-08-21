@@ -1,0 +1,64 @@
+# docker-compose.bench.yml
+# Run: docker compose -f docker-compose.bench.yml up --abort-on-container-exit
+name: ruseon-bench
+
+networks:
+  bench:
+    driver: bridge
+
+services:
+  bench-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.loadtest
+    container_name: bench-server
+    # cpuset: "0-5"  # Linux only: pin server to CPU cores 0-5 for hardware isolation
+    environment:
+      - GOGC=${GOGC:-100}
+    ports:
+      - "4197:4197"
+      - "4198:4198"
+    command:
+      - "-mode=server"
+      - "-cameras=${CAMERAS:-100}"
+      - "-real-disk=${REAL_DISK:-false}"
+      - "-report-every=${REPORT_EVERY:-5}"
+      - "-profile=${BENCH_PROFILE:-baseline}"
+    networks:
+      - bench
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:4197/livez || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+      start_period: 2s
+
+  bench-client:
+    build:
+      context: .
+      dockerfile: Dockerfile.loadtest
+    container_name: bench-client
+    # cpuset: "6-11"  # Linux only: pin client to CPU cores 6-11 for hardware isolation
+    environment:
+      - GOGC=${GOGC:-100}
+    command:
+      - "-mode=client"
+      - "-server-url=http://bench-server:4197"
+      - "-grpc-url=bench-server:4198"
+      - "-cameras=${CAMERAS:-100}"
+      - "-api-workers=${API_WORKERS:-150}"
+      - "-hls-viewers=${HLS_VIEWERS:-150}"
+      - "-webrtc-viewers=${WEBRTC_VIEWERS:-30}"
+      - "-grpc-pushers=${GRPC_PUSHERS:-20}"
+      - "-duration=${DURATION:-60}"
+      - "-report-every=${REPORT_EVERY:-5}"
+      - "-profile=${BENCH_PROFILE:-baseline}"
+      - "-output-json=/results/bench-${BENCH_PROFILE:-baseline}.json"
+      - "-output-md=/results/bench-${BENCH_PROFILE:-baseline}.md"
+    networks:
+      - bench
+    depends_on:
+      bench-server:
+        condition: service_healthy
+    volumes:
+      - ./bench-results:/results

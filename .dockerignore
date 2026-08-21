@@ -1,0 +1,10 @@
+.git
+.github
+web/node_modules
+data
+recordings
+backups
+bench-results
+*.log
+*.out
+*.exe
