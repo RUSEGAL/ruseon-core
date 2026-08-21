@@ -46,20 +46,24 @@ func NewEngine(cfg *config.Config) (*Engine, error) {
 	settingEngine := webrtc.SettingEngine{}
 
 	var udpListener *net.UDPConn
+	listenPort := 0
 	if cfg != nil && cfg.Server.WebRTC.ListenPort > 0 {
-		l, err := net.ListenUDP("udp", &net.UDPAddr{Port: cfg.Server.WebRTC.ListenPort})
-		if err != nil {
-			log.Warn().Err(err).Int("port", cfg.Server.WebRTC.ListenPort).Msg("Failed to bind WebRTC UDP Mux port, falling back to dynamic ports")
-		} else {
-			udpListener = l
-			// Оптимизация системных буферов сокетов UDP для сглаживания всплесков трафика
-			_ = udpListener.SetReadBuffer(4 * 1024 * 1024)
-			_ = udpListener.SetWriteBuffer(4 * 1024 * 1024)
-			batchConn := NewBatchingUDPMuxConn(udpListener)
-			udpMux := webrtc.NewICEUDPMux(nil, batchConn)
-			settingEngine.SetICEUDPMux(udpMux)
-			log.Info().Int("port", cfg.Server.WebRTC.ListenPort).Msg("WebRTC UDP Muxer listening with adaptive sendmmsg batching")
-		}
+		listenPort = cfg.Server.WebRTC.ListenPort
+	}
+
+	l, err := net.ListenUDP("udp", &net.UDPAddr{Port: listenPort})
+	if err != nil {
+		log.Warn().Err(err).Int("port", listenPort).Msg("Failed to bind WebRTC UDP Mux port, falling back to dynamic ports")
+	} else {
+		udpListener = l
+		// Оптимизация системных буферов сокетов UDP для сглаживания всплесков трафика
+		_ = udpListener.SetReadBuffer(4 * 1024 * 1024)
+		_ = udpListener.SetWriteBuffer(4 * 1024 * 1024)
+		batchConn := NewBatchingUDPMuxConn(udpListener)
+		udpMux := webrtc.NewICEUDPMux(nil, batchConn)
+		settingEngine.SetICEUDPMux(udpMux)
+		actualPort := udpListener.LocalAddr().(*net.UDPAddr).Port
+		log.Info().Int("port", actualPort).Msg("WebRTC UDP Muxer listening with adaptive sendmmsg batching")
 	}
 
 	if cfg != nil && len(cfg.Server.WebRTC.NAT1To1IPs) > 0 {

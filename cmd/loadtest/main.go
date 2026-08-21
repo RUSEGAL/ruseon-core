@@ -1064,6 +1064,7 @@ func runServerMode() {
 
 	cfg := &config.Config{}
 	cfg.Auth.Secret = "loadtest-secret-32chars-minimum!!"
+	cfg.Server.WebRTC.ListenPort = 8443
 
 	store := newLoadtestStore()
 	registry.RegisterStateStore(store)

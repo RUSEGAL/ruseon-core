@@ -1,6 +1,6 @@
 # 🚀 RUSEON Core — Результаты нагрузочного тестирования / Load Test Results
 
-> **Дата тестирования / Timestamp:** `2026-08-21 06:48:33` | **Длительность / Duration:** `300.1 сек / 300.1 s` | **CPU Cores:** `12`
+> **Дата тестирования / Timestamp:** `2026-08-21 07:45:21` | **Длительность / Duration:** `300.2 сек / 300.2 s` | **CPU Cores:** `12`
 
 ---
 
@@ -23,25 +23,25 @@
 
 | Компонент | Метрика | Значение | Латентность p50 / p95 / p99 |
 | :--- | :--- | :--- | :--- |
-| **Ingest (RTSP/NALU)** | Суммарный FPS | **18154 FPS** (1341.2 Mbps) | — (Drops: `0`) |
-| **REST API** | Throughput / RPS | **338 RPS** (OK: `101437`, Err: `0`) | `0.87 ms` / `27.14 ms` / `125.22 ms` |
-| **HLS fMP4 Delivery** | Отдано сегментов | **180000 seg** (491.9 MB/s) | `66.97 ms` / `293.64 ms` / `444.80 ms` |
-| **WebRTC WHEP** | RTP Пакетов | **17539409 pkts** (64.6 MB/s) | Handshake: `439.56 ms` / `835.65 ms` |
-| **gRPC Stream & AI** | Кадров / Метаданных | **18134 FPS** / **1868 RPS** | Stream: `32.16 ms` (Err: `0`) |
-| **EventBus Webhooks** | Published / Delivered / Dropped | **89786** / **89786** / **0** (0.0%) | — |
+| **Ingest (RTSP/NALU)** | Суммарный FPS | **18160 FPS** (1341.5 Mbps) | — (Drops: `0`) |
+| **REST API** | Throughput / RPS | **340 RPS** (OK: `102048`, Err: `0`) | `0.92 ms` / `29.90 ms` / `117.69 ms` |
+| **HLS fMP4 Delivery** | Отдано сегментов | **180000 seg** (491.8 MB/s) | `51.91 ms` / `256.21 ms` / `441.28 ms` |
+| **WebRTC WHEP** | RTP Пакетов | **17545984 pkts** (64.6 MB/s) | Handshake: `220.67 ms` / `568.22 ms` |
+| **gRPC Stream & AI** | Кадров / Метаданных | **18137 FPS** / **1881 RPS** | Stream: `32.24 ms` (Err: `0`) |
+| **EventBus Webhooks** | Published / Delivered / Dropped | **90168** / **90168** / **0** (0.0%) | — |
 
 ### 🖥️ Потребление системных ресурсов
 
 | Ресурс | Значение |
 | :--- | :--- |
-| **Активные горутины** | `2422` |
-| **Heap Alloc / In-Use** | `311 MB` / `356 MB` |
-| **System Memory (Sys)** | `2370 MB` |
-| **RSS (Реальная память процесса)** | `1122 MB` |
-| **CPU System (avg / peak)** | `67.0%` / `94.5%` |
-| **Process CPU Usage** | `354.2%` |
-| **Network RX / TX (OS)** | `6303.8 Mbps` / `36.3 Mbps` |
-| **GC Cycles / Pause Total** | `793 циклов` / `3390.30 ms` (Max pause: `23.64 ms`) |
+| **Активные горутины** | `3134` |
+| **Heap Alloc / In-Use** | `289 MB` / `338 MB` |
+| **System Memory (Sys)** | `3002 MB` |
+| **RSS (Реальная память процесса)** | `914 MB` |
+| **CPU System (avg / peak)** | `65.5%` / `94.6%` |
+| **Process CPU Usage** | `352.6%` |
+| **Network RX / TX (OS)** | `6304.5 Mbps` / `36.5 Mbps` |
+| **GC Cycles / Pause Total** | `868 циклов` / `3839.46 ms` (Max pause: `17.52 ms`) |
 
 ### 💡 Инженерные примечания и продакшен-рекомендации
 
@@ -81,25 +81,25 @@
 
 | Component | Metric | Value | Latency p50 / p95 / p99 |
 | :--- | :--- | :--- | :--- |
-| **Ingest (RTSP/NALU)** | Total FPS | **18154 FPS** (1341.2 Mbps) | — (Drops: `0`) |
-| **REST API** | Throughput / RPS | **338 RPS** (OK: `101437`, Err: `0`) | `0.87 ms` / `27.14 ms` / `125.22 ms` |
-| **HLS fMP4 Delivery** | Delivered Segments | **180000 seg** (491.9 MB/s) | `66.97 ms` / `293.64 ms` / `444.80 ms` |
-| **WebRTC WHEP** | RTP Packets | **17539409 pkts** (64.6 MB/s) | Handshake: `439.56 ms` / `835.65 ms` |
-| **gRPC Stream & AI** | Frames / Metadata | **18134 FPS** / **1868 RPS** | Stream: `32.16 ms` (Err: `0`) |
-| **EventBus Webhooks** | Published / Delivered / Dropped | **89786** / **89786** / **0** (0.0%) | — |
+| **Ingest (RTSP/NALU)** | Total FPS | **18160 FPS** (1341.5 Mbps) | — (Drops: `0`) |
+| **REST API** | Throughput / RPS | **340 RPS** (OK: `102048`, Err: `0`) | `0.92 ms` / `29.90 ms` / `117.69 ms` |
+| **HLS fMP4 Delivery** | Delivered Segments | **180000 seg** (491.8 MB/s) | `51.91 ms` / `256.21 ms` / `441.28 ms` |
+| **WebRTC WHEP** | RTP Packets | **17545984 pkts** (64.6 MB/s) | Handshake: `220.67 ms` / `568.22 ms` |
+| **gRPC Stream & AI** | Frames / Metadata | **18137 FPS** / **1881 RPS** | Stream: `32.24 ms` (Err: `0`) |
+| **EventBus Webhooks** | Published / Delivered / Dropped | **90168** / **90168** / **0** (0.0%) | — |
 
 ### 🖥️ System Resource Consumption
 
 | Resource | Value |
 | :--- | :--- |
-| **Active Goroutines** | `2422` |
-| **Heap Alloc / In-Use** | `311 MB` / `356 MB` |
-| **System Memory (Sys)** | `2370 MB` |
-| **Process RSS Memory** | `1122 MB` |
-| **System CPU (avg / peak)** | `67.0%` / `94.5%` |
-| **Process CPU Usage** | `354.2%` |
-| **Network RX / TX (OS)** | `6303.8 Mbps` / `36.3 Mbps` |
-| **GC Cycles / Pause Total** | `793 cycles` / `3390.30 ms` (Max pause: `23.64 ms`) |
+| **Active Goroutines** | `3134` |
+| **Heap Alloc / In-Use** | `289 MB` / `338 MB` |
+| **System Memory (Sys)** | `3002 MB` |
+| **Process RSS Memory** | `914 MB` |
+| **System CPU (avg / peak)** | `65.5%` / `94.6%` |
+| **Process CPU Usage** | `352.6%` |
+| **Network RX / TX (OS)** | `6304.5 Mbps` / `36.5 Mbps` |
+| **GC Cycles / Pause Total** | `868 cycles` / `3839.46 ms` (Max pause: `17.52 ms`) |
 
 ### 💡 Engineering Notes & Production Recommendations
 
