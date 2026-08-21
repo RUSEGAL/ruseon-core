@@ -18,7 +18,7 @@ func TestStreamManager_ReconnectStorm_Chaos(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			streamID := string(rune('A' + id%26)) // reuse some IDs
-			_ = manager.AddStream(streamID, "rtsp://dummy", false, true, "auto")
+			_ = manager.AddStream(streamID, "rtsp://dummy", false, true, "auto", false)
 		}(i)
 	}
 	wg.Wait()
@@ -41,7 +41,7 @@ func TestStreamManager_ReconnectStorm_Chaos(t *testing.T) {
 			defer wg2.Done()
 			streamID := string(rune('A' + id%26))
 			time.Sleep(20 * time.Millisecond)
-			_ = manager.AddStream(streamID, "rtsp://dummy", false, true, "auto")
+			_ = manager.AddStream(streamID, "rtsp://dummy", false, true, "auto", false)
 		}(i)
 	}
 

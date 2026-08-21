@@ -23,9 +23,10 @@ import (
 
 // Stream представляет логику работы с конкретной камерой.
 type Stream struct {
-	ID  string
-	URL string
+	ID        string
+	URL       string
 	transport string
+	tokenAuth bool
 
 	ctx       context.Context
 	cancelCtx context.CancelFunc
@@ -75,7 +76,7 @@ type Stream struct {
 }
 
 // NewStream создает и запускает поток.
-func NewStream(id, url string, record bool, lazyHLS bool, transport string) *Stream {
+func NewStream(id, url string, record bool, lazyHLS bool, transport string, tokenAuth bool) *Stream {
 	ctx, cancel := context.WithCancel(context.Background())
 	rb := buffer.NewRingBuffer(100)
 	rb.SetCameraID(id)
@@ -83,6 +84,7 @@ func NewStream(id, url string, record bool, lazyHLS bool, transport string) *Str
 		ID:         id,
 		URL:        url,
 		transport:  transport,
+		tokenAuth:  tokenAuth,
 		ctx:        ctx,
 		cancelCtx:  cancel,
 		ringBuffer: rb,
@@ -274,22 +276,29 @@ type PipelineConfig struct {
 	Record    bool
 	LazyHLS   bool
 	Transport string
+	TokenAuth bool
 }
 
 // MatchesPipelineConfig проверяет соответствие текущего состояния стрима заданной конфигурации пайплайна.
 func (s *Stream) MatchesPipelineConfig(cfg PipelineConfig) bool {
 	hasRecorder := s.mp4Recorder != nil
-	return s.URL == cfg.URL && s.transport == cfg.Transport && s.lazyHLS == cfg.LazyHLS && hasRecorder == cfg.Record
+	return s.URL == cfg.URL && s.transport == cfg.Transport && s.lazyHLS == cfg.LazyHLS && s.tokenAuth == cfg.TokenAuth && hasRecorder == cfg.Record
 }
 
 // MatchesConfig проверяет, совпадают ли текущие параметры стрима с переданными.
-func (s *Stream) MatchesConfig(url string, record, lazyHLS bool, transport string) bool {
+func (s *Stream) MatchesConfig(url string, record, lazyHLS bool, transport string, tokenAuth bool) bool {
 	return s.MatchesPipelineConfig(PipelineConfig{
 		URL:       url,
 		Record:    record,
 		LazyHLS:   lazyHLS,
 		Transport: transport,
+		TokenAuth: tokenAuth,
 	})
+}
+
+// IsTokenAuth возвращает true, если поток защищен проверкой токена.
+func (s *Stream) IsTokenAuth() bool {
+	return s.tokenAuth
 }
 
 // GetRingBuffer возвращает кольцевой буфер потока для чтения.

@@ -69,3 +69,28 @@ func TestExportMP4(t *testing.T) {
 		t.Fatal("expected clamped export to succeed")
 	}
 }
+
+func TestExportMP4_EmptyParts(t *testing.T) {
+	tempDir := t.TempDir()
+	camDir := filepath.Join(tempDir, "cam1")
+	err := os.MkdirAll(camDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create an MP4 file with only ftyp/moov (0 parts)
+	emptyMp4Path := filepath.Join(camDir, "empty.mp4")
+	f, err := os.Create(emptyMp4Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Write dummy ftyp
+	_ = f.Close()
+
+	buf := new(bytes.Buffer)
+	err = ExportMP4(tempDir, "cam1", "empty.mp4", -1, -1, buf)
+	if err == nil {
+		t.Fatal("expected error when exporting empty MP4 with 0 parts, got nil")
+	}
+}
+

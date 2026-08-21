@@ -16,6 +16,10 @@ func ExportMP4(recordDir, cameraID, filename string, startSeq, endSeq int, w io.
 		return err
 	}
 
+	if len(idx.Parts) == 0 {
+		return fmt.Errorf("archive file %s contains no media parts", filename)
+	}
+
 	if startSeq < 0 {
 		startSeq = 0
 	}

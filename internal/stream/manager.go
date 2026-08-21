@@ -50,29 +50,23 @@ func (m *Manager) housekeepingLoop() {
 	defer ticker.Stop()
 
 	for {
-		// Каждая итерация изолирована: паника в одном стриме не убивает горутину шедулера
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Error().Interface("panic", r).Msg("Recovered from panic in Manager.housekeepingLoop iteration")
-				}
-			}()
-
-			select {
-			case <-m.ctx.Done():
-				return
-			case t := <-ticker.C:
-				streams := m.GetStreams()
-				for _, st := range streams {
-					st.TickHousekeeping(t)
-				}
-			}
-		}()
-
 		select {
 		case <-m.ctx.Done():
 			return
-		default:
+		case t := <-ticker.C:
+			streams := m.GetStreams()
+			for _, st := range streams {
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							log.Error().Interface("panic", r).Msg("Recovered from panic in stream housekeeping")
+						}
+					}()
+					if st != nil {
+						st.TickHousekeeping(t)
+					}
+				}()
+			}
 		}
 	}
 }
@@ -91,7 +85,7 @@ func (m *Manager) Ready(ctx context.Context) error {
 }
 
 // AddStream добавляет новый поток (камеру) в менеджер.
-func (m *Manager) AddStream(id, url string, record bool, lazyHLS bool, transport string) error {
+func (m *Manager) AddStream(id, url string, record bool, lazyHLS bool, transport string, tokenAuth bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -99,7 +93,7 @@ func (m *Manager) AddStream(id, url string, record bool, lazyHLS bool, transport
 		return fmt.Errorf("stream %s already exists", id)
 	}
 
-	st := NewStream(id, url, record, lazyHLS, transport)
+	st := NewStream(id, url, record, lazyHLS, transport, tokenAuth)
 	m.streams[id] = st
 	return nil
 }
@@ -183,7 +177,7 @@ func (m *Manager) HasStream(id string) bool {
 
 // UpsertStream атомарно создает, обновляет или останавливает поток в зависимости от конфигурации.
 // Остановка старого потока вынесена за пределы блокировки менеджера.
-func (m *Manager) UpsertStream(id, url string, record bool, lazyHLS bool, transport string, disabled bool) {
+func (m *Manager) UpsertStream(id, url string, record bool, lazyHLS bool, transport string, tokenAuth bool, disabled bool) {
 	var toStop *Stream
 	var newStream *Stream
 
@@ -196,13 +190,13 @@ func (m *Manager) UpsertStream(id, url string, record bool, lazyHLS bool, transp
 			toStop = existing
 		}
 	case exists:
-		if !existing.MatchesConfig(url, record, lazyHLS, transport) {
+		if !existing.MatchesConfig(url, record, lazyHLS, transport, tokenAuth) {
 			toStop = existing
-			newStream = NewStream(id, url, record, lazyHLS, transport)
+			newStream = NewStream(id, url, record, lazyHLS, transport, tokenAuth)
 			m.streams[id] = newStream
 		}
 	default:
-		newStream = NewStream(id, url, record, lazyHLS, transport)
+		newStream = NewStream(id, url, record, lazyHLS, transport, tokenAuth)
 		m.streams[id] = newStream
 	}
 	m.mu.Unlock()
@@ -234,12 +228,12 @@ func (m *Manager) SyncWithStorage(store registry.StateStore) error {
 		if !cam.Disabled {
 			activeIDs[cam.ID] = struct{}{}
 			if existing, exists := m.streams[cam.ID]; exists {
-				if !existing.MatchesConfig(cam.URL, cam.Record, cam.LazyHLS, cam.Transport) {
+				if !existing.MatchesConfig(cam.URL, cam.Record, cam.LazyHLS, cam.Transport, cam.TokenAuth) {
 					toStop = append(toStop, existing)
-					m.streams[cam.ID] = NewStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport)
+					m.streams[cam.ID] = NewStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport, cam.TokenAuth)
 				}
 			} else {
-				m.streams[cam.ID] = NewStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport)
+				m.streams[cam.ID] = NewStream(cam.ID, cam.URL, cam.Record, cam.LazyHLS, cam.Transport, cam.TokenAuth)
 				log.Info().Str("id", cam.ID).Msg("Stream started from backup sync")
 			}
 		} else {

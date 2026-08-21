@@ -10,7 +10,7 @@ import (
 )
 
 func TestStream_LazyHLS(t *testing.T) {
-	s := NewStream("cam1", "://invalid", false, true, "tcp")
+	s := NewStream("cam1", "://invalid", false, true, "tcp", false)
 	defer s.Stop()
 
 	if s.hlsMuxer != nil {
@@ -34,7 +34,7 @@ func TestStream_LazyHLS(t *testing.T) {
 }
 
 func TestStream_GetStats(t *testing.T) {
-	s := NewStream("cam2", "://invalid", false, false, "tcp")
+	s := NewStream("cam2", "://invalid", false, false, "tcp", false)
 	defer s.Stop()
 
 	s.AddBytesSent(1024)
@@ -53,7 +53,7 @@ func TestStream_GetStats(t *testing.T) {
 }
 
 func TestStream_TickHousekeeping_Bitrate(t *testing.T) {
-	s := NewStream("cam_bitrate", "synthetic://", false, false, "tcp")
+	s := NewStream("cam_bitrate", "synthetic://", false, false, "tcp", false)
 	defer s.Stop()
 
 	now := time.Now()
@@ -71,7 +71,7 @@ func TestStream_TickHousekeeping_Bitrate(t *testing.T) {
 }
 
 func TestStream_StateAndStats(t *testing.T) {
-	s := NewStream("cam_state_test", "rtsp://invalid", false, false, "tcp")
+	s := NewStream("cam_state_test", "rtsp://invalid", false, false, "tcp", false)
 	defer s.Stop()
 
 	stats := s.GetStats()
@@ -83,7 +83,7 @@ func TestStream_StateAndStats(t *testing.T) {
 }
 
 func TestStream_Stop_Idempotent(t *testing.T) {
-	s := NewStream("cam_idempotent", "synthetic://", false, true, "tcp")
+	s := NewStream("cam_idempotent", "synthetic://", false, true, "tcp", false)
 
 	var wg sync.WaitGroup
 	for i := 0; i < 5; i++ {
@@ -97,3 +97,14 @@ func TestStream_Stop_Idempotent(t *testing.T) {
 
 	assert.Error(t, s.ctx.Err())
 }
+
+func TestStream_TokenAuth(t *testing.T) {
+	s1 := NewStream("cam_auth_true", "synthetic://", false, true, "tcp", true)
+	defer s1.Stop()
+	assert.True(t, s1.IsTokenAuth())
+
+	s2 := NewStream("cam_auth_false", "synthetic://", false, true, "tcp", false)
+	defer s2.Stop()
+	assert.False(t, s2.IsTokenAuth())
+}
+

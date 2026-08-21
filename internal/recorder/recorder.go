@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/RUSEGAL/ruseon-core/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/internal/rtsp"
 	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
@@ -149,7 +150,7 @@ func (r *Recorder) run() {
 			frame = f
 		}
 
-		rawPts := int64(frame.Timestamp * 90000 / time.Second)
+		rawPts := rtsp.DurationTo90k(frame.Timestamp)
 
 		// Ротация файла каждый час. Проверяем перед обработкой I-кадра.
 		if file != nil && frame.IsKeyFrame && time.Since(recordStartTime) > 1*time.Hour {

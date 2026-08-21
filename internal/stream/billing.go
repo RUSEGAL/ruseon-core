@@ -53,7 +53,9 @@ func StartBillingTask(ctx context.Context, _ *config.Config, manager *Manager, s
 
 // collectBillingDelta вычисляет дельту трафика для всех стримов в памяти (без обращения к диску)
 func collectBillingDelta(manager *Manager, lastBytes, pendingDelta map[string]uint64) {
+	activeIDs := make(map[string]struct{})
 	for _, st := range manager.GetStreams() {
+		activeIDs[st.ID] = struct{}{}
 		current := st.GetStats().BytesReceived
 		prev := lastBytes[st.ID]
 		if current > prev {
@@ -63,6 +65,13 @@ func collectBillingDelta(manager *Manager, lastBytes, pendingDelta map[string]ui
 			pendingDelta[st.ID] += current
 		}
 		lastBytes[st.ID] = current
+	}
+
+	// Очищаем удаленные камеры из lastBytes
+	for id := range lastBytes {
+		if _, ok := activeIDs[id]; !ok {
+			delete(lastBytes, id)
+		}
 	}
 }
 

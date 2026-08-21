@@ -119,6 +119,25 @@ type CameraConfig struct {
 	RecordHistory  []DisableRecord `yaml:"record_history,omitempty" json:"recordHistory"`
 }
 
+// Clone returns a deep copy of CameraConfig.
+func (c CameraConfig) Clone() CameraConfig {
+	out := c
+	if c.Tags != nil {
+		out.Tags = make([]string, len(c.Tags))
+		copy(out.Tags, c.Tags)
+	}
+	if c.DisableHistory != nil {
+		out.DisableHistory = make([]DisableRecord, len(c.DisableHistory))
+		copy(out.DisableHistory, c.DisableHistory)
+	}
+	if c.RecordHistory != nil {
+		out.RecordHistory = make([]DisableRecord, len(c.RecordHistory))
+		copy(out.RecordHistory, c.RecordHistory)
+	}
+	return out
+}
+
+
 // Load считывает конфигурацию из файла.
 func Load(path string) (*Config, error) {
 	file, err := os.Open(filepath.Clean(path)) // #nosec G304

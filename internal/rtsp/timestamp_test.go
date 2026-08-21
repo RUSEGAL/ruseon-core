@@ -2,6 +2,7 @@ package rtsp
 
 import (
 	"testing"
+	"time"
 )
 
 func TestTimestampUnwrapper_Sequential(t *testing.T) {
@@ -111,3 +112,36 @@ func TestTimestampUnwrapper_OutOfOrderRollover(t *testing.T) {
 		t.Errorf("expected 0xFFFFFFFF after out-of-order wrap recovery, got %d", u3)
 	}
 }
+
+func TestTimestampConversions_RoundtripAndBoundaries(t *testing.T) {
+	testDurations := []time.Duration{
+		0,
+		time.Millisecond,
+		33333 * time.Microsecond,
+		time.Second,
+		28 * time.Hour,
+		29 * time.Hour,        // Beyond the old 28.46h int64 limit
+		57 * time.Hour,        // Beyond the old 56.9h uint64 limit
+		30 * 24 * time.Hour,   // 30 days
+		365 * 24 * time.Hour,  // 1 year
+		10 * 365 * 24 * time.Hour, // 10 years
+	}
+
+	for _, d := range testDurations {
+		ticks := DurationTo90k(d)
+		if ticks < 0 {
+			t.Fatalf("DurationTo90k(%v) returned negative ticks: %d", d, ticks)
+		}
+
+		dur := RTP90kToDuration(uint64(ticks))
+		// Check that roundtrip error is strictly within 1 tick (< 12 microseconds)
+		diff := d - dur
+		if diff < 0 {
+			diff = -diff
+		}
+		if diff > 15*time.Microsecond {
+			t.Errorf("Roundtrip precision error for %v: got %v (diff %v)", d, dur, diff)
+		}
+	}
+}
+

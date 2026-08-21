@@ -507,7 +507,7 @@ func runReconnectSimulator(ctx context.Context, manager *stream.Manager, camIDs 
 				st.AddReconnects(1)
 			}
 			manager.RemoveStream(camID)
-			_ = manager.AddStream(camID, "synthetic://"+camID, useRealDisk, true /*lazyHLS*/, "tcp")
+			_ = manager.AddStream(camID, "synthetic://"+camID, useRealDisk, true /*lazyHLS*/, "tcp", false)
 			if wg != nil {
 				wg.Add(1)
 			}
@@ -1098,7 +1098,7 @@ func runServerMode() {
 			Record:      useRealDisk,
 			TrafficUsed: 0,
 		})
-		_ = manager.AddStream(camIDs[i], "synthetic://"+camIDs[i], useRealDisk, true, "tcp")
+		_ = manager.AddStream(camIDs[i], "synthetic://"+camIDs[i], useRealDisk, true, "tcp", false)
 	}
 
 	webrtcEngine, _ := iwebrtc.NewEngine(cfg)
@@ -1579,7 +1579,7 @@ func runAllInProcess() {
 
 	manager := stream.NewManager()
 	for _, id := range camIDs {
-		_ = manager.AddStream(id, "synthetic://"+id, useRealDisk, true /*lazyHLS*/, "tcp")
+		_ = manager.AddStream(id, "synthetic://"+id, useRealDisk, true /*lazyHLS*/, "tcp", false)
 	}
 
 	// ── 6. WebRTC Engine & HTTP API Server (Gin) ─────────────────────────

@@ -148,7 +148,7 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 					if err == nil && len(nalus) > 0 {
 						isKeyFrame := false
 						unwrappedTS := tsUnwrapper.Unwrap(pkt.Timestamp)
-						pts := time.Duration(unwrappedTS * uint64(time.Second) / 90000) // #nosec G115 -- unwrapped timestamp fits within int64 duration
+						pts := RTP90kToDuration(unwrappedTS)
 
 						for _, nalu := range nalus {
 							if len(nalu) > 0 {
@@ -178,7 +178,7 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 					if err == nil && len(nalus) > 0 {
 						isKeyFrame := false
 						unwrappedTS := tsUnwrapper.Unwrap(pkt.Timestamp)
-						pts := time.Duration(unwrappedTS * uint64(time.Second) / 90000) // #nosec G115 -- unwrapped timestamp fits within int64 duration
+						pts := RTP90kToDuration(unwrappedTS)
 
 						for _, nalu := range nalus {
 							if len(nalu) > 0 {

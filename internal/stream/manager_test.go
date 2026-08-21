@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/RUSEGAL/ruseon-core/internal/buffer"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/storage"
@@ -21,7 +23,7 @@ func TestManager_Concurrency(t *testing.T) {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			_ = m.AddStream(fmt.Sprintf("cam%d", id), "rtsp://invalid", false, true, "tcp")
+			_ = m.AddStream(fmt.Sprintf("cam%d", id), "rtsp://invalid", false, true, "tcp", false)
 		}(i)
 	}
 	wg.Wait()
@@ -51,8 +53,8 @@ func TestManager_Concurrency(t *testing.T) {
 
 func TestManager_AddDuplicate(t *testing.T) {
 	m := NewManager()
-	_ = m.AddStream("cam1", "rtsp://invalid", false, true, "tcp")
-	err := m.AddStream("cam1", "rtsp://invalid2", false, true, "tcp")
+	_ = m.AddStream("cam1", "rtsp://invalid", false, true, "tcp", false)
+	err := m.AddStream("cam1", "rtsp://invalid2", false, true, "tcp", false)
 	if err == nil {
 		t.Errorf("Expected error when adding duplicate stream")
 	}
@@ -112,7 +114,7 @@ func TestManager_UpsertStream(t *testing.T) {
 	m := NewManager()
 
 	// 1. Создаем поток через UpsertStream
-	m.UpsertStream("cam1", "rtsp://test1", false, true, "tcp", false)
+	m.UpsertStream("cam1", "rtsp://test1", false, true, "tcp", false, false)
 	st1, ok := m.GetStream("cam1")
 	if !ok || st1 == nil {
 		t.Fatalf("expected cam1 to be created")
@@ -122,14 +124,14 @@ func TestManager_UpsertStream(t *testing.T) {
 	}
 
 	// 2. Идемпотентный апсерт с теми же параметрами - стрим НЕ должен пересоздаваться
-	m.UpsertStream("cam1", "rtsp://test1", false, true, "tcp", false)
+	m.UpsertStream("cam1", "rtsp://test1", false, true, "tcp", false, false)
 	st1Same, _ := m.GetStream("cam1")
 	if st1 != st1Same {
 		t.Errorf("expected same stream instance when parameters are identical")
 	}
 
 	// 3. Апсерт с измененным URL - стрим ДОЛЖЕН пересоздаться
-	m.UpsertStream("cam1", "rtsp://test1-updated", false, true, "tcp", false)
+	m.UpsertStream("cam1", "rtsp://test1-updated", false, true, "tcp", false, false)
 	st1Updated, _ := m.GetStream("cam1")
 	if st1 == st1Updated {
 		t.Errorf("expected new stream instance when URL is updated")
@@ -139,7 +141,7 @@ func TestManager_UpsertStream(t *testing.T) {
 	}
 
 	// 4. Апсерт с disabled=true - стрим ДОЛЖЕН быть остановлен и удален
-	m.UpsertStream("cam1", "rtsp://test1-updated", false, true, "tcp", true)
+	m.UpsertStream("cam1", "rtsp://test1-updated", false, true, "tcp", false, true)
 	if m.HasStream("cam1") {
 		t.Errorf("expected cam1 to be removed when disabled")
 	}
@@ -160,7 +162,7 @@ func TestManager_UpsertConcurrency(_ *testing.T) {
 			for j := 0; j < 20; j++ {
 				disabled := (j % 2 == 1)
 				url := fmt.Sprintf("rtsp://server/%s_%d", camID, j)
-				m.UpsertStream(camID, url, false, true, "tcp", disabled)
+				m.UpsertStream(camID, url, false, true, "tcp", false, disabled)
 			}
 		}(i)
 	}
@@ -168,7 +170,7 @@ func TestManager_UpsertConcurrency(_ *testing.T) {
 }
 
 func TestStream_Shutdown_IdleSubscribers(t *testing.T) {
-	st := NewStream("test_idle_sub", "synthetic://", false, false, "tcp")
+	st := NewStream("test_idle_sub", "synthetic://", false, false, "tcp", false)
 
 	// Subscribe 5 idle readers that are waiting on ReadContext
 	var readers []*buffer.Reader
@@ -209,7 +211,7 @@ func TestManager_UpsertStream_ActiveViewersUninterrupted(t *testing.T) {
 	m := NewManager()
 
 	// 1. Создаем поток
-	m.UpsertStream("cam_viewers", "rtsp://localhost/live", false, false, "tcp", false)
+	m.UpsertStream("cam_viewers", "rtsp://localhost/live", false, false, "tcp", false, false)
 	st1, ok := m.GetStream("cam_viewers")
 	if !ok {
 		t.Fatalf("expected stream to exist")
@@ -222,7 +224,7 @@ func TestManager_UpsertStream_ActiveViewersUninterrupted(t *testing.T) {
 	}
 
 	// 3. Вызываем UpsertStream с неизменными параметрами стриминга (симуляция обновления метаданных камеры)
-	m.UpsertStream("cam_viewers", "rtsp://localhost/live", false, false, "tcp", false)
+	m.UpsertStream("cam_viewers", "rtsp://localhost/live", false, false, "tcp", false, false)
 
 	st2, ok := m.GetStream("cam_viewers")
 	if !ok || st1 != st2 {
@@ -256,14 +258,14 @@ func TestManager_UpsertStream_PipelineRestartOnConfigChange(t *testing.T) {
 	m := NewManager()
 
 	// 1. Создаем поток с URL A
-	m.UpsertStream("cam_restart", "rtsp://server/streamA", false, false, "tcp", false)
+	m.UpsertStream("cam_restart", "rtsp://server/streamA", false, false, "tcp", false, false)
 	st1, ok := m.GetStream("cam_restart")
 	if !ok {
 		t.Fatalf("expected streamA to exist")
 	}
 
 	// 2. Меняем URL на streamB
-	m.UpsertStream("cam_restart", "rtsp://server/streamB", false, false, "tcp", false)
+	m.UpsertStream("cam_restart", "rtsp://server/streamB", false, false, "tcp", false, false)
 
 	st2, ok := m.GetStream("cam_restart")
 	if !ok || st1 == st2 {
@@ -290,7 +292,7 @@ func TestManager_Concurrent_EditVsDelete_NoResurrection(t *testing.T) {
 	m := NewManager()
 
 	// Инициализируем поток
-	m.UpsertStream("cam_race", "rtsp://server/original", false, false, "tcp", false)
+	m.UpsertStream("cam_race", "rtsp://server/original", false, false, "tcp", false, false)
 
 	var wg sync.WaitGroup
 	deleted := false
@@ -306,7 +308,7 @@ func TestManager_Concurrent_EditVsDelete_NoResurrection(t *testing.T) {
 			delMu.Unlock()
 
 			if !isDel {
-				m.UpsertStream("cam_race", fmt.Sprintf("rtsp://server/edit_%d", idx), false, false, "tcp", false)
+				m.UpsertStream("cam_race", fmt.Sprintf("rtsp://server/edit_%d", idx), false, false, "tcp", false, false)
 			}
 		}(i)
 	}
@@ -319,7 +321,7 @@ func TestManager_Concurrent_EditVsDelete_NoResurrection(t *testing.T) {
 		delMu.Lock()
 		deleted = true
 		delMu.Unlock()
-		m.UpsertStream("cam_race", "", false, false, "", true) // disabled=true
+		m.UpsertStream("cam_race", "", false, false, "", false, true) // disabled=true
 	}()
 
 	wg.Wait()
@@ -331,7 +333,7 @@ func TestManager_Concurrent_EditVsDelete_NoResurrection(t *testing.T) {
 
 	if isDel {
 		// Принудительно завершаем отключением, если какая-то горутина успела добежать
-		m.UpsertStream("cam_race", "", false, false, "", true)
+		m.UpsertStream("cam_race", "", false, false, "", false, true)
 		if m.HasStream("cam_race") {
 			t.Errorf("expected stream to be absent after final disabled upsert")
 		}
@@ -341,7 +343,7 @@ func TestManager_Concurrent_EditVsDelete_NoResurrection(t *testing.T) {
 func TestManager_Close_StopsAllStreams(t *testing.T) {
 	m := NewManager()
 	for i := 0; i < 10; i++ {
-		_ = m.AddStream(fmt.Sprintf("cam_close_%d", i), "synthetic://", false, true, "tcp")
+		_ = m.AddStream(fmt.Sprintf("cam_close_%d", i), "synthetic://", false, true, "tcp", false)
 	}
 
 	if len(m.GetStreams()) != 10 {
@@ -357,8 +359,8 @@ func TestManager_Close_StopsAllStreams(t *testing.T) {
 
 func TestManager_RemoveStream_NonBlockingGet(_ *testing.T) {
 	m := NewManager()
-	_ = m.AddStream("cam_slow", "synthetic://", false, true, "tcp")
-	_ = m.AddStream("cam_fast", "synthetic://", false, true, "tcp")
+	_ = m.AddStream("cam_slow", "synthetic://", false, true, "tcp", false)
+	_ = m.AddStream("cam_fast", "synthetic://", false, true, "tcp", false)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -375,7 +377,7 @@ func TestManager_HousekeepingLoop(t *testing.T) {
 	m := NewManager()
 	defer m.Close()
 
-	_ = m.AddStream("cam_housekeeping", "synthetic://", false, true, "tcp")
+	_ = m.AddStream("cam_housekeeping", "synthetic://", false, true, "tcp", false)
 	st, ok := m.GetStream("cam_housekeeping")
 	if !ok || st == nil {
 		t.Fatalf("expected stream to exist")
@@ -406,7 +408,7 @@ func TestManager_GoroutineSlope(t *testing.T) {
 	for _, n := range counts {
 		mgr := NewManager()
 		for i := 0; i < n; i++ {
-			_ = mgr.AddStream(fmt.Sprintf("cam_slope_%d_%d", n, i), "synthetic://", false, true, "tcp")
+			_ = mgr.AddStream(fmt.Sprintf("cam_slope_%d_%d", n, i), "synthetic://", false, true, "tcp", false)
 		}
 		time.Sleep(100 * time.Millisecond)
 		active := runtime.NumGoroutine() - baseline
@@ -426,7 +428,7 @@ func TestHousekeepingLoopSurvivesPanic(t *testing.T) {
 	defer m.Close()
 
 	// 1. Add normal stream
-	_ = m.AddStream("cam_normal", "synthetic://", false, true, "tcp")
+	_ = m.AddStream("cam_normal", "synthetic://", false, true, "tcp", false)
 	st, _ := m.GetStream("cam_normal")
 
 	// Inject a nil stream manually into manager map to force a panic on iteration
@@ -434,8 +436,8 @@ func TestHousekeepingLoopSurvivesPanic(t *testing.T) {
 	m.streams["cam_panic"] = nil
 	m.mu.Unlock()
 
-	// Wait 2.2 seconds (allowing at least 2 housekeeping ticks with recovery)
-	time.Sleep(2200 * time.Millisecond)
+	// Wait 1.5 seconds (allowing at least 1-2 housekeeping ticks with per-stream recovery)
+	time.Sleep(1500 * time.Millisecond)
 
 	// Remove nil stream
 	m.mu.Lock()
@@ -444,13 +446,13 @@ func TestHousekeepingLoopSurvivesPanic(t *testing.T) {
 
 	// Verify housekeeping loop is still running and updating bitrate for cam_normal
 	st.AddBytesReceived(10000)
-	time.Sleep(1200 * time.Millisecond)
 
-	stats := st.GetStats()
-	if stats.Bitrate == 0 {
-		t.Errorf("expected housekeepingLoop to continue updating stats after surviving panic, got 0 bitrate")
-	}
+	require.Eventually(t, func() bool {
+		st.AddBytesReceived(1000)
+		return st.GetStats().Bitrate > 0
+	}, 4*time.Second, 150*time.Millisecond, "expected housekeepingLoop to continue updating stats after surviving panic")
 }
+
 
 
 

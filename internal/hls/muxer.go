@@ -14,6 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/RUSEGAL/ruseon-core/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/internal/rtsp"
 	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
 )
 
@@ -197,7 +198,7 @@ func (m *Muxer) run() {
 			if len(meta) == 0 {
 				vttData = emptyVTTData
 			} else {
-				segmentStartPts := int64(segmentStart * 90000 / time.Second)
+				segmentStartPts := rtsp.DurationTo90k(segmentStart)
 				var vttBuf bytes.Buffer
 				vttBuf.WriteString("WEBVTT\n")
 				fmt.Fprintf(&vttBuf, "X-TIMESTAMP-MAP=MPEGTS:%d,LOCAL:00:00:00.000\n\n", segmentStartPts)
@@ -328,7 +329,7 @@ func (m *Muxer) run() {
 		}
 
 		// Переводим duration в 90kHz тики (стандарт для MPEG-TS)
-		pts := int64(frame.Timestamp * 90000 / time.Second)
+		pts := rtsp.DurationTo90k(frame.Timestamp)
 
 		// Пишем NALU в TS
 		// Так как мы не имеем B-кадров от большинства IP камер, PTS == DTS.
