@@ -1,6 +1,7 @@
 package rtsp
 
 import (
+	"math"
 	"sync"
 	"time"
 )
@@ -51,7 +52,11 @@ func (u *TimestampUnwrapper) Unwrap(ts uint32) uint64 {
 func RTP90kToDuration(ts uint64) time.Duration {
 	sec := ts / 90000
 	rem := ts % 90000
-	return time.Duration(sec)*time.Second + time.Duration(rem)*time.Second/90000
+	const maxSec = uint64(math.MaxInt64 / int64(time.Second))
+	if sec > maxSec {
+		return time.Duration(math.MaxInt64)
+	}
+	return time.Duration(int64(sec))*time.Second + time.Duration(int64(rem))*time.Second/90000
 }
 
 // DurationTo90k переводит time.Duration (int64) в тики 90kHz.
