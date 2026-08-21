@@ -30,12 +30,14 @@ func BenchmarkWriteGOP(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	var seq uint32
+	for b.Loop() {
+		seq++
 		part := &fmp4.Part{
-			SequenceNumber: uint32(i),
+			SequenceNumber: seq,
 			Tracks: []*fmp4.PartTrack{{
 				ID:       1,
-				BaseTime: uint64(i * 90000),
+				BaseTime: uint64(seq) * 90000,
 				Samples:  samples,
 			}},
 		}
