@@ -55,9 +55,10 @@ func NewEngine(cfg *config.Config) (*Engine, error) {
 			// Оптимизация системных буферов сокетов UDP для сглаживания всплесков трафика
 			_ = udpListener.SetReadBuffer(4 * 1024 * 1024)
 			_ = udpListener.SetWriteBuffer(4 * 1024 * 1024)
-			udpMux := webrtc.NewICEUDPMux(nil, udpListener)
+			batchConn := NewBatchingUDPMuxConn(udpListener)
+			udpMux := webrtc.NewICEUDPMux(nil, batchConn)
 			settingEngine.SetICEUDPMux(udpMux)
-			log.Info().Int("port", cfg.Server.WebRTC.ListenPort).Msg("WebRTC UDP Muxer listening")
+			log.Info().Int("port", cfg.Server.WebRTC.ListenPort).Msg("WebRTC UDP Muxer listening with adaptive sendmmsg batching")
 		}
 	}
 
