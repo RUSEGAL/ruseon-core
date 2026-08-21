@@ -19,21 +19,20 @@ type CodecParams struct {
 
 // RingBuffer хранит последние N кадров и раздает их подписчикам (Router/Broadcaster).
 type RingBuffer struct {
-	mu       sync.RWMutex
+	mu       sync.Mutex
 	frames   []*Frame
 	capacity int
-	head     uint64 
+	head     uint64
 	closed   bool
 
 	cameraID    string
 	metricDrops prometheus.Counter
 
 	params atomic.Pointer[CodecParams]
-	
+
 	// Подписчики
-	subMu     sync.Mutex
 	subs      map[*Reader]struct{}
-	subsSlice atomic.Pointer[[]*Reader]
+	subsSlice []*Reader
 
 	totalDrops atomic.Uint64
 }
@@ -47,11 +46,10 @@ func NewRingBuffer(capacity int) *RingBuffer {
 		capacity:    capacity,
 		frames:      make([]*Frame, capacity),
 		subs:        make(map[*Reader]struct{}),
+		subsSlice:   make([]*Reader, 0),
 		cameraID:    "unknown",
 		metricDrops: metrics.RingbufferDropsTotal.WithLabelValues("unknown"),
 	}
-	emptySlice := make([]*Reader, 0)
-	rb.subsSlice.Store(&emptySlice)
 	return rb
 }
 
@@ -68,21 +66,21 @@ func (rb *RingBuffer) GetTotalDrops() uint64 {
 
 // Write добавляет новый кадр в буфер и рассылает его подписчикам без блокировок чтения подписчиков.
 func (rb *RingBuffer) Write(f *Frame) {
-	// 1. Сохраняем в кольцевой буфер (для истории новым клиентам)
 	rb.mu.Lock()
+	defer rb.mu.Unlock()
+
+	if rb.closed {
+		return
+	}
+
+	// 1. Сохраняем в кольцевой буфер (для истории новым клиентам)
 	// #nosec G115 -- rb.capacity is always positive
 	idx := rb.head % uint64(rb.capacity)
 	rb.frames[idx] = f
 	rb.head++
-	rb.mu.Unlock()
 
-	// 2. Рассылаем всем текущим подписчикам по атомарному срезу (Zero-Lock, CPU Cache-Friendly)
-	subsPtr := rb.subsSlice.Load()
-	if subsPtr == nil {
-		return
-	}
-	subs := *subsPtr
-	for _, sub := range subs {
+	// 2. Рассылаем всем текущим подписчикам
+	for _, sub := range rb.subsSlice {
 		if sub.NeedsIFrame.Load() {
 			if !f.IsKeyFrame {
 				continue // Ждем ключевой кадр после обрыва (drop)
@@ -139,27 +137,20 @@ func (rb *RingBuffer) GetParams() ([]byte, []byte, []byte) {
 	return cloneBytes(p.VPS), cloneBytes(p.SPS), cloneBytes(p.PPS)
 }
 
-// rebuildSubsSliceLocked пересобирает срез подписчиков под мьютексом subMu.
-func (rb *RingBuffer) rebuildSubsSliceLocked() {
-	slice := make([]*Reader, 0, len(rb.subs))
-	for sub := range rb.subs {
-		slice = append(slice, sub)
-	}
-	rb.subsSlice.Store(&slice)
-}
-
 // Close закрывает буфер и каналы всех читателей.
 func (rb *RingBuffer) Close() {
-	rb.subMu.Lock()
-	defer rb.subMu.Unlock()
+	rb.mu.Lock()
+	defer rb.mu.Unlock()
 
-	rb.closed = true
-	emptySlice := make([]*Reader, 0)
-	rb.subsSlice.Store(&emptySlice)
-	for sub := range rb.subs {
-		close(sub.C)
-		delete(rb.subs, sub)
+	if rb.closed {
+		return
 	}
+	rb.closed = true
+	for _, sub := range rb.subsSlice {
+		close(sub.C)
+	}
+	rb.subs = make(map[*Reader]struct{})
+	rb.subsSlice = nil
 }
 
 // Reader предоставляет интерфейс для чтения из RingBuffer через неблокирующий канал.
@@ -196,15 +187,14 @@ func (rb *RingBuffer) Subscribe() *Reader {
 		rb: rb,
 	}
 
-	rb.subMu.Lock()
-	defer rb.subMu.Unlock()
+	rb.mu.Lock()
+	defer rb.mu.Unlock()
 
 	if rb.closed {
 		close(r.C)
 		return r
 	}
 
-	rb.mu.RLock()
 	startIdx, found, head := rb.findLastIFrameLocked()
 	if found {
 		for i := startIdx; i < head; i++ {
@@ -217,22 +207,27 @@ func (rb *RingBuffer) Subscribe() *Reader {
 	} else if head > 0 {
 		r.NeedsIFrame.Store(true)
 	}
-	rb.mu.RUnlock()
 
 	rb.subs[r] = struct{}{}
-	rb.rebuildSubsSliceLocked()
+	rb.subsSlice = append(rb.subsSlice, r)
 	return r
 }
 
 // Close отписывает читателя от рассылки.
 func (r *Reader) Close() {
-	r.rb.subMu.Lock()
-	defer r.rb.subMu.Unlock()
+	r.rb.mu.Lock()
+	defer r.rb.mu.Unlock()
+
+	if _, ok := r.rb.subs[r]; !ok {
+		return
+	}
 	delete(r.rb.subs, r)
-	r.rb.rebuildSubsSliceLocked()
-	// Очищаем канал для GC, чтобы не было гонок при одновременном Write и Close
-	// Сам канал закрывать здесь опасно, так как Writer может писать в него под RLock.
-	// Горутина GC сама соберет канал, когда на него не останется ссылок.
+	for i, sub := range r.rb.subsSlice {
+		if sub == r {
+			r.rb.subsSlice = append(r.rb.subsSlice[:i], r.rb.subsSlice[i+1:]...)
+			break
+		}
+	}
 }
 
 // NewReader - обратная совместимость со старым API.
