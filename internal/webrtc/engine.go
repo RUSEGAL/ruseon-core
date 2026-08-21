@@ -7,6 +7,8 @@ import (
 	"net"
 	"sync"
 
+	"github.com/pion/interceptor"
+	"github.com/pion/interceptor/pkg/nack"
 	"github.com/pion/webrtc/v4"
 	"github.com/rs/zerolog/log"
 
@@ -50,6 +52,9 @@ func NewEngine(cfg *config.Config) (*Engine, error) {
 			log.Warn().Err(err).Int("port", cfg.Server.WebRTC.ListenPort).Msg("Failed to bind WebRTC UDP Mux port, falling back to dynamic ports")
 		} else {
 			udpListener = l
+			// Оптимизация системных буферов сокетов UDP для сглаживания всплесков трафика
+			_ = udpListener.SetReadBuffer(4 * 1024 * 1024)
+			_ = udpListener.SetWriteBuffer(4 * 1024 * 1024)
 			udpMux := webrtc.NewICEUDPMux(nil, udpListener)
 			settingEngine.SetICEUDPMux(udpMux)
 			log.Info().Int("port", cfg.Server.WebRTC.ListenPort).Msg("WebRTC UDP Muxer listening")
@@ -61,9 +66,16 @@ func NewEngine(cfg *config.Config) (*Engine, error) {
 		log.Info().Strs("ips", cfg.Server.WebRTC.NAT1To1IPs).Msg("WebRTC configured with NAT 1:1 IPs")
 	}
 
+	// 4. Облегченный Interceptor Registry: компактный NACK responder (256 пакетов = ~500-1000мс истории)
+	ir := &interceptor.Registry{}
+	if nackResponder, err := nack.NewResponderInterceptor(nack.ResponderSize(256)); err == nil {
+		ir.Add(nackResponder)
+	}
+
 	api := webrtc.NewAPI(
 		webrtc.WithMediaEngine(mediaEngine),
 		webrtc.WithSettingEngine(settingEngine),
+		webrtc.WithInterceptorRegistry(ir),
 	)
 
 	return &Engine{

@@ -15,6 +15,9 @@ services:
     # cpuset: "0-5"  # Linux only: pin server to CPU cores 0-5 for hardware isolation
     environment:
       - GOGC=${GOGC:-100}
+    ports:
+      - "4197:4197"
+      - "4198:4198"
     command:
       - "-mode=server"
       - "-cameras=${CAMERAS:-100}"

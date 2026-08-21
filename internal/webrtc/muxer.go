@@ -42,8 +42,8 @@ func NewWHEPHandler(streamID string, rb *buffer.RingBuffer, mb *stream.MetadataB
 
 // HandleOffer принимает SDP Offer клиента, создает PeerConnection и возвращает SDP Answer.
 func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, error) {
-	_, sps, pps := h.rb.GetParams()
-	if sps == nil || pps == nil {
+	params := h.rb.GetCodecParams()
+	if params == nil || params.SPS == nil || params.PPS == nil {
 		return "", errors.New("stream codec parameters not ready yet, please wait")
 	}
 
@@ -246,7 +246,11 @@ func (h *WHEPHandler) pumpFrames(ctx context.Context, pc *webrtc.PeerConnection,
 	defer pc.Close()
 
 	// Wait for the first keyframe to send SPS/PPS inline if needed
-	_, sps, pps := h.rb.GetParams()
+	params := h.rb.GetCodecParams()
+	var sps, pps []byte
+	if params != nil {
+		sps, pps = params.SPS, params.PPS
+	}
 
 	var lastPTS time.Duration
 	var hasLastPTS bool
@@ -266,6 +270,11 @@ func (h *WHEPHandler) pumpFrames(ctx context.Context, pc *webrtc.PeerConnection,
 		annexB = annexB[:0]
 		
 		if frame.IsKeyFrame {
+			if sps == nil || pps == nil {
+				if p := h.rb.GetCodecParams(); p != nil {
+					sps, pps = p.SPS, p.PPS
+				}
+			}
 			// На ключевом кадре внедряем SPS/PPS (Annex-B)
 			if sps != nil {
 				annexB = append(annexB, 0x00, 0x00, 0x00, 0x01)

@@ -131,13 +131,21 @@ func (m *Muxer) run() {
 	var segmentStart time.Duration
 
 	// Читаем параметры кодека из буфера
-	vps, sps, pps := m.ringBuffer.GetParams()
+	params := m.ringBuffer.GetCodecParams()
+	var vps, sps, pps []byte
+	if params != nil {
+		vps, sps, pps = params.VPS, params.SPS, params.PPS
+	}
 
 	metaChan := m.metaChan
+	mNalus := make([][]byte, 0, 16)
+	var frameCount int
 
 	for {
 		if sps == nil || pps == nil {
-			vps, sps, pps = m.ringBuffer.GetParams()
+			if p := m.ringBuffer.GetCodecParams(); p != nil {
+				vps, sps, pps = p.VPS, p.SPS, p.PPS
+			}
 		}
 
 		var frame *buffer.Frame
@@ -161,13 +169,20 @@ func (m *Muxer) run() {
 			frame = f
 		}
 
-		m.lastFrameTime.Store(time.Now().UnixNano())
+		// Обновляем watchdog раз в 25 кадров (~1 сек) или на ключевых кадрах, сокращая вызовы time.Now() на 96%
+		frameCount++
+		if frame.IsKeyFrame || frameCount >= 25 {
+			frameCount = 0
+			m.lastFrameTime.Store(time.Now().UnixNano())
+		}
 
 		if frame.IsKeyFrame {
-			newVps, newSps, newPps := m.ringBuffer.GetParams()
-			if (!bytes.Equal(sps, newSps) || !bytes.Equal(pps, newPps) || !bytes.Equal(vps, newVps)) && newSps != nil {
-				vps, sps, pps = newVps, newSps, newPps
-				m.needsDiscontinuity = true
+			newParams := m.ringBuffer.GetCodecParams()
+			if newParams != nil && newParams.SPS != nil {
+				if !bytes.Equal(sps, newParams.SPS) || !bytes.Equal(pps, newParams.PPS) || !bytes.Equal(vps, newParams.VPS) {
+					vps, sps, pps = newParams.VPS, newParams.SPS, newParams.PPS
+					m.needsDiscontinuity = true
+				}
 			}
 		}
 
@@ -299,11 +314,14 @@ func (m *Muxer) run() {
 				}
 			}
 			if !hasParams {
+				mNalus = mNalus[:0]
 				if vps != nil {
-					nalus = append([][]byte{vps, sps, pps}, nalus...)
+					mNalus = append(mNalus, vps, sps, pps)
 				} else {
-					nalus = append([][]byte{sps, pps}, nalus...)
+					mNalus = append(mNalus, sps, pps)
 				}
+				mNalus = append(mNalus, nalus...)
+				nalus = mNalus
 			}
 		}
 

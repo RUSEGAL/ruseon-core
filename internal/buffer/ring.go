@@ -10,6 +10,13 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
 )
 
+// CodecParams хранит иммутабельные параметры видеокодека (VPS, SPS, PPS).
+type CodecParams struct {
+	VPS []byte
+	SPS []byte
+	PPS []byte
+}
+
 // RingBuffer хранит последние N кадров и раздает их подписчикам (Router/Broadcaster).
 type RingBuffer struct {
 	mu       sync.RWMutex
@@ -18,16 +25,15 @@ type RingBuffer struct {
 	head     uint64 
 	closed   bool
 
-	cameraID string
+	cameraID    string
 	metricDrops prometheus.Counter
 
-	vps []byte
-	sps []byte
-	pps []byte
+	params atomic.Pointer[CodecParams]
 	
 	// Подписчики
-	subMu sync.RWMutex
-	subs  map[*Reader]struct{}
+	subMu     sync.Mutex
+	subs      map[*Reader]struct{}
+	subsSlice atomic.Pointer[[]*Reader]
 
 	totalDrops atomic.Uint64
 }
@@ -38,12 +44,14 @@ func NewRingBuffer(capacity int) *RingBuffer {
 		capacity = 100
 	}
 	rb := &RingBuffer{
-		capacity: capacity,
-		frames:   make([]*Frame, capacity),
-		subs:     make(map[*Reader]struct{}),
-		cameraID: "unknown",
+		capacity:    capacity,
+		frames:      make([]*Frame, capacity),
+		subs:        make(map[*Reader]struct{}),
+		cameraID:    "unknown",
 		metricDrops: metrics.RingbufferDropsTotal.WithLabelValues("unknown"),
 	}
+	emptySlice := make([]*Reader, 0)
+	rb.subsSlice.Store(&emptySlice)
 	return rb
 }
 
@@ -58,11 +66,8 @@ func (rb *RingBuffer) GetTotalDrops() uint64 {
 	return rb.totalDrops.Load()
 }
 
-// Write добавляет новый кадр в буфер и рассылает его подписчикам.
+// Write добавляет новый кадр в буфер и рассылает его подписчикам без блокировок чтения подписчиков.
 func (rb *RingBuffer) Write(f *Frame) {
-	rb.subMu.RLock()
-	defer rb.subMu.RUnlock()
-
 	// 1. Сохраняем в кольцевой буфер (для истории новым клиентам)
 	rb.mu.Lock()
 	// #nosec G115 -- rb.capacity is always positive
@@ -71,8 +76,13 @@ func (rb *RingBuffer) Write(f *Frame) {
 	rb.head++
 	rb.mu.Unlock()
 
-	// 2. Рассылаем всем текущим подписчикам
-	for sub := range rb.subs {
+	// 2. Рассылаем всем текущим подписчикам по атомарному срезу (Zero-Lock, CPU Cache-Friendly)
+	subsPtr := rb.subsSlice.Load()
+	if subsPtr == nil {
+		return
+	}
+	subs := *subsPtr
+	for _, sub := range subs {
 		if sub.NeedsIFrame.Load() {
 			if !f.IsKeyFrame {
 				continue // Ждем ключевой кадр после обрыва (drop)
@@ -103,13 +113,39 @@ func cloneBytes(b []byte) []byte {
 	return c
 }
 
-// SetParams сохраняет параметры кодека (VPS, SPS, PPS), создавая защитные копии срезов.
+// SetParams сохраняет параметры кодека (VPS, SPS, PPS), атомарно создавая иммутабельную структуру.
 func (rb *RingBuffer) SetParams(vps, sps, pps []byte) {
-	rb.mu.Lock()
-	defer rb.mu.Unlock()
-	rb.vps = cloneBytes(vps)
-	rb.sps = cloneBytes(sps)
-	rb.pps = cloneBytes(pps)
+	p := &CodecParams{
+		VPS: cloneBytes(vps),
+		SPS: cloneBytes(sps),
+		PPS: cloneBytes(pps),
+	}
+	rb.params.Store(p)
+}
+
+// GetCodecParams возвращает иммутабельный указатель на текущие параметры кодека (Zero-Alloc, Zero-Lock, Zero-Copy).
+// Используется во внутренних высоконагруженных hot-path (WebRTC, gRPC, HLS), где слайсы только читаются.
+func (rb *RingBuffer) GetCodecParams() *CodecParams {
+	return rb.params.Load()
+}
+
+// GetParams возвращает защитные копии текущих параметров кодека (VPS, SPS, PPS).
+// Гарантирует обратную совместимость и изоляцию от мутаций вызывающего кода.
+func (rb *RingBuffer) GetParams() ([]byte, []byte, []byte) {
+	p := rb.params.Load()
+	if p == nil {
+		return nil, nil, nil
+	}
+	return cloneBytes(p.VPS), cloneBytes(p.SPS), cloneBytes(p.PPS)
+}
+
+// rebuildSubsSliceLocked пересобирает срез подписчиков под мьютексом subMu.
+func (rb *RingBuffer) rebuildSubsSliceLocked() {
+	slice := make([]*Reader, 0, len(rb.subs))
+	for sub := range rb.subs {
+		slice = append(slice, sub)
+	}
+	rb.subsSlice.Store(&slice)
 }
 
 // Close закрывает буфер и каналы всех читателей.
@@ -118,17 +154,12 @@ func (rb *RingBuffer) Close() {
 	defer rb.subMu.Unlock()
 
 	rb.closed = true
+	emptySlice := make([]*Reader, 0)
+	rb.subsSlice.Store(&emptySlice)
 	for sub := range rb.subs {
 		close(sub.C)
 		delete(rb.subs, sub)
 	}
-}
-
-// GetParams возвращает защитные копии текущих параметров кодека (VPS, SPS, PPS).
-func (rb *RingBuffer) GetParams() ([]byte, []byte, []byte) {
-	rb.mu.RLock()
-	defer rb.mu.RUnlock()
-	return cloneBytes(rb.vps), cloneBytes(rb.sps), cloneBytes(rb.pps)
 }
 
 // Reader предоставляет интерфейс для чтения из RingBuffer через неблокирующий канал.
@@ -189,6 +220,7 @@ func (rb *RingBuffer) Subscribe() *Reader {
 	rb.mu.RUnlock()
 
 	rb.subs[r] = struct{}{}
+	rb.rebuildSubsSliceLocked()
 	return r
 }
 
@@ -197,6 +229,7 @@ func (r *Reader) Close() {
 	r.rb.subMu.Lock()
 	defer r.rb.subMu.Unlock()
 	delete(r.rb.subs, r)
+	r.rb.rebuildSubsSliceLocked()
 	// Очищаем канал для GC, чтобы не было гонок при одновременном Write и Close
 	// Сам канал закрывать здесь опасно, так как Writer может писать в него под RLock.
 	// Горутина GC сама соберет канал, когда на него не останется ссылок.

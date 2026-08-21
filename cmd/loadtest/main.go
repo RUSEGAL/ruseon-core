@@ -1102,7 +1102,7 @@ func runServerMode() {
 
 	webrtcEngine, _ := iwebrtc.NewEngine(cfg)
 	handler := api.NewHandler(manager, cfg, store, webrtcEngine)
-	router := api.SetupRouter(handler, authenticator, false, nil)
+	router := api.SetupRouter(handler, authenticator, true /*debug - enables pprof*/, nil)
 
 	httpPort := 4197
 	grpcPort := 4198
