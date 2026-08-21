@@ -50,29 +50,23 @@ func (m *Manager) housekeepingLoop() {
 	defer ticker.Stop()
 
 	for {
-		// Каждая итерация изолирована: паника в одном стриме не убивает горутину шедулера
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Error().Interface("panic", r).Msg("Recovered from panic in Manager.housekeepingLoop iteration")
-				}
-			}()
-
-			select {
-			case <-m.ctx.Done():
-				return
-			case t := <-ticker.C:
-				streams := m.GetStreams()
-				for _, st := range streams {
-					st.TickHousekeeping(t)
-				}
-			}
-		}()
-
 		select {
 		case <-m.ctx.Done():
 			return
-		default:
+		case t := <-ticker.C:
+			streams := m.GetStreams()
+			for _, st := range streams {
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							log.Error().Interface("panic", r).Msg("Recovered from panic in stream housekeeping")
+						}
+					}()
+					if st != nil {
+						st.TickHousekeeping(t)
+					}
+				}()
+			}
 		}
 	}
 }

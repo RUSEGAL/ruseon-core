@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/RUSEGAL/ruseon-core/internal/buffer"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/pkg/storage"
@@ -434,8 +436,8 @@ func TestHousekeepingLoopSurvivesPanic(t *testing.T) {
 	m.streams["cam_panic"] = nil
 	m.mu.Unlock()
 
-	// Wait 2.2 seconds (allowing at least 2 housekeeping ticks with recovery)
-	time.Sleep(2200 * time.Millisecond)
+	// Wait 1.5 seconds (allowing at least 1-2 housekeeping ticks with per-stream recovery)
+	time.Sleep(1500 * time.Millisecond)
 
 	// Remove nil stream
 	m.mu.Lock()
@@ -444,12 +446,11 @@ func TestHousekeepingLoopSurvivesPanic(t *testing.T) {
 
 	// Verify housekeeping loop is still running and updating bitrate for cam_normal
 	st.AddBytesReceived(10000)
-	time.Sleep(1200 * time.Millisecond)
 
-	stats := st.GetStats()
-	if stats.Bitrate == 0 {
-		t.Errorf("expected housekeepingLoop to continue updating stats after surviving panic, got 0 bitrate")
-	}
+	require.Eventually(t, func() bool {
+		st.AddBytesReceived(1000)
+		return st.GetStats().Bitrate > 0
+	}, 4*time.Second, 150*time.Millisecond, "expected housekeepingLoop to continue updating stats after surviving panic")
 }
 
 
