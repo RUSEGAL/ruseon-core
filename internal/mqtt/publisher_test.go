@@ -149,3 +149,63 @@ func TestPublisher_Worker_TokenError(t *testing.T) {
 
 	pub.Close()
 }
+
+func TestPublisher_QueueFull(t *testing.T) {
+	pub := &Publisher{
+		queue: make(chan *pb.MetadataRequest, 2),
+	}
+
+	// Fill queue
+	pub.Push(&pb.MetadataRequest{CameraId: "cam-1"})
+	pub.Push(&pb.MetadataRequest{CameraId: "cam-2"})
+
+	// Overflow push should not block and drop gracefully
+	pub.Push(&pb.MetadataRequest{CameraId: "cam-3"})
+
+	assert.Equal(t, 2, len(pub.queue))
+}
+
+func TestPublisher_TokenChanFull_And_NilItem(t *testing.T) {
+	mockClient := &mockMQTTClient{}
+	ctx, cancel := context.WithCancel(context.Background())
+
+	pub := &Publisher{
+		client: mockClient,
+		config: config.MQTTConfig{
+			Enabled: true,
+			Topic:   "ruseon/metadata",
+		},
+		queue:     make(chan *pb.MetadataRequest, 10),
+		tokenChan: make(chan mqtt.Token, 1),
+		cancel:    cancel,
+	}
+
+	// Fill tokenChan
+	pub.tokenChan <- &mockToken{}
+
+	go pub.worker(ctx)
+
+	// Send nil item (should be skipped) and a valid item (tokenChan is full, should not block)
+	pub.queue <- nil
+	pub.queue <- &pb.MetadataRequest{CameraId: "cam-full", Pts: 999}
+
+	require.Eventually(t, func() bool {
+		mockClient.mu.Lock()
+		defer mockClient.mu.Unlock()
+		return len(mockClient.published) == 1
+	}, 1*time.Second, 10*time.Millisecond)
+
+	cancel()
+}
+
+func TestPublisher_TokenWaiter_ClosedChan(_ *testing.T) {
+	pub := &Publisher{
+		tokenChan: make(chan mqtt.Token),
+	}
+	close(pub.tokenChan)
+
+	ctx := context.Background()
+	// Should return immediately on closed channel
+	pub.tokenWaiter(ctx)
+}
+

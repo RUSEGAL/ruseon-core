@@ -121,3 +121,51 @@ func TestSave_Error(t *testing.T) {
 		t.Errorf("expected error when saving to invalid directory")
 	}
 }
+
+func TestCameraConfig_Clone(t *testing.T) {
+	orig := CameraConfig{
+		ID:        "cam1",
+		URL:       "rtsp://example.com/live",
+		Record:    true,
+		LazyHLS:   true,
+		Transport: "tcp",
+		Tags:      []string{"tag1", "tag2"},
+		DisableHistory: []DisableRecord{
+			{Timestamp: "2026-08-21T10:00:00Z", Action: "disable", Reason: "maintenance"},
+		},
+		RecordHistory: []DisableRecord{
+			{Timestamp: "2026-08-21T10:00:00Z", Action: "enable", Reason: "manual"},
+		},
+	}
+
+	clone := orig.Clone()
+
+	// Verify deep copy
+	if clone.ID != orig.ID || clone.URL != orig.URL {
+		t.Fatalf("expected identical values in clone")
+	}
+
+	// Mutate slices in clone to verify isolation
+	clone.Tags[0] = "mutated_tag"
+	if orig.Tags[0] == "mutated_tag" {
+		t.Errorf("Tags slice was not deeply copied")
+	}
+
+	clone.DisableHistory[0].Reason = "mutated_reason"
+	if orig.DisableHistory[0].Reason == "mutated_reason" {
+		t.Errorf("DisableHistory slice was not deeply copied")
+	}
+
+	clone.RecordHistory[0].Reason = "mutated_record"
+	if orig.RecordHistory[0].Reason == "mutated_record" {
+		t.Errorf("RecordHistory slice was not deeply copied")
+	}
+
+	// Test nil slices clone
+	empty := CameraConfig{ID: "empty"}
+	emptyClone := empty.Clone()
+	if emptyClone.ID != "empty" || emptyClone.Tags != nil {
+		t.Errorf("expected nil slices on empty clone")
+	}
+}
+
