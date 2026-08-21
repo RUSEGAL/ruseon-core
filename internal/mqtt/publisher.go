@@ -15,10 +15,11 @@ import (
 
 // Publisher handles publishing AI metadata to an MQTT broker.
 type Publisher struct {
-	client mqtt.Client
-	config config.MQTTConfig
-	queue  *buffer.LockFreeRingBuffer[pb.MetadataRequest]
-	cancel context.CancelFunc
+	client    mqtt.Client
+	config    config.MQTTConfig
+	queue     *buffer.LockFreeRingBuffer[pb.MetadataRequest]
+	tokenChan chan mqtt.Token
+	cancel    context.CancelFunc
 }
 
 // NewPublisher creates and starts a new MQTT publisher if enabled.
@@ -48,13 +49,15 @@ func NewPublisher(cfg config.MQTTConfig) (*Publisher, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	pub := &Publisher{
-		client: client,
-		config: cfg,
-		queue:  buffer.NewLockFreeRingBuffer[pb.MetadataRequest](1024), // capacity 1024
-		cancel: cancel,
+		client:    client,
+		config:    cfg,
+		queue:     buffer.NewLockFreeRingBuffer[pb.MetadataRequest](1024), // capacity 1024
+		tokenChan: make(chan mqtt.Token, 256),
+		cancel:    cancel,
 	}
 
 	go pub.worker(ctx)
+	go pub.tokenWaiter(ctx)
 
 	return pub, nil
 }
@@ -74,6 +77,22 @@ func (p *Publisher) Close() {
 	}
 	p.cancel()
 	p.client.Disconnect(250)
+}
+
+func (p *Publisher) tokenWaiter(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case token, ok := <-p.tokenChan:
+			if !ok {
+				return
+			}
+			if token != nil && token.Wait() && token.Error() != nil {
+				log.Debug().Err(token.Error()).Msg("Failed to publish to MQTT")
+			}
+		}
+	}
 }
 
 func (p *Publisher) worker(ctx context.Context) {
@@ -101,12 +120,13 @@ func (p *Publisher) worker(ctx context.Context) {
 
 				// QoS 0, not retained
 				token := p.client.Publish(p.config.Topic, 0, false, payload)
-				// We don't wait for token to avoid blocking, it's fire and forget
-				go func(t mqtt.Token) {
-					if t.Wait() && t.Error() != nil {
-						log.Debug().Err(t.Error()).Msg("Failed to publish to MQTT")
+				if token != nil && p.tokenChan != nil {
+					select {
+					case p.tokenChan <- token:
+					default:
+						// Token queue is full, skip waiting to keep publishing non-blocking
 					}
-				}(token)
+				}
 			}
 		}
 	}

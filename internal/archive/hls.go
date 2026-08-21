@@ -22,6 +22,12 @@ const (
 	maxBoxSize           = 64 * 1024 * 1024 // 64 MB максимальный размер бокса для защиты от OOM
 )
 
+var tsBufferPool = sync.Pool{
+	New: func() any {
+		return bytes.NewBuffer(make([]byte, 0, 1024*1024))
+	},
+}
+
 type PartInfo struct {
 	Offset   int64
 	Duration uint32 // In 90kHz ticks
@@ -374,8 +380,14 @@ func GenerateHLSSegment(recordDir, cameraID, filename string, seq int) ([]byte, 
 		return nil, fmt.Errorf("no tracks in part")
 	}
 
-	// 3. Создаем MPEG-TS Writer в памяти
-	outBuf := bytes.NewBuffer(make([]byte, 0, 1024*1024)) // Этап 23.3: Preallocate to avoid GC pressure
+	// 3. Создаем MPEG-TS Writer в памяти с переиспользованием буфера из пула
+	outBuf := tsBufferPool.Get().(*bytes.Buffer)
+	outBuf.Reset()
+	defer func() {
+		outBuf.Reset()
+		tsBufferPool.Put(outBuf)
+	}()
+
 	var tsTrack *mpegts.Track
 	var tsWriter *mpegts.Writer
 
@@ -424,5 +436,7 @@ func GenerateHLSSegment(recordDir, cameraID, filename string, seq int) ([]byte, 
 		pts += int64(sample.Duration)
 	}
 
-	return outBuf.Bytes(), nil
+	res := make([]byte, outBuf.Len())
+	copy(res, outBuf.Bytes())
+	return res, nil
 }

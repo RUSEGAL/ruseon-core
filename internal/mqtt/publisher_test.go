@@ -84,11 +84,13 @@ func TestPublisher_Worker_PublishAndDrain(t *testing.T) {
 			Enabled: true,
 			Topic:   "ruseon/metadata",
 		},
-		queue:  buffer.NewLockFreeRingBuffer[pb.MetadataRequest](1024),
-		cancel: cancel,
+		queue:     buffer.NewLockFreeRingBuffer[pb.MetadataRequest](1024),
+		tokenChan: make(chan mqtt.Token, 256),
+		cancel:    cancel,
 	}
 
 	go pub.worker(ctx)
+	go pub.tokenWaiter(ctx)
 
 	// Push 3 metadata requests
 	pub.Push(&pb.MetadataRequest{CameraId: "cam-1", Pts: 100})
@@ -130,11 +132,13 @@ func TestPublisher_Worker_TokenError(t *testing.T) {
 			Enabled: true,
 			Topic:   "ruseon/metadata",
 		},
-		queue:  buffer.NewLockFreeRingBuffer[pb.MetadataRequest](1024),
-		cancel: cancel,
+		queue:     buffer.NewLockFreeRingBuffer[pb.MetadataRequest](1024),
+		tokenChan: make(chan mqtt.Token, 256),
+		cancel:    cancel,
 	}
 
 	go pub.worker(ctx)
+	go pub.tokenWaiter(ctx)
 
 	pub.Push(&pb.MetadataRequest{CameraId: "cam-err", Pts: 500})
 

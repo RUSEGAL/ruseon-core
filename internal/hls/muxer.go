@@ -75,6 +75,7 @@ type Muxer struct {
 
 	mu       sync.RWMutex
 	segments []*Segment
+	segIndex map[string]*Segment
 	seqCount uint64
 
 	currentMeta []*pb.MetadataRequest
@@ -105,6 +106,7 @@ func NewMuxer(streamID string, rb *buffer.RingBuffer, metaChan <-chan *pb.Metada
 		targetDuration: 2 * time.Second, // Целевая длина сегмента: 2 секунды (хорошо для low-latency)
 		maxSegments:    maxSegs,
 		segments:       make([]*Segment, 0, maxSegs+2),
+		segIndex:       make(map[string]*Segment, maxSegs+2),
 		metaChan:       metaChan,
 		unsubscribe:    unsubscribe,
 		firstSegReady:  make(chan struct{}),
@@ -351,6 +353,7 @@ func (m *Muxer) Stop() {
 		seg.Release()
 	}
 	m.segments = nil
+	m.segIndex = nil
 	m.mu.Unlock()
 }
 
@@ -403,7 +406,14 @@ func (m *Muxer) CheckWatchdog(now time.Time) {
 // Вызывается ТОЛЬКО под удержанием m.mu.Lock() при смене сегментов (раз в 2 секунды).
 func (m *Muxer) rebuildPlaylistsLocked() {
 	if len(m.segments) == 0 {
+		m.segIndex = make(map[string]*Segment)
 		return
+	}
+
+	// Обновляем O(1) хэш-индекс сегментов
+	m.segIndex = make(map[string]*Segment, len(m.segments))
+	for _, seg := range m.segments {
+		m.segIndex[seg.Name] = seg
 	}
 
 	// 1. Сборка основного видео-манифеста
@@ -544,6 +554,7 @@ func (m *Muxer) GetSubsPlaylist() string {
 }
 
 // AcquireSegment возвращает сегмент без копирования памяти с атомарным захватом ссылки (Zero-Alloc, Zero-Copy).
+// Использует O(1) хэш-индекс для быстрого поиска сегмента.
 func (m *Muxer) AcquireSegment(name string) (*Segment, string) {
 	isVTT := len(name) > 4 && name[len(name)-4:] == ".vtt"
 	tsName := name
@@ -552,20 +563,32 @@ func (m *Muxer) AcquireSegment(name string) (*Segment, string) {
 	}
 
 	m.mu.RLock()
-	defer m.mu.RUnlock()
-	for _, seg := range m.segments {
-		if seg.Name == tsName {
-			seg.Retain()
-			if isVTT {
-				return seg, "text/vtt"
+	seg := m.segIndex[tsName]
+	if seg == nil {
+		// Fallback при ручном добавлении сегментов в тестах без rebuildPlaylistsLocked
+		for _, s := range m.segments {
+			if s.Name == tsName {
+				seg = s
+				break
 			}
-			return seg, "video/mp2t"
 		}
 	}
-	return nil, ""
+	if seg != nil {
+		seg.Retain()
+	}
+	m.mu.RUnlock()
+
+	if seg == nil {
+		return nil, ""
+	}
+	if isVTT {
+		return seg, "text/vtt"
+	}
+	return seg, "video/mp2t"
 }
 
-// GetSegment возвращает данные TS или VTT сегмента (для обратной совместимости).
+// Deprecated: GetSegment copies the entire segment payload into a newly allocated heap slice.
+// Use AcquireSegment() for high-performance zero-copy access with ARC (Atomic Reference Count).
 func (m *Muxer) GetSegment(name string) ([]byte, string) {
 	seg, mimeType := m.AcquireSegment(name)
 	if seg == nil {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
@@ -29,8 +30,9 @@ const (
 
 // Storage обертка над BadgerDB
 type Storage struct {
-	db     *badger.DB
-	cancel context.CancelFunc
+	db            *badger.DB
+	cachedCameras atomic.Pointer[[]config.CameraConfig]
+	cancel        context.CancelFunc
 }
 
 // NewStorage открывает или создает БД в указанной директории.
@@ -97,6 +99,10 @@ func (s *Storage) Close() error {
 	return s.db.Close()
 }
 
+func (s *Storage) invalidateCameraCache() {
+	s.cachedCameras.Store(nil)
+}
+
 // Ping проверяет доступность базы данных через открытие read-only транзакции.
 func (s *Storage) Ping(ctx context.Context) error {
 	if s.db == nil || s.db.IsClosed() {
@@ -124,6 +130,7 @@ func (s *Storage) Sync() error {
 
 // SaveCamera сохраняет или обновляет камеру.
 func (s *Storage) SaveCamera(cam *config.CameraConfig) error {
+	s.invalidateCameraCache()
 	data, err := json.Marshal(cam)
 	if err != nil {
 		return err
@@ -137,6 +144,7 @@ func (s *Storage) SaveCamera(cam *config.CameraConfig) error {
 
 // UpdateCameraTx атомарно обновляет камеру. updateFn должна вернуть true, если нужно сохранить изменения.
 func (s *Storage) UpdateCameraTx(id string, updateFn func(cam *config.CameraConfig) bool) error {
+	s.invalidateCameraCache()
 	key := []byte(PrefixCamera + id)
 	return s.db.Update(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
@@ -169,6 +177,7 @@ func (s *Storage) BatchUpdateTraffic(updates map[string]uint64, nowMonth string)
 	if len(updates) == 0 {
 		return nil
 	}
+	s.invalidateCameraCache()
 
 	type updateEntry struct {
 		id    string
@@ -193,19 +202,23 @@ func (s *Storage) BatchUpdateTraffic(updates map[string]uint64, nowMonth string)
 				key := []byte(PrefixCamera + entry.id)
 				item, err := txn.Get(key)
 				if err != nil {
-					continue // Камера была удалена из базы — пропускаем
+					if err == badger.ErrKeyNotFound {
+						continue
+					}
+					return err
 				}
 
 				var cam config.CameraConfig
-				if err := item.Value(func(v []byte) error {
-					return json.Unmarshal(v, &cam)
-				}); err != nil {
-					continue
+				err = item.Value(func(val []byte) error {
+					return json.Unmarshal(val, &cam)
+				})
+				if err != nil {
+					return err
 				}
 
 				if cam.LastResetMonth != nowMonth {
-					cam.TrafficUsed = 0
 					cam.LastResetMonth = nowMonth
+					cam.TrafficUsed = 0
 				}
 				if cam.TrafficLimit == 0 {
 					cam.TrafficLimit = 200 * 1024 * 1024 * 1024 // 200 GB default
@@ -214,8 +227,9 @@ func (s *Storage) BatchUpdateTraffic(updates map[string]uint64, nowMonth string)
 
 				data, err := json.Marshal(&cam)
 				if err != nil {
-					continue
+					return err
 				}
+
 				if err := txn.Set(key, data); err != nil {
 					return err
 				}
@@ -223,7 +237,7 @@ func (s *Storage) BatchUpdateTraffic(updates map[string]uint64, nowMonth string)
 			return nil
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to update batch traffic: %w", err)
 		}
 	}
 
@@ -253,14 +267,19 @@ func (s *Storage) GetCamera(id string) (*config.CameraConfig, error) {
 
 // DeleteCamera удаляет камеру по ID.
 func (s *Storage) DeleteCamera(id string) error {
+	s.invalidateCameraCache()
 	key := []byte(PrefixCamera + id)
 	return s.db.Update(func(txn *badger.Txn) error {
 		return txn.Delete(key)
 	})
 }
 
-// ListCameras возвращает список всех камер.
+// ListCameras возвращает список всех камер с in-memory атомарным кэшированием.
 func (s *Storage) ListCameras() ([]config.CameraConfig, error) {
+	if cached := s.cachedCameras.Load(); cached != nil {
+		return *cached, nil
+	}
+
 	cameras := make([]config.CameraConfig, 0)
 
 	err := s.db.View(func(txn *badger.Txn) error {
@@ -284,6 +303,10 @@ func (s *Storage) ListCameras() ([]config.CameraConfig, error) {
 		}
 		return nil
 	})
+
+	if err == nil {
+		s.cachedCameras.Store(&cameras)
+	}
 
 	return cameras, err
 }
@@ -521,6 +544,7 @@ func (s *Storage) MigrateFromConfig(cfg *config.Config) error {
 	if cfg == nil {
 		return nil
 	}
+	s.invalidateCameraCache()
 
 	return s.db.Update(func(txn *badger.Txn) error {
 		// Проверяем наличие существующих камер внутри транзакции
@@ -609,6 +633,7 @@ func (s *Storage) ImportJSON(data []byte) error {
 	if err := json.Unmarshal(data, &backup); err != nil {
 		return err
 	}
+	s.invalidateCameraCache()
 
 	return s.db.Update(func(txn *badger.Txn) error {
 		for _, cam := range backup.Cameras {
