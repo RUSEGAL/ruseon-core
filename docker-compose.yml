@@ -10,11 +10,9 @@ services:
     volumes:
       - ruseon_core_data:/app/data
       - ruseon_core_recordings:/app/recordings
-      - ruseon_core_backups:/app/backups
     environment:
       - TZ=UTC
 
 volumes:
   ruseon_core_data:
   ruseon_core_recordings:
-  ruseon_core_backups:

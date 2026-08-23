@@ -44,10 +44,16 @@ cameras:
     comment: "Парковка"
     transport: "tcp"
 
-#   ( Webhooks)
 # events:
 #   webhooks:
 #     - url: "https://my-vms.com/api/webhook"
 #       topics: ["camera_offline", "archive_segment_ready"]
 #       secret: "super-secret-hmac-key"
+#   mqtt:
+#     enabled: true
+#     url: "mqtt://mqtt.eclipseprojects.io:1883"
+#     username: "" # Leave empty to disable authentication
+#     password: "" # Leave empty to disable authentication
+
+
 

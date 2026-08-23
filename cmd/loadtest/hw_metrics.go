@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	gocpu "github.com/shirou/gopsutil/v3/cpu"
-	gonet "github.com/shirou/gopsutil/v3/net"
-	goproc "github.com/shirou/gopsutil/v3/process"
+	gocpu "github.com/shirou/gopsutil/v4/cpu"
+	gonet "github.com/shirou/gopsutil/v4/net"
+	goproc "github.com/shirou/gopsutil/v4/process"
 )
 
 // hwCollector собирает аппаратные метрики в фоне (CPU, RSS, Network I/O).

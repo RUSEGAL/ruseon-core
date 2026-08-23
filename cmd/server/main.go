@@ -6,15 +6,15 @@ import (
 
 	"github.com/rs/zerolog/log"
 
+	"github.com/RUSEGAL/ruseon-core/internal/recorder"
 	"github.com/RUSEGAL/ruseon-core/pkg/auth"
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/pkg/engine"
 	"github.com/RUSEGAL/ruseon-core/pkg/eventbus"
 	"github.com/RUSEGAL/ruseon-core/pkg/logger"
-	"github.com/RUSEGAL/ruseon-core/internal/recorder"
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 	"github.com/RUSEGAL/ruseon-core/pkg/storage"
 	"github.com/RUSEGAL/ruseon-core/pkg/storage/localfs"
-	"github.com/RUSEGAL/ruseon-core/pkg/engine"
 )
 
 // @title RUSEON Core API
@@ -35,7 +35,7 @@ func main() {
 	logger.Init(cfg.Server.Debug)
 	log.Info().Msg("Starting RUSEON Core...")
 
-	// 2.1 Тюнинг Garbage Collector (Этап 23.1)
+	// 2.1 Fine-tuning Garbag
 	if cfg.Server.GCPercent > 0 {
 		debug.SetGCPercent(cfg.Server.GCPercent)
 		log.Info().Int("gc_percent", cfg.Server.GCPercent).Msg("Applied GC tuning")
@@ -45,7 +45,6 @@ func main() {
 		debug.SetMemoryLimit(limitBytes)
 		log.Info().Int("limit_mb", cfg.Server.GCMemoryLimitMB).Msg("Applied GC memory limit")
 	}
-
 
 	// Инициализация БД
 	store, err := storage.NewStorage("data")
