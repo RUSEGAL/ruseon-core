@@ -13,7 +13,7 @@
   <a href="https://github.com/RUSEGAL/ruseon-core/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/RUSEGAL/ruseon-core/test.yml?branch=main&style=flat-square" alt="CI Status"></a>
   <a href="https://goreportcard.com/report/github.com/RUSEGAL/ruseon-core"><img src="https://goreportcard.com/badge/github.com/RUSEGAL/ruseon-core?style=flat-square" alt="Go Report Card"></a>
   <a href="https://github.com/RUSEGAL/ruseon-core/releases/latest"><img src="https://img.shields.io/github/v/release/RUSEGAL/ruseon-core?style=flat-square" alt="Latest Release"></a>
-  <a href="bench_max.md"><img src="https://img.shields.io/badge/Стресс--тест-100%20Камер%20%7C%207k%20RPS%20%7C%200%20Дропов-brightgreen?style=flat-square" alt="Стресс-тест"></a>
+  <a href="bench-results/bench-baseline.md"><img src="https://img.shields.io/badge/Бенчмарк-600%20Камер%20%7C%2018k%20FPS%20%7C%200%20Дропов-brightgreen?style=flat-square" alt="Стресс-тест"></a>
   <img src="https://img.shields.io/badge/Покрытие%20CI-14%20Пакетов%20Проверено-blue?style=flat-square" alt="Покрытие CI">
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License">
 </p>
@@ -142,20 +142,21 @@ flowchart TD
 
 ---
 
-## 📊 Результаты стресс-тестирования
+## 📊 Результаты нагрузочного тестирования
 
-При стандартизированном стресс-тесте (100 одновременных камер 30 FPS, 350 параллельных зрителей/воркеров и запись fMP4 на диск на 12-ядерном процессоре):
+При стандартизированном полнофункциональном нагрузочном тестировании (**600 одновременных камер 30 FPS**, **1 800 активных HLS зрителей**, **240 WebRTC WHEP клиентов** и **двунаправленный gRPC ИИ-конвейер** на 12-ядерном процессоре):
 
-| Метрика | Результат | Примечания |
-| :--- | :--- | :--- |
-| **Входящий битрейт (Ingest)** | **3,028 FPS (252.3 Mbps)** | 100 камер, `0` потерянных кадров |
-| **REST API RPS** | **6,897 RPS** (414k запросов) | `p50: 0.0 ms` / `p95: 3.0 ms` / `p99: 39.5 ms` |
-| **HLS Master-плейлист** | **< 0.5 ms** | Прямая генерация в RAM |
-| **Отдача HLS fMP4** | **46.1 MB/s** (3,000 сегментов) | `p50: 44.9 ms` на 2с чанк |
-| **WebRTC WHEP** | **488k RTP пакетов (9.0 MB/s)** | `0` ошибок хэндшейка |
-| **Запись на диск (fMP4)** | **29.8 MB/s** | 100 параллельных потоков |
+| Компонент | Метрика | Фактический результат | Латентность / Примечания |
+| :--- | :--- | :--- | :--- |
+| **Входящий поток (Ingest)** | **18 139 FPS (1 339.9 Mbps)** | 600 камер @ 30 FPS | `0` потерянных кадров |
+| **Отдача HLS fMP4** | **500.2 MB/s** (1 098 000 сегментов) | 1 800 одновременных зрителей | `p50: 50.1 ms` / `p95: 277.1 ms` |
+| **REST API Роутер** | **375 RPS** (675k запросов, 0 ошибок) | Полная JWT валидация | `p50: 0.63 ms` / `p95: 18.9 ms` |
+| **WebRTC WHEP** | **51 793 RTP пакетов** | 240 живых пир-соединений | Хэндшейк Non-Trickle: `568 ms` |
+| **gRPC ИИ-конвейер** | **18 136 FPS / 1 900 RPS** | Передача кадров и метаданных | Задержка стрима: `32.4 ms` |
+| **Шина событий EventBus** | **582 476 доставленных вебхуков** | 100% успешная доставка | `0` дропов (0.0% потерь) |
+| **Потребление памяти** | **471 MB RSS** (140 MB Heap Alloc) | 2 448 активных горутин | Макс. пауза GC: `24.98 ms` |
 
-👉 **[Полный отчет о бенчмарках (bench_max.md)](bench_max.md)**
+👉 **[Полный отчет о нагрузочном тестировании (bench-results/bench-baseline.md)](bench-results/bench-baseline.md)**
 
 ---
 

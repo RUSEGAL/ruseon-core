@@ -13,7 +13,7 @@
   <a href="https://github.com/RUSEGAL/ruseon-core/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/RUSEGAL/ruseon-core/test.yml?branch=main&style=flat-square" alt="CI Status"></a>
   <a href="https://goreportcard.com/report/github.com/RUSEGAL/ruseon-core"><img src="https://goreportcard.com/badge/github.com/RUSEGAL/ruseon-core?style=flat-square" alt="Go Report Card"></a>
   <a href="https://github.com/RUSEGAL/ruseon-core/releases/latest"><img src="https://img.shields.io/github/v/release/RUSEGAL/ruseon-core?style=flat-square" alt="Latest Release"></a>
-  <a href="bench_max.md"><img src="https://img.shields.io/badge/Stress%20Benchmark-100%20Cams%20%7C%207k%20RPS%20%7C%200%20Drops-brightgreen?style=flat-square" alt="Stress Benchmark"></a>
+  <a href="bench-results/bench-baseline.md"><img src="https://img.shields.io/badge/Benchmark-600%20Cams%20%7C%2018k%20FPS%20%7C%200%20Drops-brightgreen?style=flat-square" alt="Stress Benchmark"></a>
   <img src="https://img.shields.io/badge/Coverage%20Gate-14%20Packages%20Validated-blue?style=flat-square" alt="Coverage Gate">
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License">
 </p>
@@ -140,18 +140,19 @@ RUSEON Core enforces a comprehensive, multi-layer verification strategy in CI on
 
 ## 📊 Performance & Stress Benchmarks
 
-Under standardized full-stack stress testing (100 simultaneous 30 FPS cameras, 350 concurrent viewers/workers, and real MP4 disk recording on a 12-core CPU):
+Under standardized full-stack load testing (**600 simultaneous 30 FPS cameras**, **1,800 concurrent HLS viewers**, **240 WebRTC WHEP clients**, and **gRPC AI streaming** on a 12-core CPU):
 
-| Metric | Result | Notes |
-| :--- | :--- | :--- |
-| **Ingest Throughput** | **3,028 FPS (252.3 Mbps)** | 100 cameras, `0` dropped frames |
-| **REST API RPS** | **6,897 RPS** (414k requests) | `p50: 0.0 ms` / `p95: 3.0 ms` / `p99: 39.5 ms` |
-| **HLS Master Playlist** | **< 0.5 ms** | Direct memory generation |
-| **HLS fMP4 Delivery** | **46.1 MB/s** (3,000 segments) | `p50: 44.9 ms` per 2s video chunk |
-| **WebRTC WHEP** | **488k RTP packets (9.0 MB/s)** | `0` handshake errors |
-| **Disk Storage (fMP4)** | **29.8 MB/s** | 100 streams recorded simultaneously |
+| Component | Metric | Measured Value | Latency / Notes |
+| :--- | :--- | :--- | :--- |
+| **Ingest Throughput** | **18,139 FPS (1,339.9 Mbps)** | 600 cameras @ 30 FPS | `0` dropped frames |
+| **HLS fMP4 Delivery** | **500.2 MB/s** (1,098,000 segments) | 1,800 active viewers | `p50: 50.1 ms` / `p95: 277.1 ms` |
+| **REST API Engine** | **375 RPS** (675k requests, 0 errors) | Full JWT auth verification | `p50: 0.63 ms` / `p95: 18.9 ms` |
+| **WebRTC WHEP** | **51,793 RTP packets** | 240 live peer connections | Non-Trickle handshake: `568 ms` |
+| **gRPC AI Stream** | **18,136 FPS / 1,900 RPS** | Frame extraction & metadata | Stream latency: `32.4 ms` |
+| **EventBus Webhooks** | **582,476 delivered events** | 100% delivery rate | `0` dropped (0.0% loss) |
+| **Memory Footprint** | **471 MB RSS** (140 MB Heap Alloc) | 2,448 active goroutines | Max GC pause: `24.98 ms` |
 
-👉 **[Read the Full Benchmark Report (bench_max.md)](bench_max.md)**
+👉 **[Read the Full Benchmark Report (bench-results/bench-baseline.md)](bench-results/bench-baseline.md)**
 
 ---
 
