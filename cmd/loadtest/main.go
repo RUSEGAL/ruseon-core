@@ -519,10 +519,138 @@ func runReconnectSimulator(ctx context.Context, manager *stream.Manager, camIDs 
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Thread-Safe Dynamic JWT Token Provider with Preemptive Rotation
+// ─────────────────────────────────────────────────────────────────────────────
+
+// TokenProvider manages JWT acquisition, preemptive rotation and on-demand refresh.
+type TokenProvider struct {
+	baseURL       string
+	username      string
+	password      string
+	secret        string
+	mu            sync.RWMutex
+	token         string
+	expiresAt     time.Time
+	refreshBuffer time.Duration
+	client        *http.Client
+}
+
+// NewRemoteTokenProvider creates a TokenProvider that logs in against a remote server.
+func NewRemoteTokenProvider(baseURL, username, password, fallbackSecret string) *TokenProvider {
+	tp := &TokenProvider{
+		baseURL:       baseURL,
+		username:      username,
+		password:      password,
+		secret:        fallbackSecret,
+		refreshBuffer: 5 * time.Minute,
+		client:        &http.Client{Timeout: 5 * time.Second},
+	}
+	_ = tp.ForceRefresh()
+	return tp
+}
+
+// NewInProcessTokenProvider creates a TokenProvider for in-process tests using secret signing.
+func NewInProcessTokenProvider(secret string) *TokenProvider {
+	tp := &TokenProvider{
+		secret:        secret,
+		refreshBuffer: 5 * time.Minute,
+	}
+	_ = tp.ForceRefresh()
+	return tp
+}
+
+func parseTokenExpiry(tokenString string) time.Time {
+	if tokenString == "" {
+		return time.Time{}
+	}
+	parser := jwt.NewParser()
+	token, _, err := parser.ParseUnverified(tokenString, jwt.MapClaims{})
+	if err == nil {
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			if expVal, ok := claims["exp"]; ok {
+				switch v := expVal.(type) {
+				case float64:
+					return time.Unix(int64(v), 0)
+				case int64:
+					return time.Unix(v, 0)
+				case json.Number:
+					if n, err := v.Int64(); err == nil {
+						return time.Unix(n, 0)
+					}
+				}
+			}
+		}
+	}
+	return time.Now().Add(45 * time.Minute)
+}
+
+// GetToken returns a valid JWT token, preemptively rotating it 5 minutes before expiration.
+func (tp *TokenProvider) GetToken() string {
+	if tp == nil {
+		return ""
+	}
+
+	tp.mu.RLock()
+	// Preemptive check: valid if current time + refreshBuffer is before expiration
+	if tp.token != "" && time.Now().Add(tp.refreshBuffer).Before(tp.expiresAt) {
+		t := tp.token
+		tp.mu.RUnlock()
+		return t
+	}
+	tp.mu.RUnlock()
+
+	tp.mu.Lock()
+	defer tp.mu.Unlock()
+
+	// Double-check under write lock
+	if tp.token != "" && time.Now().Add(tp.refreshBuffer).Before(tp.expiresAt) {
+		return tp.token
+	}
+
+	_ = tp.refreshTokenLocked()
+	return tp.token
+}
+
+// ForceRefresh forces an immediate token refresh.
+func (tp *TokenProvider) ForceRefresh() error {
+	if tp == nil {
+		return nil
+	}
+	tp.mu.Lock()
+	defer tp.mu.Unlock()
+	return tp.refreshTokenLocked()
+}
+
+func (tp *TokenProvider) refreshTokenLocked() error {
+	if tp.baseURL != "" && tp.username != "" {
+		tok, err := authenticateClient(tp.baseURL, tp.username, tp.password)
+		if err == nil && tok != "" {
+			tp.token = tok
+			tp.expiresAt = parseTokenExpiry(tok)
+			return nil
+		}
+		if tp.secret != "" {
+			tp.token = mustMakeJWT(tp.secret)
+			tp.expiresAt = parseTokenExpiry(tp.token)
+			return nil
+		}
+		return err
+	}
+
+	if tp.secret != "" {
+		tp.token = mustMakeJWT(tp.secret)
+		tp.expiresAt = parseTokenExpiry(tp.token)
+		return nil
+	}
+
+	return nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Layer 2: REST API Load Workers
 // ─────────────────────────────────────────────────────────────────────────────
 
-func runAPIWorker(ctx context.Context, baseURL, token string, wg *sync.WaitGroup) {
+func runAPIWorker(ctx context.Context, baseURL string, auth *TokenProvider, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	client := &http.Client{
@@ -552,8 +680,10 @@ func runAPIWorker(ctx context.Context, baseURL, token string, wg *sync.WaitGroup
 		if err != nil {
 			continue
 		}
-		if token != "" {
-			req.Header.Set("Authorization", "Bearer "+token)
+		if auth != nil {
+			if token := auth.GetToken(); token != "" {
+				req.Header.Set("Authorization", "Bearer "+token)
+			}
 		}
 
 		t0 := time.Now()
@@ -578,6 +708,9 @@ func runAPIWorker(ctx context.Context, baseURL, token string, wg *sync.WaitGroup
 			cntHTTP2xx.Add(1)
 		} else {
 			cntHTTPErr.Add(1)
+			if resp.StatusCode == http.StatusUnauthorized && auth != nil {
+				_ = auth.ForceRefresh()
+			}
 			if resp.StatusCode >= 400 && resp.StatusCode < 500 {
 				cntHTTP4xx.Add(1)
 			} else if resp.StatusCode >= 500 {
@@ -1176,12 +1309,14 @@ func authenticateClient(baseURL, username, password string) (string, error) {
 	return res.Token, nil
 }
 
-func fetchCamIDs(baseURL, token string, fallbackCount int) []string {
+func fetchCamIDs(baseURL string, auth *TokenProvider, fallbackCount int) []string {
 	client := &http.Client{Timeout: 5 * time.Second}
 	req, err := http.NewRequest(http.MethodGet, baseURL+"/api/cameras", nil)
 	if err == nil {
-		if token != "" {
-			req.Header.Set("Authorization", "Bearer "+token)
+		if auth != nil {
+			if token := auth.GetToken(); token != "" {
+				req.Header.Set("Authorization", "Bearer "+token)
+			}
 		}
 		resp, err := client.Do(req)
 		if err == nil && resp.StatusCode == http.StatusOK {
@@ -1216,7 +1351,7 @@ type serverStatsData struct {
 	TotalReconnects uint64 `json:"totalReconnects"`
 }
 
-func fetchServerStats(baseURL, token string) serverStatsData {
+func fetchServerStats(baseURL string, auth *TokenProvider) serverStatsData {
 	client := &http.Client{
 		Timeout:   5 * time.Second,
 		Transport: sharedHTTPTransport,
@@ -1225,8 +1360,10 @@ func fetchServerStats(baseURL, token string) serverStatsData {
 	if err != nil {
 		return serverStatsData{}
 	}
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+	if auth != nil {
+		if token := auth.GetToken(); token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
 	}
 	resp, err := client.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
@@ -1270,15 +1407,14 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 	banner()
 	fmt.Println("[client] Connecting to external server:", targetServerURL)
 
-	token, err := authenticateClient(targetServerURL, "admin", adminPassword)
-	if err != nil {
-		fmt.Printf("[client] [warn] Login failed (%v), proceeding with fallback JWT...\n", err)
-		token = mustMakeJWT("loadtest-secret-32chars-minimum!!")
+	authProvider := NewRemoteTokenProvider(targetServerURL, "admin", adminPassword, "loadtest-secret-32chars-minimum!!")
+	if tok := authProvider.GetToken(); tok != "" {
+		fmt.Println("[client] Authenticated successfully with server (preemptive JWT auto-rotation enabled).")
 	} else {
-		fmt.Println("[client] Authenticated successfully with server.")
+		fmt.Println("[client] [warn] Login failed, proceeding with fallback JWT auto-rotation...")
 	}
 
-	camIDs := fetchCamIDs(targetServerURL, token, cameraCount)
+	camIDs := fetchCamIDs(targetServerURL, authProvider, cameraCount)
 	fmt.Printf("[client] Target cameras: %d | API workers: %d | HLS: %d | WebRTC: %d\n",
 		len(camIDs), apiWorkers, hlsViewers, webrtcViewers)
 
@@ -1297,7 +1433,7 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 	}
 
 	// Baseline snapshot of server frames/bytes at t=0
-	initialStats := fetchServerStats(targetServerURL, token)
+	initialStats := fetchServerStats(targetServerURL, authProvider)
 	baselineFrames := initialStats.TotalFrames
 	baselineBytes := initialStats.TotalBytes
 
@@ -1308,7 +1444,7 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 	// Layer 2: API Workers
 	for i := 0; i < apiWorkers; i++ {
 		wg.Add(1)
-		go runAPIWorker(ctx, targetServerURL, token, &wg)
+		go runAPIWorker(ctx, targetServerURL, authProvider, &wg)
 	}
 
 	// Layer 3: HLS Viewers
@@ -1348,7 +1484,7 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 			case <-ctx.Done():
 				return
 			case <-statsTick.C:
-				st := fetchServerStats(targetServerURL, token)
+				st := fetchServerStats(targetServerURL, authProvider)
 				if st.TotalFrames >= baselineFrames {
 					cntIngestFrames.Store(st.TotalFrames - baselineFrames)
 				}
@@ -1372,7 +1508,7 @@ func runClientMode(targetServerURL, targetGRPCURL string) {
 	sec := elapsed.Seconds()
 
 	// Final fetch of server ingest stats
-	finalServerStats := fetchServerStats(targetServerURL, token)
+	finalServerStats := fetchServerStats(targetServerURL, authProvider)
 	if finalServerStats.TotalFrames >= baselineFrames {
 		cntIngestFrames.Store(finalServerStats.TotalFrames - baselineFrames)
 	}
@@ -1559,7 +1695,7 @@ func runAllInProcess() {
 		Username: "loadtest-admin",
 		Role:     models.RoleAdmin,
 	})
-	adminToken := mustMakeJWT(cfg.Auth.Secret)
+	authProvider := NewInProcessTokenProvider(cfg.Auth.Secret)
 
 
 	// ── 4. EventBus + Webhook Sink ───────────────────────────────────────
@@ -1667,7 +1803,7 @@ func runAllInProcess() {
 	// Layer 2: REST API Workers
 	for i := 0; i < apiWorkers; i++ {
 		wg.Add(1)
-		go runAPIWorker(ctx, httpSrv.URL, adminToken, &wg)
+		go runAPIWorker(ctx, httpSrv.URL, authProvider, &wg)
 	}
 
 	// Layer 3: HLS fMP4 Viewers (L3, L4: round-robin + jitter)

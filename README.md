@@ -140,17 +140,19 @@ RUSEON Core enforces a comprehensive, multi-layer verification strategy in CI on
 
 ## 📊 Performance & Stress Benchmarks
 
-Under standardized full-stack load testing (**600 simultaneous 30 FPS cameras**, **1,800 concurrent HLS viewers**, **240 WebRTC WHEP clients**, and **gRPC AI streaming** on a 12-core CPU):
+Under standardized 8-hour full-stack soak and stress testing (**600 simultaneous 30 FPS cameras**, **1,800 concurrent HLS viewers**, **240 WebRTC WHEP clients**, and **gRPC AI streaming** on a 12-core CPU):
 
 | Component | Metric | Measured Value | Latency / Notes |
 | :--- | :--- | :--- | :--- |
-| **Ingest Throughput** | **18,139 FPS (1,339.9 Mbps)** | 600 cameras @ 30 FPS | `0` dropped frames |
-| **HLS fMP4 Delivery** | **500.2 MB/s** (1,098,000 segments) | 1,800 active viewers | `p50: 50.1 ms` / `p95: 277.1 ms` |
-| **REST API Engine** | **375 RPS** (675k requests, 0 errors) | Full JWT auth verification | `p50: 0.63 ms` / `p95: 18.9 ms` |
-| **WebRTC WHEP** | **51,793 RTP packets** | 240 live peer connections | Non-Trickle handshake: `568 ms` |
-| **gRPC AI Stream** | **18,136 FPS / 1,900 RPS** | Frame extraction & metadata | Stream latency: `32.4 ms` |
-| **EventBus Webhooks** | **582,476 delivered events** | 100% delivery rate | `0` dropped (0.0% loss) |
-| **Memory Footprint** | **471 MB RSS** (140 MB Heap Alloc) | 2,448 active goroutines | Max GC pause: `24.98 ms` |
+| **Ingest Throughput** | **18,180 FPS (1,342.9 Mbps)** | 600 cameras @ 30 FPS | `0` dropped frames (523.6M frames over 8h) |
+| **HLS fMP4 Delivery** | **501.9 MB/s** (17,625,404 segments) | 1,800 active viewers | `p50: 3.59 ms` / `p95: 211.2 ms` (15.1 TB served) |
+| **REST API Engine** | **460 RPS** (13.2M requests, 0 errors) | Full JWT auth verification | `p50: 0.59 ms` / `p95: 8.52 ms` |
+| **WebRTC WHEP** | **2,439,152 RTP packets** | 240 live peer connections | `p50: 390.3 ms` / `p95: 935.4 ms` (0 errors) |
+| **gRPC AI Stream** | **18,180 FPS / 1,993 RPS** | Frame extraction & metadata | Stream latency: `p50: 28.45 ms` (0 errors) |
+| **EventBus Webhooks** | **11,042,761 delivered events** | 100% delivery rate | `0` dropped (0.0% loss) |
+| **Memory & Stability** | **707 MB RSS** (95 MB Heap Alloc) | 348 active goroutines | Max GC pause: `7.69 ms` (Avg: `1.03 ms`) |
+
+> 💡 **Test Topology Note:** Both the synthetic load generator (600 cameras, 1,800 HLS clients, 240 WebRTC players, 20 gRPC AI workers) and the RUSEON Core server ran co-located on the same single 12-core host (in-process loopback architecture), actively competing for CPU cycles and OS network stack during the 8-hour test.
 
 👉 **[Read the Full Benchmark Report (bench-results/bench-baseline.md)](bench-results/bench-baseline.md)**
 
