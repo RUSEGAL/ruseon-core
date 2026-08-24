@@ -1,249 +1,292 @@
 <p align="center">
-  <img src="web/public/favicon.svg" width="150" alt="RUSEON Logo" />
+  <img src="web/public/favicon.svg" width="120" alt="RUSEON Core Logo" />
 </p>
 
 <h1 align="center">RUSEON Core</h1>
 
 <p align="center">
-  <strong>High-Performance Video Data Infrastructure & AI Media Pipeline</strong><br>
-  <em>RTSP → HLS / WebRTC / fMP4 Archive without transcoding</em>
+  <strong>High-Performance Video Infrastructure & AI Media Pipeline</strong><br>
+  RTSP Ingest &bull; Lock-Free In-Memory Demuxing &bull; HLS &bull; WebRTC (WHEP) &bull; fMP4 Archive &bull; gRPC AI Streaming
 </p>
 
 <p align="center">
   <a href="https://github.com/RUSEGAL/ruseon-core/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/RUSEGAL/ruseon-core/test.yml?branch=main&style=flat-square" alt="CI Status"></a>
   <a href="https://goreportcard.com/report/github.com/RUSEGAL/ruseon-core"><img src="https://goreportcard.com/badge/github.com/RUSEGAL/ruseon-core?style=flat-square" alt="Go Report Card"></a>
   <a href="https://github.com/RUSEGAL/ruseon-core/releases/latest"><img src="https://img.shields.io/github/v/release/RUSEGAL/ruseon-core?style=flat-square" alt="Latest Release"></a>
-  <a href="bench-results/bench-baseline.md"><img src="https://img.shields.io/badge/Benchmark-600%20Cams%20%7C%2018k%20FPS%20%7C%200%20Drops-brightgreen?style=flat-square" alt="Stress Benchmark"></a>
-  <img src="https://img.shields.io/badge/Coverage%20Gate-14%20Packages%20Validated-blue?style=flat-square" alt="Coverage Gate">
-  <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License">
+  <a href="bench-results/bench-baseline.md"><img src="https://img.shields.io/badge/Benchmark-600%20Cams%20%7C%2018.1k%20FPS%20%7C%200%20Drops-brightgreen?style=flat-square" alt="Baseline Benchmark"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License"></a>
 </p>
 
 <p align="center">
   <em>Read this in other languages: <a href="README.md">English</a>, <a href="README.ru.md">Русский</a>.</em>
 </p>
 
-<hr>
+---
 
-**RUSEON Core** is a high-performance video data infrastructure platform tailored for IP cameras and Edge-to-Cloud workloads. Operating entirely on the principle of **transmuxing** rather than transcoding, RUSEON Core repackages video streams (H.264/H.265) into formats like HLS or WebRTC directly in RAM. 
+## What is RUSEON?
 
-This **zero-allocation approach** ensures minimal CPU usage, sub-millisecond playlist generation, and massive horizontal scalability, making it the ideal bridge between CCTV hardware and AI/Cloud applications.
+**RUSEON Core** is an open-source video infrastructure engine built in Go for IP camera fleets, edge compute appliances, and computer vision pipelines. It ingests H.264 and H.265 video streams over RTSP (TCP/UDP) and multiplexes them directly in memory into HLS (fMP4/TS), WebRTC (WHEP), local fMP4 storage archives, and gRPC frame streams without performing server-side video transcoding.
+
+By eliminating video decoding and re-encoding on the server, RUSEON Core operates with predictable CPU utilization and low-overhead playlist generation, serving as a unified bridge between CCTV camera hardware, web clients, and AI inference models.
 
 ---
 
-## 🚀 Key Features
+## Why RUSEON?
 
-- **Zero-Allocation Transmuxing**: RTSP to HLS and WebRTC without transcoding, directly in RAM for extreme throughput.
-- **Sub-Millisecond Master Playlists**: Non-blocking HLS master playlist delivery (< 0.5 ms latency) with singleflight caching.
-- **Smart Crash-Resilient Archiver**: fMP4 recording with Linux kernel I/O optimizations (`FADV_DONTNEED`, sliding window `sync_file_range`) protecting Page Cache from eviction during heavy writes.
-- **AI Metadata Pipeline**: Direct gRPC ingestion of AI insights (bounding boxes, telemetry) delivered synchronously via WebRTC DataChannel and HLS WebVTT with zero CPU burn.
-- **WebRTC / WHEP**: Sub-second latency live streaming powered by Pion WebRTC.
-- **Durable Embedded State Store**: BadgerDB state storage with synchronous disk durability (`SyncWrites = true`), atomic migrations, and crash recovery semantics.
-- **Truthful Health & Readiness Probes**: Strict `/livez` and `/readyz` probes reporting actual real-time status of storage, database, and stream manager.
-- **Event-Driven & IoT Integration**: Webhooks with circuit breaker and MQTT publisher with a lock-free buffer and bounded connection timeouts.
-- **Modern Edge Dashboard**: React 19 UI with TypeScript, JWT authentication, live telemetry, and interactive fMP4 archive timeline.
+Traditional media servers either focus strictly on live video rebroadcasting or require CPU-heavy server-side transcoding pipelines. RUSEON Core approaches video as continuous structured data:
 
-[**Read more about Features**](https://docs.ruseon.tech/guide/features)
+* **Transmuxing Pipeline (No Transcoding):** Video packets are parsed at the NALU level and repackaged directly into client-requested container formats (fMP4, TS, RTP) in memory without video decoding or pixel re-encoding.
+* **Lock-Free Single-Buffer Distribution:** Ingested frames are written once to a bounded, lock-free ring buffer per stream. Downstream consumers (HLS packager, WebRTC track sender, MP4 recorder, gRPC AI extractors) read concurrently from this buffer without allocating duplicate frame payloads.
+* **Slow-Consumer Protection:** Individual reader channels isolate slow clients. If a consumer falls behind, frames are dropped exclusively for that reader without stalling the ingestion engine or affecting other viewers.
+* **Page Cache-Managed Streaming I/O:** The local fMP4 archiver optimizes disk writes on Linux using POSIX kernel primitives (`posix_fadvise(FADV_DONTNEED)` and sliding-window `sync_file_range`), preventing continuous video recording writes from evicting the OS Page Cache and causing I/O stalls.
+* **Embedded Durable State:** Configuration, camera metadata, and user credentials persist in an embedded BadgerDB key-value store with synchronous write-ahead logging (`SyncWrites = true`), coupled with startup archive recovery routines (`RecoverCrashedFiles`).
+* **AI Metadata Synchronization:** Neural network inference results (bounding boxes, telemetry) ingested over gRPC client streams are synchronized with video timelines and pushed to clients via WebRTC DataChannels and HLS WebVTT tracks.
+* **Operational Transparency:** Provides native Prometheus metrics, deterministic `/livez` and `/readyz` probes reflecting actual subsystem readiness, and structured JSON telemetry.
 
 ---
 
-## 🏗 Architecture & Data Flow
+## Key Capabilities
 
-RUSEON uses a single-copy Lock-Free Ring Buffer architecture. Video frames ingested via RTSP are stored once in memory and referenced concurrently by all outbound consumers (HLS, WebRTC, fMP4 recorder, AI pipeline) without redundant allocations.
+* **RTSP Ingestion:** Ingests H.264 and H.265 streams over TCP or UDP with connection concurrency throttling and backoff reconnection.
+* **HLS Delivery:** Serves low-latency fMP4 and MPEG-TS live playlists with singleflight-cached master playlists and WebVTT metadata tracks.
+* **WebRTC / WHEP:** Delivers sub-second interactive H.264 video playback powered by Pion WebRTC over an optional unified UDP port multiplexer.
+* **Low-Latency WebCodecs:** Streams raw binary NALUs over WebSocket (`/stream/ws/:id`) for client-side hardware-accelerated Canvas rendering of H.264 and H.265 streams.
+* **fMP4 Archiving:** Continuous segmented fragmented MP4 recording with automated retention cleanup and timeline indexing.
+* **gRPC AI Streaming:** Exposes server-streaming RPCs for video frame extraction (`StreamFrames`) and client-streaming RPCs for AI metadata ingestion (`PushMetadata`).
+* **Event Integration:** Dispatches outbound HTTP webhooks with circuit breakers and publishes AI metadata to MQTT brokers via bounded queues.
+* **Embedded UI:** Includes an embedded dashboard (React 19, TypeScript) for stream visualization, camera management, and archive timeline playback.
+* **Authentication & RBAC:** Enforces JWT-based access control with role differentiation (Admin, Operator, Viewer, Service) for REST API and media stream endpoints.
+
+---
+
+## Architecture
+
+In RUSEON Core, inbound RTSP packets pass through demuxing and enter an isolated in-memory `RingBuffer`. Independent workers pull from the buffer concurrently to serve connected protocols and storage targets.
 
 ```mermaid
 flowchart TD
-    CAMERA["IP Camera<br/>RTSP (H.264 / H.265)"] -->|TCP / UDP| CORE["RUSEON Stream Engine"]
+    CAM["IP Cameras / RTSP Sources<br/>(H.264 / H.265)"] -->|RTSP TCP/UDP| INGEST["RTSP Ingest Engine<br/>(gortsplib)"]
+    
+    INGEST --> NALU["NALU Parser & Demuxer"]
+    NALU --> RING["Lock-Free RingBuffer<br/>(Per-Stream Memory Cache)"]
 
-    CORE --> RING["Lock-Free RingBuffer"]
+    RING --> HLS["HLS Engine<br/>fMP4 / TS Packaging"]
+    RING --> WEBRTC["WebRTC Engine<br/>Pion WHEP / H.264 RTP Track"]
+    RING --> WS["WebSocket Engine<br/>Binary NALU Stream"]
+    RING --> RECORDER["fMP4 Archiver<br/>PageCache-Aware Streaming I/O"]
+    RING --> GRPC["gRPC Server<br/>Frame Extraction (StreamFrames)"]
 
-    RING --> HLS["HLS Muxer<br/>fMP4 & TS"]
-    RING --> WEBRTC["WebRTC / WHEP<br/>Pion Engine"]
-    RING --> RECORDER["fMP4 Recorder<br/>Direct I/O"]
-    RING --> AI["AI Pipeline<br/>gRPC Receiver"]
+    HLS --> CLIENT_HLS["HLS Players & Browsers"]
+    WEBRTC --> CLIENT_RTC["Low-Latency WebRTC Viewers"]
+    WS --> CLIENT_WS["WebCodecs / Canvas Players"]
+    RECORDER --> DISK["Local Archive Storage<br/>(MP4 Segments)"]
+    GRPC <--> AI_WORKER["Computer Vision Workers<br/>(Frame Ingest & Metadata Push)"]
 
-    HLS --> BROWSER["Browsers & Mobile Players"]
-    WEBRTC --> CLIENTS["Ultra-Low Latency Viewers"]
-    RECORDER --> ARCHIVE["Disk Archive & BlobStore"]
-    AI --> META["Metadata Bus<br/>WebVTT / DataChannel / MQTT"]
+    AI_WORKER --> BUS["Metadata Broadcaster"]
+    BUS --> WEBRTC
+    BUS --> HLS
+    BUS --> MQTT_WH["MQTT & Webhook Dispatcher"]
 ```
 
-[**Explore System Design**](https://docs.ruseon.tech/architecture/system)
+For complete technical specifications, see [Architecture & System Design](https://docs.ruseon.tech/architecture/system).
 
 ---
 
-## 🧪 Testing, Reliability & Production Verification
+## Performance & Stress Benchmarks
 
-RUSEON Core enforces a comprehensive, multi-layer verification strategy in CI on every pull request:
+The following baseline metrics reflect an uninterrupted **8-hour continuous soak test** executing under high concurrency on a 12-core host.
 
-```
-+-----------------------------------------------------------------------------+
-|                            RUSEON TEST SUITE                                |
-+-----------------------------------------------------------------------------+
-|  1. Go Native Fuzzing        | Lock-Free RingBuffer boundary & race fuzzing |
-|  2. Testcontainers E2E Suite | MediaMTX 1.19.2 + FFmpeg 8 (RTSP -> HLS .ts) |
-|  3. k6 Media Path Load Tests | Authenticated HLS, WHEP, Archive, Probes     |
-|  4. React UI Testing Suite   | 36 Vitest + Testing Library component tests  |
-|  5. Coverage Quality Gates   | Strict thresholds enforced on 14 packages    |
-|  6. Static & Security Audit  | golangci-lint (0 issues) + gosec SAST        |
-+-----------------------------------------------------------------------------+
-```
+### Reproducible Baseline (8-Hour Continuous Run)
 
-### 1. Go Native Fuzz Testing (`internal/buffer`)
-- Continuous fuzzing of the Lock-Free RingBuffer (`fuzz_test.go`) validating ring wrapping, concurrent head/tail racing, overflow behavior, and zero-allocation invariants under extreme random inputs.
-
-### 2. Full-Pipeline Testcontainers E2E Suite (`tests/e2e`)
-- Runs in an isolated Docker bridge network using pinned images:
-  - **MediaMTX `1.19.2`** (RTSP server)
-  - **FFmpeg `8-alpine`** (live H.264 test pattern publisher at 10 fps, GOP = 10)
-- Validates the complete real-world media path:
-  `FFmpeg Stream -> MediaMTX -> RUSEON RTSP Ingest -> RingBuffer -> /livez & /readyz -> HLS Master Playlist (index.m3u8) -> Video Playlist (stream.m3u8) -> Download & Binary Validation of MPEG-TS segment (0x47 sync byte)`.
-
-### 3. Authenticated Media Path Performance Testing (`tests/performance`)
-- Synthetic multi-scenario load testing with **k6** (`k6_load.js`):
-  - **Live HLS Stream**: playlist negotiation and chunk delivery.
-  - **WebRTC WHEP**: SDP offer/answer handshake and ICE connectivity.
-  - **Timeshift Archive**: fMP4 seek and playback under load.
-  - **Control Plane**: authenticated camera management API.
-  - **Probes**: `/livez`, `/readyz`, and Prometheus `/metrics`.
-
-### 4. Frontend UI Testing (`web/`)
-- Native **Vitest** + **React Testing Library** + **jsdom** test suite (36 tests across 7 test files):
-  - 24h archive timeline projection math, zoom level scaling, and segment hit-testing (`timeline-math.test.ts`).
-  - Stream reconnection coordinator with exponential backoff & jitter (`reconnect-coordinator.test.ts`).
-  - Browser streaming capabilities detection (`capabilities.test.ts`).
-  - Player protocol state machine & failover hierarchy (`orchestrator.test.ts`).
-  - Component tests for Login form submission, 401 handling, and Language switching.
-  - 100% clean OxLint linter check.
-
-### 5. Automated CI Code Coverage Gates (`scripts/check_coverage.go`)
-- Mandatory threshold validation on each pull request across all critical packages:
-
-| Package | Minimum Gate | Actual Measured Coverage | Status |
-| :--- | :---: | :---: | :---: |
-| `pkg/registry` | $\ge 90.0\%$ | **100.0%** | **PASS** |
-| `pkg/logger` | $\ge 90.0\%$ | **97.0%** | **PASS** |
-| `pkg/eventbus` | $\ge 90.0\%$ | **94.5%** | **PASS** |
-| `pkg/storage/localfs` | $\ge 85.0\%$ | **90.9%** | **PASS** |
-| `pkg/auth` | $\ge 80.0\%$ | **90.2%** | **PASS** |
-| `internal/archive` | $\ge 80.0\%$ | **87.8%** | **PASS** |
-| `internal/mqtt` | $\ge 80.0\%$ | **84.1%** | **PASS** |
-| `pkg/storage` | $\ge 75.0\%$ | **81.9%** | **PASS** |
-| `internal/buffer` | $\ge 70.0\%$ | **74.0%** | **PASS** |
-| `internal/backup` | $\ge 70.0\%$ | **72.9%** | **PASS** |
-| `pkg/config` | $\ge 70.0\%$ | **72.0%** | **PASS** |
-| `internal/stream` | $\ge 65.0\%$ | **70.4%** | **PASS** |
-| `internal/grpc` | $\ge 65.0\%$ | **70.3%** | **PASS** |
-| `internal/recorder` | $\ge 65.0\%$ | **69.7%** | **PASS** |
-| **Total Engine Core** | $\ge 50.0\%$ | **62.3%** | **PASS** |
-
----
-
-## 📊 Performance & Stress Benchmarks
-
-Under standardized 8-hour full-stack soak and stress testing (**600 simultaneous 30 FPS cameras**, **1,800 concurrent HLS viewers**, **240 WebRTC WHEP clients**, and **gRPC AI streaming** on a 12-core CPU):
-
-| Component | Metric | Measured Value | Latency / Notes |
+| Subsystem | Metric | Measured Value | Operational Characteristics |
 | :--- | :--- | :--- | :--- |
-| **Ingest Throughput** | **18,180 FPS (1,342.9 Mbps)** | 600 cameras @ 30 FPS | `0` dropped frames (523.6M frames over 8h) |
-| **HLS fMP4 Delivery** | **501.9 MB/s** (17,625,404 segments) | 1,800 active viewers | `p50: 3.59 ms` / `p95: 211.2 ms` (15.1 TB served) |
-| **REST API Engine** | **460 RPS** (13.2M requests, 0 errors) | Full JWT auth verification | `p50: 0.59 ms` / `p95: 8.52 ms` |
-| **WebRTC WHEP** | **2,439,152 RTP packets** | 240 live peer connections | `p50: 390.3 ms` / `p95: 935.4 ms` (0 errors) |
-| **gRPC AI Stream** | **18,180 FPS / 1,993 RPS** | Frame extraction & metadata | Stream latency: `p50: 28.45 ms` (0 errors) |
-| **EventBus Webhooks** | **11,042,761 delivered events** | 100% delivery rate | `0` dropped (0.0% loss) |
-| **Memory & Stability** | **707 MB RSS** (95 MB Heap Alloc) | 348 active goroutines | Max GC pause: `7.69 ms` (Avg: `1.03 ms`) |
+| **Ingest Throughput** | Total Video FPS | **18,180.4 FPS** (1,342.9 Mbps) | 600 concurrent cameras @ 30 FPS, `0` dropped frames (523.6M frames processed) |
+| **HLS Delivery** | Delivered Segments | **501.9 MB/s** (17,625,404 segments) | 1,800 active viewers, `15.1 TB` transferred (`p50: 3.59 ms`, `p95: 211.2 ms`) |
+| **REST API Engine** | Request Throughput | **459.9 RPS** (13,244,819 requests) | 10 workers, 100% OK (`0` errors, `p50: 0.59 ms`, `p95: 8.52 ms`, `p99: 28.74 ms`) |
+| **WebRTC (WHEP)** | RTP Packet Stream | **2,439,152 packets** (2.83 GB transferred) | 240 concurrent peer connections, `0` session errors (`p50: 390.3 ms` handshake) |
+| **gRPC AI Stream** | Frame & Meta Delivery | **18,180.4 FPS** / **1,993.2 RPS** | 20 AI workers, 523.6M frames streamed (`p50: 28.45 ms` delivery latency) |
+| **EventBus** | Webhook Dispatch | **11,042,761 events** | `0` dropped events observed during this benchmark |
+| **System Memory** | Process Footprint | **707 MB RSS** (95 MB Heap Alloc) | 348 active goroutines at teardown (deterministic worker cleanup) |
+| **Garbage Collection** | Runtime Pause | **1.03 ms avg pause** (7.69 ms peak) | 154,969 GC cycles across 8 hours under 500+ MB/s network throughput |
 
-> 💡 **Test Topology Note:** Both the synthetic load generator (600 cameras, 1,800 HLS clients, 240 WebRTC players, 20 gRPC AI workers) and the RUSEON Core server ran co-located on the same single 12-core host (in-process loopback architecture), actively competing for CPU cycles and OS network stack during the 8-hour test.
+### Benchmark Methodology & Scope
 
-👉 **[Read the Full Benchmark Report (bench-results/bench-baseline.md)](bench-results/bench-baseline.md)**
+* **Host Configuration:** 12-Core host (`num_cpu: 12`, x86_64 architecture).
+* **Test Duration:** 28,800.12 seconds (8.0 continuous hours).
+* **Workload Composition:** 600 synthetic RTSP camera sources (720p @ 30 FPS, 2.24 Mbps per stream, GOP = 30), 1,800 HLS fMP4 players, 240 WebRTC WHEP peer connections, 20 gRPC AI stream consumers, 10 concurrent REST API workers.
+* **Storage Mode Note:** The soak test ran with simulated/in-memory disk storage (`real_disk: false`) to isolate and measure CPU, RAM, network throughput, and transmuxing performance independently of physical disk array I/O limits.
+* **Co-Location Notice:** The synthetic load generator client (`cmd/loadtest`) and the RUSEON Core server ran co-located on the same 12-core host over loopback (`127.0.0.1`), actively competing for OS scheduler slices, memory bandwidth, and kernel networking stack throughout the benchmark.
+
+👉 **[Read the Full Benchmark Report & Raw Datasets](bench-results/bench-baseline.md)**
 
 ---
 
-## 🛠 Local Verification & Testing Guide
+## Quick Start
 
-You can reproduce all quality and test checks locally:
+### 1. Run with Docker
+
+Launch RUSEON Core in a container with persistent storage volumes:
 
 ```bash
-# 1. Run full Go backend test suite with race detector and coverage
-go test -v -race -timeout=15m -coverprofile=coverage.out ./...
-
-# 2. Run Lock-Free RingBuffer Fuzz tests
-go test -fuzz=FuzzRingBuffer -fuzztime=30s ./internal/buffer
-
-# 3. Run E2E Media Pipeline tests with Testcontainers (requires Docker)
-go test -v -run=TestE2E ./tests/e2e/...
-
-# 4. Verify Code Coverage Thresholds
-go run scripts/check_coverage.go coverage.out
-
-# 5. Run Backend Linters & Security Scanners
-golangci-lint run ./...
-gosec -exclude-dir=pkg/grpc/pb ./...
-
-# 6. Run Frontend Tests & Linter
-cd web
-npm run lint
-npm test
-npm run build
+docker run -d \
+  --name ruseon-core \
+  -p 8080:8080 \
+  -p 8555:8555/udp \
+  -p 50051:50051 \
+  -v ruseon_data:/app/data \
+  -v ruseon_recordings:/app/recordings \
+  ghcr.io/rusegal/ruseon-core:latest
 ```
 
----
-
-## 🏎 Quick Start
-
-### 1. Launch via Docker
-Deploy RUSEON Core with a single command. On first run, the system automatically generates an initial admin password and prints it securely to the console.
+On first startup, RUSEON Core automatically initializes the database, generates a secure initial administrator password, and logs it to `stdout`:
 
 ```bash
-docker run -p 8080:8080 -v data:/app/data -v recordings:/app/recordings ghcr.io/rusegal/ruseon-core:latest
+docker logs ruseon-core | grep "INITIAL ADMIN PASSWORD"
 ```
 
 ### 2. Access the Dashboard
-Open your browser at [http://localhost:8080](http://localhost:8080). Log in with username `admin` and the generated password.
 
-### 3. Add a Camera via API
-Dynamically manage streams without server restarts:
+Navigate to `http://localhost:8080` in your browser. Log in with:
+* **Username:** `admin`
+* **Password:** *(Generated password from container logs)*
+
+### 3. Add a Camera via REST API
+
+You can add and manage camera streams dynamically without restarting the server:
+
 ```bash
+# 1. Obtain JWT access token
+TOKEN=$(curl -s -X POST http://localhost:8080/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"YOUR_ADMIN_PASSWORD"}' | jq -r .token)
+
+# 2. Register RTSP camera stream
 curl -X POST http://localhost:8080/api/cameras \
-  -H 'Authorization: Bearer YOUR_JWT_TOKEN' \
-  -H 'Content-Type: application/json' \
-  -d '{"id":"cam1","url":"rtsp://user:pass@192.168.1.100:554/stream","record":true}'
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "cam-front-door",
+    "url": "rtsp://camera.local:554/live/ch0",
+    "record": true,
+    "retention_days": 7
+  }'
 ```
 
-[**Read the full Quick Start Guide**](https://docs.ruseon.tech/guide/quick-start)
+---
+
+## System Requirements
+
+* **Production Target:** Linux (`amd64` / `arm64`), Kernel $\ge$ 5.4 recommended for optimal `sync_file_range` and `fadvise` I/O.
+* **Development & Testing:** macOS and Windows supported via standard file I/O fallback drivers.
+* **Runtime:** Docker $\ge$ 20.10, or native binary compiled with Go $\ge$ 1.24.
+* **Network Ports:**
+  * `8080/tcp` — HTTP REST API, HLS streaming, WHEP signaling, WebCodecs WebSocket, Web UI, Metrics.
+  * `8555/udp` — WebRTC Pion UDP media multiplexer (configured via `server.webrtc.listen_port`; when unset, Pion allocates dynamic UDP ports for ICE candidates).
+  * `50051/tcp` — gRPC AI streaming interface (configured via `server.grpc.port`).
+* **Storage:** Dedicated SSD/NVMe or high-throughput block storage recommended when recording 50+ concurrent streams.
 
 ---
 
-## 📖 Documentation
+## Production Deployment
 
-The official documentation is the single source of truth for RUSEON Core:
+When deploying RUSEON Core in production environments, ensure the following best practices:
 
-- **[Getting Started](https://docs.ruseon.tech/guide/introduction)**
-- **[Configuration Reference](https://docs.ruseon.tech/reference/configuration)**
-- **[Architecture & System Design](https://docs.ruseon.tech/architecture/overview)**
-- **[Streaming & WebRTC](https://docs.ruseon.tech/streaming/overview)**
-- **[Archive & Smart I/O](https://docs.ruseon.tech/archive/overview)**
-- **[API Reference](https://docs.ruseon.tech/api/overview)**
-- **[Deployment Guide](https://docs.ruseon.tech/deployment/overview)**
-- **[Troubleshooting](https://docs.ruseon.tech/troubleshooting/overview)**
+* **Storage Volumes:** Mount `/app/data` to a persistent, durable volume (stores BadgerDB state). Mount `/app/recordings` to a high-capacity filesystem configured for sequential video writes.
+* **WebRTC Networking:** Configure `server.webrtc.nat_1_to_1_ips` with your public or load-balancer IP address, and ensure UDP port `8555` is reachable without symmetric NAT alterations.
+* **TLS & Reverse Proxy:** Terminate TLS (HTTPS) via a reverse proxy (e.g., NGINX, Envoy, Traefik) or configure native TLS in `config.yaml`. Secure Context (`https://`) is required by modern web browsers to initialize WebRTC streams.
+
+For full configuration reference and deployment guidelines, see the [Deployment Guide](https://docs.ruseon.tech/deployment/overview).
 
 ---
 
-## ⚠️ Known Limitations
+## Observability & Operations
 
-RUSEON Core is purpose-built for efficient video routing, storage, and AI piping. It operates entirely on transmuxing, which means **it does not perform lossy server-side video transcoding**. If your cameras output formats that certain browsers do not natively support (such as H.265 on legacy client environments), playback will utilize the client-side WebCodecs / canvas player fallback or require external stream conditioning.
+RUSEON Core exposes standard operational endpoints for monitoring and orchestration:
 
-[**See all Known Limitations**](https://docs.ruseon.tech/reference/known-limitations)
-
----
-
-## 💎 Choose Your RUSEON Edition
-
-RUSEON is built on an Open Core model. Start for free with the Community Edition, and upgrade to Pro or Enterprise when your video infrastructure scales and requires advanced B2B features like SSO/OIDC, Cloud Archiving (S3), and High Availability Clustering.
-
-> **Ready to scale?** Contact our Team: [rusegal.dev@yahoo.com](mailto:rusegal.dev@yahoo.com)
+* **Liveness Probe (`GET /livez`):** Verifies that the internal HTTP engine is active and responsive.
+* **Readiness Probe (`GET /readyz`):** Executes real-time health checks against the BadgerDB state store, storage volume writability, and stream manager initialization. Returns `503 Service Unavailable` if core components fail.
+* **Prometheus Metrics (`GET /metrics`):** Exports standard runtime telemetry, stream bitrates, active viewer sessions, dropped packet counts, and storage I/O stats.
+* **Runtime Profiling (`GET /debug/pprof/*`):** Standard Go execution profiling (gated behind `server.pprof_port` configuration).
 
 ---
 
-## 📄 License
+## Security Model
 
-RUSEON Core (Community Edition) is distributed under the [MIT License](LICENSE).
+* **Authentication:** REST API and media stream endpoints require cryptographically signed HS256 JWT tokens.
+* **Credential Protection:** User passwords are encrypted with bcrypt before persisting to BadgerDB.
+* **Token Scope Differentiation:** Ephemeral stream playback tokens (`?token=`) contain a `stream_id` claim and are strictly prevented from accessing management REST API endpoints.
+* **Role-Based Access Control (RBAC):** API endpoints enforce role checks (`Admin`, `Operator`, `Viewer`, `Service`) via middleware.
+* **Automated Static Audits:** Continuous integration pipeline enforces zero warnings on `golangci-lint` and automated SAST scans via `gosec`.
+
+For vulnerability disclosure instructions, see [SECURITY.md](SECURITY.md).
+
+---
+
+## Compatibility & Supported Standards
+
+| Protocol / Component | Ingest / Source Support | Output / Client Support | Notes |
+| :--- | :--- | :--- | :--- |
+| **RTSP** | H.264, H.265 (TCP / UDP) | — | Client connection concurrency throttled |
+| **HLS** | — | fMP4, MPEG-TS | H.264 / H.265 passthrough; client/browser codec support applies |
+| **WebRTC (WHEP)** | — | H.264 (`webrtc.MimeTypeH264`) | Sub-second live delivery via Pion WebRTC |
+| **WebSocket** | — | Binary NALU stream | WebCodecs / client-side canvas player (H.264 & H.265) |
+| **Archive Storage** | — | Fragmented MP4 (fMP4) | Local filesystem with POSIX cache management |
+| **AI Integration** | `PushMetadata` (gRPC) | `StreamFrames` (gRPC) | Server-streaming video frames & client-streaming metadata |
+| **Telemetry & Events** | — | MQTT v3.1.1 / v5.0, Webhooks | Bounded async queues with circuit breaker |
+| **State Storage** | — | BadgerDB v4 | Pure Go LSM-tree with WAL (`SyncWrites = true`) |
+
+---
+
+## Documentation
+
+The official documentation is maintained at **[docs.ruseon.tech](https://docs.ruseon.tech/)**:
+
+* [Getting Started Guide](https://docs.ruseon.tech/guide/introduction)
+* [Configuration Reference](https://docs.ruseon.tech/reference/configuration)
+* [Architecture & Data Flow](https://docs.ruseon.tech/architecture/overview)
+* [Streaming & WebRTC Setup](https://docs.ruseon.tech/streaming/overview)
+* [Archive & Smart I/O Engine](https://docs.ruseon.tech/archive/overview)
+* [REST API Specification](https://docs.ruseon.tech/api/overview)
+* [Production Deployment](https://docs.ruseon.tech/deployment/overview)
+* [Troubleshooting & Diagnostics](https://docs.ruseon.tech/troubleshooting/overview)
+
+---
+
+## Known Limitations
+
+* **No Server-Side Video Transcoding:** RUSEON Core operates strictly via transmuxing. It does not decode or transcode video. If source cameras publish in codecs not supported by legacy client browsers (e.g., H.265 on older mobile devices), playback relies on client-side WebCodecs / Canvas rendering or requires an upstream transcoder.
+* **WebRTC Output Codec:** WebRTC WHEP output currently packages H.264 video tracks. Streams ingested as H.265 can be played via HLS, WebSocket/WebCodecs, or archived to fMP4, but require H.264 source streams for WebRTC WHEP playback.
+* **Local Storage Scope:** The Community Edition manages local storage arrays directly attached to the host. Storage interfaces (`BlobStore`, `StateStore`) provide abstraction boundaries for future distributed backends.
+* **Bounded Metadata Queueing:** AI metadata and MQTT publishing queues are bounded. If external consumers or brokers stall, overloaded queues drop new metadata to prevent blocking real-time media distribution.
+
+See [Known Limitations](https://docs.ruseon.tech/reference/known-limitations) for further technical considerations.
+
+---
+
+## Project Status & Commercial Support
+
+RUSEON Core Community Edition is an open-source project available under the MIT License.
+
+The architecture defines interfaces (such as `BlobStore` and `StateStore`) designed to accommodate additional storage, authentication, and high-availability backends. Commercial extensions and enterprise deployments are developed separately.
+
+> For commercial inquiries, custom deployments, and enterprise support: [rusegal.dev@yahoo.com](mailto:rusegal.dev@yahoo.com)
+
+---
+
+## Contributing
+
+We welcome community contributions. To get started:
+
+1. Review [CONTRIBUTING.md](CONTRIBUTING.md) for coding conventions and branch workflows (`dev` branch).
+2. Adhere to the [Contributor Code of Conduct](CODE_OF_CONDUCT.md).
+3. Ensure all changes pass unit tests, fuzz tests, and linters:
+   ```bash
+   go test -v -race ./...
+   golangci-lint run ./...
+   ```
+
+---
+
+## License
+
+RUSEON Core (Community Edition) is licensed under the [MIT License](LICENSE).
