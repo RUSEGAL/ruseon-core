@@ -11,17 +11,17 @@ import (
 	"time"
 )
 
-// LatencySampler собирает замеры времени выполнения и вычисляет точные перцентили.
+// LatencySampler collects duration samples and computes percentiles (p50, p90, p95, p99, p99.9) and min/avg/max latencies.
 type LatencySampler struct {
 	mu      sync.Mutex
-	samples []float64 // в миллисекундах
+	samples []float64 // in milliseconds
 	count   atomic.Uint64
-	sumMs   atomic.Uint64 // хранит микросекунды для точности
+	sumMs   atomic.Uint64 // stores microseconds for precision
 	minMs   atomic.Uint64
 	maxMs   atomic.Uint64
 }
 
-// NewLatencySampler создает новый сборщик задержек.
+// NewLatencySampler creates a new LatencySampler pre-allocating slice capacity for expectedSamples.
 func NewLatencySampler(expectedSamples int) *LatencySampler {
 	if expectedSamples <= 0 {
 		expectedSamples = 10000
@@ -33,7 +33,7 @@ func NewLatencySampler(expectedSamples int) *LatencySampler {
 	return s
 }
 
-// Add добавляет замер задержки.
+// Add records a new duration measurement.
 func (s *LatencySampler) Add(d time.Duration) {
 	ms := float64(d.Nanoseconds()) / 1e6
 	// #nosec G115 -- non-negative duration
@@ -59,27 +59,36 @@ func (s *LatencySampler) Add(d time.Duration) {
 	}
 
 	s.mu.Lock()
-	// Ограничиваем максимальное число сэмплов в памяти для защиты от OOM при миллионах запросов
+	// Bound memory growth for multi-million request runs
 	if len(s.samples) < 500000 {
 		s.samples = append(s.samples, ms)
 	}
 	s.mu.Unlock()
 }
 
-// LatencyStats возвращает рассчитанные квантили и средние значения.
+// LatencyStats contains calculated quantile distribution numbers and averages.
 type LatencyStats struct {
-	Count  uint64  `json:"count"`
-	MinMs  float64 `json:"min_ms"`
-	AvgMs  float64 `json:"avg_ms"`
-	P50Ms  float64 `json:"p50_ms"`
-	P90Ms  float64 `json:"p90_ms"`
-	P95Ms  float64 `json:"p95_ms"`
-	P99Ms  float64 `json:"p99_ms"`
+	// Count is the total number of recorded samples.
+	Count uint64 `json:"count"`
+	// MinMs is the minimum recorded latency in milliseconds.
+	MinMs float64 `json:"min_ms"`
+	// AvgMs is the arithmetic mean latency in milliseconds.
+	AvgMs float64 `json:"avg_ms"`
+	// P50Ms is the median (50th percentile) latency in milliseconds.
+	P50Ms float64 `json:"p50_ms"`
+	// P90Ms is the 90th percentile latency in milliseconds.
+	P90Ms float64 `json:"p90_ms"`
+	// P95Ms is the 95th percentile latency in milliseconds.
+	P95Ms float64 `json:"p95_ms"`
+	// P99Ms is the 99th percentile latency in milliseconds.
+	P99Ms float64 `json:"p99_ms"`
+	// P999Ms is the 99.9th percentile latency in milliseconds.
 	P999Ms float64 `json:"p999_ms"`
-	MaxMs  float64 `json:"max_ms"`
+	// MaxMs is the maximum recorded latency in milliseconds.
+	MaxMs float64 `json:"max_ms"`
 }
 
-// Calculate вычисляет статистику задержек.
+// Calculate computes and returns the summary distribution statistics for all collected latency samples.
 func (s *LatencySampler) Calculate() LatencyStats {
 	cnt := s.count.Load()
 	if cnt == 0 {
@@ -142,6 +151,7 @@ func (s *LatencySampler) Calculate() LatencyStats {
 // Benchmark Report & Export Structures
 // ─────────────────────────────────────────────────────────────────────────────
 
+// BenchmarkResult encapsulates the complete benchmark report across all subsystem metrics and hardware telemetry.
 type BenchmarkResult struct {
 	Timestamp   string            `json:"timestamp"`
 	DurationSec float64           `json:"duration_sec"`
@@ -255,7 +265,7 @@ type SystemMetrics struct {
 	NetTxMbps     float64 `json:"net_tx_mbps"`
 }
 
-// ExportJSON сохраняет результаты бенчмарка в JSON-файл.
+// ExportJSON writes the formatted BenchmarkResult data to the target JSON file path.
 func (r *BenchmarkResult) ExportJSON(filePath string) error {
 	data, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
@@ -264,13 +274,13 @@ func (r *BenchmarkResult) ExportJSON(filePath string) error {
 	return os.WriteFile(filePath, data, 0600)
 }
 
-// ExportMarkdown сохраняет отчет в красивом формате Markdown для README/CI.
+// ExportMarkdown saves a formatted bilingual Markdown benchmark summary report to the target file path.
 func (r *BenchmarkResult) ExportMarkdown(filePath string) error {
 	md := r.FormatMarkdown()
 	return os.WriteFile(filePath, []byte(md), 0600)
 }
 
-// FormatMarkdown форматирует отчет в виде двуязычной Markdown таблицы (RU & EN).
+// FormatMarkdown renders the benchmark report into a comprehensive bilingual Markdown document (Russian & English).
 func (r *BenchmarkResult) FormatMarkdown() string {
 	var sb string
 	sb += "# 🚀 RUSEON Core — Результаты нагрузочного тестирования / Load Test Results\n\n"

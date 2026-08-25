@@ -1,3 +1,5 @@
+// Package stream implements high-level camera stream lifecycle management, reconnection backoff loops,
+// bandwidth telemetry calculations, lazy HLS activation, and metadata multiplexing.
 package stream
 
 import (
@@ -21,20 +23,29 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
-// Stream представляет логику работы с конкретной камерой.
+// Stream manages the full lifecycle of an individual camera ingest session.
+//
+// Responsibilities:
+//   - RTSP connection establishment and automatic exponential backoff reconnection (with jitter).
+//   - Ingesting video frames into an internal buffer.RingBuffer.
+//   - Optional continuous MP4 archive recording with GOP boundary flushing.
+//   - On-demand (Lazy) or continuous HLS multiplexing.
+//   - Collecting and exposing atomic real-time throughput, bitrate, frame counts, and health telemetry.
 type Stream struct {
-	ID        string
-	URL       string
+	// ID is the unique camera identifier.
+	ID string
+	// URL is the RTSP source stream URI.
+	URL string
 	transport string
 	tokenAuth bool
 
 	ctx       context.Context
 	cancelCtx context.CancelFunc
 
-	// Буфер кадров для этой камеры
+	// Frame ring buffer
 	ringBuffer *buffer.RingBuffer
 	
-	// Бродкастер метаданных
+	// AI metadata broadcaster
 	metaBroadcaster *MetadataBroadcaster
 	
 	muxerMu        sync.Mutex
@@ -44,7 +55,7 @@ type Stream struct {
 
 	mp4Recorder *recorder.Recorder
 
-	// Статистика
+	// Atomic telemetry and state counters
 	state             atomic.Value
 	connectedAt       atomic.Int64
 	bytesReceived     atomic.Uint64
@@ -59,7 +70,7 @@ type Stream struct {
 	rtspClient *rtsp.Client
 	rtspMu     sync.Mutex
 	
-	sfGroup    singleflight.Group
+	sfGroup singleflight.Group
 
 	// Cached bound metrics for hot path
 	metricNetRxBytes prometheus.Counter
@@ -75,7 +86,15 @@ type Stream struct {
 	wg       sync.WaitGroup
 }
 
-// NewStream создает и запускает поток.
+// NewStream instantiates and launches a new camera Stream processing goroutine.
+//
+// Parameters:
+//   - id: Unique camera identifier.
+//   - url: RTSP source URI.
+//   - record: If true, enables continuous fMP4 archive recording.
+//   - lazyHLS: If true, defers HLS muxer initialization until a viewer requests a playlist.
+//   - transport: RTSP transport ("tcp", "udp", or "auto").
+//   - tokenAuth: If true, restricts media endpoints with short-lived stream token requirements.
 func NewStream(id, url string, record bool, lazyHLS bool, transport string, tokenAuth bool) *Stream {
 	ctx, cancel := context.WithCancel(context.Background())
 	rb := buffer.NewRingBuffer(100)
@@ -117,7 +136,7 @@ func NewStream(id, url string, record bool, lazyHLS bool, transport string, toke
 	return s
 }
 
-// run выполняет бесконечный цикл подключения с ретраями.
+// run manages the continuous connection loop with exponential backoff and jitter.
 func (s *Stream) run() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -143,7 +162,6 @@ func (s *Stream) run() {
 		s.rtspMu.Unlock()
 		
 		err := s.rtspClient.Start(s.ctx, func(nalus [][]byte, pts time.Duration, isKeyFrame bool) {
-			// Считаем объем байт (примерно, только полезная нагрузка NALU)
 			size := 0
 			for _, n := range nalus {
 				size += len(n)
@@ -156,7 +174,6 @@ func (s *Stream) run() {
 			
 			oldState, _ := s.state.Load().(models.CameraState)
 			if oldState != models.StateOnline {
-				// Prevent multiple concurrent 'camera_online' events by using CompareAndSwap
 				if s.state.CompareAndSwap(oldState, models.StateOnline) {
 					s.lastError.Store("")
 					s.reconnects.Store(0) // Reset reconnect backoff
@@ -177,7 +194,7 @@ func (s *Stream) run() {
 				s.lastKeyTime.Store(time.Now().Unix())
 			}
 
-			// Оборачиваем в Frame и пишем в Ring Buffer
+			// Wrap in Frame and write to RingBuffer
 			f := &buffer.Frame{
 				Timestamp:  pts,
 				IsKeyFrame: isKeyFrame,
@@ -222,7 +239,7 @@ func (s *Stream) run() {
 		if backoffSec < 1 {
 			backoffSec = 1
 		}
-		// Add some jitter (e.g. 0 to 500ms)
+		// Add jitter between 0 and 500ms
 		jitter := time.Duration(time.Now().UnixNano()%500) * time.Millisecond
 		reconnectDelay := time.Duration(backoffSec)*time.Second + jitter
 
@@ -238,8 +255,10 @@ func (s *Stream) run() {
 	}
 }
 
-// Stop останавливает работу потока, ожидает завершения всех фоновых воркеров.
-// Метод является идемпотентным (защищен через sync.Once).
+// Stop terminates stream ingest, closes RTSP connections, stops recorders and HLS muxers,
+// and blocks until all background worker goroutines have exited.
+//
+// Thread-safety: Stop is idempotent and safe for concurrent execution protected by sync.Once.
 func (s *Stream) Stop() {
 	s.stopOnce.Do(func() {
 		if s.cancelCtx != nil {
@@ -270,22 +289,27 @@ func (s *Stream) Stop() {
 	})
 }
 
-// PipelineConfig определяет параметры, управляющие жизненным циклом и поведением рантайм-пайплайна.
+// PipelineConfig defines the declarative runtime pipeline settings of a camera stream.
 type PipelineConfig struct {
-	URL       string
-	Record    bool
-	LazyHLS   bool
+	// URL is the RTSP source stream URI.
+	URL string
+	// Record determines whether MP4 archive recording is enabled.
+	Record bool
+	// LazyHLS determines whether HLS muxing is on-demand.
+	LazyHLS bool
+	// Transport is the RTSP transport ("tcp", "udp", or "auto").
 	Transport string
+	// TokenAuth specifies whether stream token verification is required.
 	TokenAuth bool
 }
 
-// MatchesPipelineConfig проверяет соответствие текущего состояния стрима заданной конфигурации пайплайна.
+// MatchesPipelineConfig returns true if the current active stream pipeline matches cfg.
 func (s *Stream) MatchesPipelineConfig(cfg PipelineConfig) bool {
 	hasRecorder := s.mp4Recorder != nil
 	return s.URL == cfg.URL && s.transport == cfg.Transport && s.lazyHLS == cfg.LazyHLS && s.tokenAuth == cfg.TokenAuth && hasRecorder == cfg.Record
 }
 
-// MatchesConfig проверяет, совпадают ли текущие параметры стрима с переданными.
+// MatchesConfig checks whether the stream's configuration parameters match the provided arguments.
 func (s *Stream) MatchesConfig(url string, record, lazyHLS bool, transport string, tokenAuth bool) bool {
 	return s.MatchesPipelineConfig(PipelineConfig{
 		URL:       url,
@@ -296,25 +320,27 @@ func (s *Stream) MatchesConfig(url string, record, lazyHLS bool, transport strin
 	})
 }
 
-// IsTokenAuth возвращает true, если поток защищен проверкой токена.
+// IsTokenAuth reports whether this stream requires short-lived token authentication for media playback.
 func (s *Stream) IsTokenAuth() bool {
 	return s.tokenAuth
 }
 
-// GetRingBuffer возвращает кольцевой буфер потока для чтения.
+// GetRingBuffer returns the underlying frame ring buffer.
 func (s *Stream) GetRingBuffer() *buffer.RingBuffer {
 	return s.ringBuffer
 }
 
+// GetMetadataBroadcaster returns the AI metadata broadcaster associated with this stream.
 func (s *Stream) GetMetadataBroadcaster() *MetadataBroadcaster {
 	return s.metaBroadcaster
 }
 
-// WakeUpHLSMuxer возвращает мультиплексор HLS, просыпая его при необходимости.
+// WakeUpHLSMuxer returns the active HLS muxer instance, starting it on-demand if in LazyHLS mode.
+// It uses singleflight to deduplicate concurrent startup requests.
 func (s *Stream) WakeUpHLSMuxer() *hls.Muxer {
 	s.lastHLSRequest.Store(time.Now().UnixNano())
 
-	// Fast-path: если муксер уже активен, возвращаем его без входа в SingleFlight и без аллокаций
+	// Fast-path: if muxer is already active, return without singleflight or allocation overhead
 	s.muxerMu.Lock()
 	m := s.hlsMuxer
 	s.muxerMu.Unlock()
@@ -322,7 +348,7 @@ func (s *Stream) WakeUpHLSMuxer() *hls.Muxer {
 		return m
 	}
 
-	// Slow-path: конкурентная инициализация через singleflight при первом запросе
+	// Slow-path: singleflight concurrent startup on first viewer request
 	v, _, _ := s.sfGroup.Do("wakeup", func() (interface{}, error) {
 		s.muxerMu.Lock()
 		defer s.muxerMu.Unlock()
@@ -338,11 +364,12 @@ func (s *Stream) WakeUpHLSMuxer() *hls.Muxer {
 	return v.(*hls.Muxer)
 }
 
-// TickHousekeeping выполняет периодическое обслуживание потока:
-// расчет битрейта, остановку неактивных Lazy HLS муксеров и проверку зависания кадров.
-// Метод вызывается централизованным шедулером Manager раз в секунду.
+// TickHousekeeping executes 1-second periodic maintenance for the stream:
+//   - Lock-free rolling bitrate calculation.
+//   - Auto-stops inactive Lazy HLS muxers if no requests were received in 60s.
+//   - Runs frame stall watchdog checks via the active HLS muxer.
 func (s *Stream) TickHousekeeping(now time.Time) {
-	// 1. Lock-free расчет битрейта
+	// 1. Lock-free bitrate calculation
 	currentBytes := s.bytesReceived.Load()
 	lastBytes := s.lastBytes.Swap(currentBytes)
 	lastTime := s.lastBitrateCalc.Swap(now.UnixNano())
@@ -355,7 +382,7 @@ func (s *Stream) TickHousekeeping(now time.Time) {
 		}
 	}
 
-	// 2. Остановка неактивного Lazy HLS Muxer (если не было запросов > 60 сек)
+	// 2. Stop inactive Lazy HLS Muxer (inactivity > 60 seconds)
 	if s.lazyHLS {
 		lastReq := s.lastHLSRequest.Load()
 		if lastReq > 0 && now.Sub(time.Unix(0, lastReq)) > 60*time.Second {
@@ -369,7 +396,7 @@ func (s *Stream) TickHousekeeping(now time.Time) {
 		}
 	}
 
-	// 3. Делегирование проверки зависания кадров активному HLS Muxer
+	// 3. Delegate frame watchdog check to active HLS Muxer
 	s.muxerMu.Lock()
 	muxer := s.hlsMuxer
 	s.muxerMu.Unlock()
@@ -378,42 +405,42 @@ func (s *Stream) TickHousekeeping(now time.Time) {
 	}
 }
 
-// SetState updates the camera state.
+// SetState updates the operational status of the camera stream.
 func (s *Stream) SetState(st models.CameraState) {
 	s.state.Store(st)
 }
 
-// AddBytesReceived increases received bytes counter.
+// AddBytesReceived increments the received byte counter and Prometheus receive metric.
 func (s *Stream) AddBytesReceived(n uint64) {
 	s.bytesReceived.Add(n)
 	s.metricNetRxBytes.Add(float64(n))
 }
 
-// AddFramesReceived increases received frames counter and updates last frame time.
+// AddFramesReceived increments the total received frame counter and updates LastFrameTime.
 func (s *Stream) AddFramesReceived(n uint64) {
 	s.framesReceived.Add(n)
 	s.metricFramesRx.Add(float64(n))
 	s.lastFrameTime.Store(time.Now().Unix())
 }
 
-// AddKeyFramesReceived increases received key frames counter and updates last key time.
+// AddKeyFramesReceived increments the received keyframe counter and updates LastKeyTime.
 func (s *Stream) AddKeyFramesReceived(n uint64) {
 	s.keyFramesReceived.Add(n)
 	s.metricKeyFrames.Add(float64(n))
 	s.lastKeyTime.Store(time.Now().Unix())
 }
 
-// SetConnectedAt sets connection timestamp.
+// SetConnectedAt updates the Unix timestamp of the latest successful stream connection.
 func (s *Stream) SetConnectedAt(t time.Time) {
 	s.connectedAt.Store(t.Unix())
 }
 
-// AddBytesSent увеличивает счетчик исходящего трафика
+// AddBytesSent increments the cumulative egress byte counter for viewers.
 func (s *Stream) AddBytesSent(n uint64) {
 	s.bytesSent.Add(n)
 }
 
-// GetStats возвращает текущую статистику потока.
+// GetStats compiles and returns a point-in-time snapshot of stream metrics and telemetry.
 func (s *Stream) GetStats() models.CameraStats {
 	var uptime int64
 	var st models.CameraState
@@ -464,7 +491,7 @@ func (s *Stream) GetStats() models.CameraStats {
 	}
 }
 
-// GetState returns the current camera state.
+// GetState returns the current operational CameraState.
 func (s *Stream) GetState() models.CameraState {
 	if val, ok := s.state.Load().(models.CameraState); ok {
 		return val
@@ -472,12 +499,12 @@ func (s *Stream) GetState() models.CameraState {
 	return models.StateOffline
 }
 
-// AddReconnects increases reconnects counter.
+// AddReconnects increments the reconnect counter by n.
 func (s *Stream) AddReconnects(n uint64) {
 	s.reconnects.Add(n)
 }
 
-// Context returns the stream's lifecycle context.
+// Context returns the lifecycle context of the stream.
 func (s *Stream) Context() context.Context {
 	return s.ctx
 }

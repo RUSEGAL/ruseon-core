@@ -1,3 +1,5 @@
+// Package config provides data structures, validation, and serialization
+// mechanisms for loading and persisting RUSEON Core application settings in YAML format.
 package config
 
 import (
@@ -10,116 +12,190 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config представляет структуру конфигурации приложения.
+// Config represents the complete application configuration hierarchy.
+//
+// It contains network server options, TLS certificates, Go runtime tuning,
+// WebRTC/HLS/gRPC protocol settings, authentication secrets, dynamic camera streams,
+// metadata tags, and asynchronous event notifications.
 type Config struct {
+	// Server groups HTTP, streaming, RPC, and runtime configuration settings.
 	Server struct {
-		Port                int  `yaml:"port"`
-		Debug               bool `yaml:"debug"`
-		PprofPort           int  `yaml:"pprof_port"`            // Порт для профилирования (0 - выключено)
-		RecordRetentionDays int  `yaml:"record_retention_days"` // Количество дней для хранения записей (0 - бесконечно)
-		GCPercent           int      `yaml:"gc_percent"`            // Тюнинг GOGC (по умолчанию 50)
-		GCMemoryLimitMB     int      `yaml:"gc_memory_limit_mb"`    // Тюнинг GOMEMLIMIT (в мегабайтах)
-		CORSAllowedOrigins  []string `yaml:"cors_allowed_origins" json:"corsAllowedOrigins"`
+		// Port is the primary HTTP/REST API listening port (e.g. 8080).
+		Port int `yaml:"port"`
+		// Debug enables verbose debug logging and runtime diagnostics (pprof, statsviz).
+		Debug bool `yaml:"debug"`
+		// PprofPort sets the dedicated localhost listening port for the standard pprof profiler (0 to disable).
+		PprofPort int `yaml:"pprof_port"`
+		// RecordRetentionDays specifies the global default retention duration for MP4 archive recordings (0 for infinite).
+		RecordRetentionDays int `yaml:"record_retention_days"`
+		// GCPercent configures the Go runtime garbage collection target percentage (default: 50).
+		GCPercent int `yaml:"gc_percent"`
+		// GCMemoryLimitMB configures the Go runtime soft memory limit via GOMEMLIMIT (in megabytes).
+		GCMemoryLimitMB int `yaml:"gc_memory_limit_mb"`
+		// CORSAllowedOrigins lists allowed origin strings for Cross-Origin Resource Sharing (CORS).
+		CORSAllowedOrigins []string `yaml:"cors_allowed_origins" json:"corsAllowedOrigins"`
+
+		// HLS specifies settings for HTTP Live Streaming delivery.
 		HLS struct {
-			LiveSegmentsInMemory int `yaml:"live_segments_in_memory" json:"liveSegmentsInMemory"` // Количество сегментов в RAM (по умолчанию 3)
+			// LiveSegmentsInMemory defines the sliding window size of TS segments kept in memory (minimum 3 per RFC 8216).
+			LiveSegmentsInMemory int `yaml:"live_segments_in_memory" json:"liveSegmentsInMemory"`
 		} `yaml:"hls" json:"hls"`
+
+		// GRPC specifies settings for the gRPC frame extractor and AI metadata server.
 		GRPC struct {
+			// Address is the network interface address to bind (e.g. "0.0.0.0" or "127.0.0.1").
 			Address string `yaml:"address" json:"address"`
-			Port    int    `yaml:"port" json:"port"`
+			// Port is the gRPC TCP listening port (default: 50051).
+			Port int `yaml:"port" json:"port"`
 		} `yaml:"grpc" json:"grpc"`
+
+		// TLS specifies TLS certificate paths for secure HTTPS and gRPC communication.
 		TLS struct {
+			// CertFile is the filesystem path to the public PEM-encoded certificate.
 			CertFile string `yaml:"cert_file" json:"certFile"`
-			KeyFile  string `yaml:"key_file" json:"keyFile"`
+			// KeyFile is the filesystem path to the private PEM-encoded key.
+			KeyFile string `yaml:"key_file" json:"keyFile"`
 		} `yaml:"tls" json:"tls"`
+
+		// WebRTC specifies network, ICE, and NAT traversal parameters for WebRTC streaming.
 		WebRTC struct {
-			ListenPort         int      `yaml:"listen_port" json:"listenPort"`
-			NAT1To1IPs         []string `yaml:"nat_1_to_1_ips" json:"nat1To1IPs"`
-			ICEServers         []string `yaml:"ice_servers" json:"iceServers"`
-			ICETransportPolicy string   `yaml:"ice_transport_policy" json:"iceTransportPolicy"`
-			TURNUsername       string   `yaml:"turn_username" json:"turnUsername"`
-			TURNPassword       string   `yaml:"turn_password" json:"turnPassword"`
+			// ListenPort is the UDP port for single-port ICE UDP muxing (e.g. 8555; 0 for ephemeral).
+			ListenPort int `yaml:"listen_port" json:"listenPort"`
+			// NAT1To1IPs provides public IP addresses mapped 1:1 to the server for ICE host candidates behind NAT.
+			NAT1To1IPs []string `yaml:"nat_1_to_1_ips" json:"nat1To1IPs"`
+			// ICEServers lists STUN/TURN server URLs (e.g. "stun:stun.l.google.com:19302").
+			ICEServers []string `yaml:"ice_servers" json:"iceServers"`
+			// ICETransportPolicy sets the candidate filtering policy ("all" or "relay").
+			ICETransportPolicy string `yaml:"ice_transport_policy" json:"iceTransportPolicy"`
+			// TURNUsername is the authentication username for TURN relay servers.
+			TURNUsername string `yaml:"turn_username" json:"turnUsername"`
+			// TURNPassword is the authentication credential for TURN relay servers.
+			TURNPassword string `yaml:"turn_password" json:"turnPassword"`
 		} `yaml:"webrtc" json:"webrtc"`
 	} `yaml:"server"`
 
+	// Auth contains security and token configuration.
 	Auth struct {
-		Secret string `yaml:"secret,omitempty"` // Секретный ключ для JWT
+		// Secret is the HMAC-SHA256 secret key used to sign and verify JWT authentication tokens.
+		Secret string `yaml:"secret,omitempty"`
 	} `yaml:"auth"`
 
-	GlobalTags []TagConfig    `yaml:"global_tags,omitempty"`
-	Cameras    []CameraConfig `yaml:"cameras,omitempty"`
-	Events     EventsConfig   `yaml:"events,omitempty"`
+	// GlobalTags defines available user metadata tags for organizing cameras.
+	GlobalTags []TagConfig `yaml:"global_tags,omitempty"`
+	// Cameras defines the initial camera list (migrated to BadgerDB on first start).
+	Cameras []CameraConfig `yaml:"cameras,omitempty"`
+	// Events defines notification sinks (Webhooks and MQTT).
+	Events EventsConfig `yaml:"events,omitempty"`
 }
 
-// WebhookConfig описывает настройки отправки Webhook.
+// WebhookConfig specifies the configuration for outbound HTTP webhook notifications.
 type WebhookConfig struct {
-	URL    string   `yaml:"url" json:"url"`
+	// URL is the destination HTTP/HTTPS endpoint.
+	URL string `yaml:"url" json:"url"`
+	// Topics filters which event topics trigger this webhook (empty or ["*"] for all).
 	Topics []string `yaml:"topics,omitempty" json:"topics"`
-	Secret string   `yaml:"secret,omitempty" json:"secret"`
+	// Secret is an optional HMAC-SHA256 signing secret sent in the "X-Signature" header.
+	Secret string `yaml:"secret,omitempty" json:"secret"`
 }
 
-// MQTTConfig описывает настройки подключения к MQTT брокеру.
+// MQTTConfig specifies the connection parameters for publishing events and AI metadata to an MQTT broker.
 type MQTTConfig struct {
-	Enabled  bool   `yaml:"enabled" json:"enabled"`
-	Broker   string `yaml:"broker" json:"broker"` // e.g. tcp://localhost:1883
+	// Enabled indicates whether the MQTT publisher worker is activated.
+	Enabled bool `yaml:"enabled" json:"enabled"`
+	// Broker is the MQTT broker URI (e.g. "tcp://localhost:1883").
+	Broker string `yaml:"broker" json:"broker"`
+	// Username is the optional client username for broker authentication.
 	Username string `yaml:"username,omitempty" json:"username"`
+	// Password is the optional client password for broker authentication.
 	Password string `yaml:"password,omitempty" json:"password"`
-	Topic    string `yaml:"topic" json:"topic"` // e.g. ruseon/metadata
+	// Topic is the base MQTT topic to publish metadata to (e.g. "ruseon/metadata").
+	Topic string `yaml:"topic" json:"topic"`
 }
 
-// EventsConfig содержит все настройки системы событий.
+// EventsConfig aggregates all outbound event delivery configuration sinks.
 type EventsConfig struct {
+	// Webhooks lists configured HTTP webhook endpoints.
 	Webhooks []WebhookConfig `yaml:"webhooks,omitempty" json:"webhooks"`
-	MQTT     MQTTConfig      `yaml:"mqtt,omitempty" json:"mqtt"`
+	// MQTT contains settings for MQTT event publishing.
+	MQTT MQTTConfig `yaml:"mqtt,omitempty" json:"mqtt"`
 }
 
-// TagConfig описывает пользовательскую метку (тег)
+// TagConfig represents a custom metadata label for categorizing cameras.
 type TagConfig struct {
-	ID    string `yaml:"id" json:"id"`
-	Name  string `yaml:"name" json:"name"`
+	// ID is the unique identifier of the tag.
+	ID string `yaml:"id" json:"id"`
+	// Name is the human-readable display name.
+	Name string `yaml:"name" json:"name"`
+	// Color is a hex color code (e.g. "#FF5722") for UI rendering.
 	Color string `yaml:"color" json:"color"`
 }
 
-// FolderConfig описывает папку/группу для камер
+// FolderConfig represents a logical folder or group for hierarchical camera organization.
 type FolderConfig struct {
-	ID    string `yaml:"id" json:"id"`
-	Name  string `yaml:"name" json:"name"`
+	// ID is the unique identifier of the folder.
+	ID string `yaml:"id" json:"id"`
+	// Name is the folder display name.
+	Name string `yaml:"name" json:"name"`
 }
 
-// DisableRecord описывает событие изменения статуса отключения.
+// DisableRecord records an audit event tracking when a camera was enabled or disabled.
 type DisableRecord struct {
+	// Timestamp is the RFC3339 formatted time of the status change.
 	Timestamp string `yaml:"timestamp" json:"timestamp"`
-	Action    string `yaml:"action" json:"action"` // "disable" или "enable"
-	Reason    string `yaml:"reason,omitempty" json:"reason"`
+	// Action indicates the transition ("disable" or "enable").
+	Action string `yaml:"action" json:"action"`
+	// Reason provides an optional explanation (e.g. "maintenance", "technical", "payment").
+	Reason string `yaml:"reason,omitempty" json:"reason"`
 }
 
-// CameraConfig описывает настройки подключения для отдельной камеры.
+// CameraConfig describes the configuration and operational parameters of an individual camera stream.
 type CameraConfig struct {
-	ID            string   `yaml:"id" json:"id"`
-	URL           string   `yaml:"url" json:"url"`
-	Record        bool     `yaml:"record" json:"record"`
-	RetentionDays int      `yaml:"retention_days" json:"retentionDays"` // 0 означает использование глобального значения
-	Tags          []string `yaml:"tags,omitempty" json:"tags"`
-	FolderID      string   `yaml:"folder_id,omitempty" json:"folderId"`
-	Comment       string   `yaml:"comment,omitempty" json:"comment"`
-	SimPhone      string   `yaml:"sim_phone,omitempty" json:"simPhone"`
-	SimICCID      string   `yaml:"sim_iccid,omitempty" json:"simICCID"`
-	LazyHLS       bool     `yaml:"lazy_hls,omitempty" json:"lazyHLS"`
-	Transport     string   `yaml:"transport,omitempty" json:"transport"` // "tcp", "udp", или "auto"
-	TokenAuth     bool     `yaml:"token_auth,omitempty" json:"tokenAuth"`
+	// ID is the unique identifier for the camera (used in API and stream URLs).
+	ID string `yaml:"id" json:"id"`
+	// URL is the RTSP source stream URI (e.g. "rtsp://user:pass@192.168.1.100:554/live").
+	URL string `yaml:"url" json:"url"`
+	// Record enables continuous local fragmented MP4 (fMP4) archive recording.
+	Record bool `yaml:"record" json:"record"`
+	// RetentionDays specifies custom archive retention in days (0 uses global Server.RecordRetentionDays).
+	RetentionDays int `yaml:"retention_days" json:"retentionDays"`
+	// Tags contains IDs of associated TagConfig labels.
+	Tags []string `yaml:"tags,omitempty" json:"tags"`
+	// FolderID is the ID of the parent FolderConfig group.
+	FolderID string `yaml:"folder_id,omitempty" json:"folderId"`
+	// Comment is an optional operator note.
+	Comment string `yaml:"comment,omitempty" json:"comment"`
+	// SimPhone is the cellular phone number if the camera connects via 4G/5G modem.
+	SimPhone string `yaml:"sim_phone,omitempty" json:"simPhone"`
+	// SimICCID is the SIM card integrated circuit card identifier.
+	SimICCID string `yaml:"sim_iccid,omitempty" json:"simICCID"`
+	// LazyHLS activates on-demand HLS muxing only when active viewers are connected.
+	LazyHLS bool `yaml:"lazy_hls,omitempty" json:"lazyHLS"`
+	// Transport sets the preferred RTSP transport ("tcp", "udp", or "auto").
+	Transport string `yaml:"transport,omitempty" json:"transport"`
+	// TokenAuth requires short-lived stream tokens for video playback endpoints.
+	TokenAuth bool `yaml:"token_auth,omitempty" json:"tokenAuth"`
 
-	// Биллинг и трафик
-	TrafficLimit   uint64 `yaml:"traffic_limit" json:"trafficLimit"`     // Лимит в байтах
-	TrafficUsed    uint64 `yaml:"traffic_used" json:"trafficUsed"`       // Использовано в байтах
-	LastResetMonth string `yaml:"last_reset_month" json:"lastResetMonth"` // Месяц последнего сброса (YYYY-MM)
+	// Billing and traffic tracking
+	// TrafficLimit is the monthly traffic quota in bytes (0 for unlimited / default 200GB).
+	TrafficLimit uint64 `yaml:"traffic_limit" json:"trafficLimit"`
+	// TrafficUsed is the accumulated monthly traffic consumption in bytes.
+	TrafficUsed uint64 `yaml:"traffic_used" json:"trafficUsed"`
+	// LastResetMonth is the last billing cycle reset period formatted as "YYYY-MM".
+	LastResetMonth string `yaml:"last_reset_month" json:"lastResetMonth"`
 
-	// Отключение
-	Disabled       bool            `yaml:"disabled" json:"disabled"`
-	DisableReason  string          `yaml:"disable_reason,omitempty" json:"disableReason"`
+	// Stream status and disable history
+	// Disabled indicates whether stream ingest is paused.
+	Disabled bool `yaml:"disabled" json:"disabled"`
+	// DisableReason describes why the stream was disabled.
+	DisableReason string `yaml:"disable_reason,omitempty" json:"disableReason"`
+	// DisableHistory tracks past disable/enable lifecycle events.
 	DisableHistory []DisableRecord `yaml:"disable_history,omitempty" json:"disableHistory"`
-	RecordHistory  []DisableRecord `yaml:"record_history,omitempty" json:"recordHistory"`
+	// RecordHistory tracks changes to the recording state.
+	RecordHistory []DisableRecord `yaml:"record_history,omitempty" json:"recordHistory"`
 }
 
-// Clone returns a deep copy of CameraConfig.
+// Clone returns a deep copy of the CameraConfig, ensuring slice fields (Tags, DisableHistory, RecordHistory)
+// are safely duplicated to prevent data races during concurrent read/write operations.
 func (c CameraConfig) Clone() CameraConfig {
 	out := c
 	if c.Tags != nil {
@@ -137,8 +213,13 @@ func (c CameraConfig) Clone() CameraConfig {
 	return out
 }
 
-
-// Load считывает конфигурацию из файла.
+// Load reads and parses a YAML configuration file from the specified path.
+//
+// It performs initialization steps:
+//   - Generates and persists a secure random 32-byte JWT secret if not configured.
+//   - Applies defaults for GCPercent (50), HLS LiveSegmentsInMemory (3), and gRPC Port (50051).
+//
+// Returns a pointer to the populated Config or an error if file reading or decoding fails.
 func Load(path string) (*Config, error) {
 	file, err := os.Open(filepath.Clean(path)) // #nosec G304
 	if err != nil {
@@ -152,7 +233,7 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 
-	// Генерируем JWT Secret, если его нет
+	// Generate random JWT Secret if empty
 	if cfg.Auth.Secret == "" {
 		bytes := make([]byte, 32)
 		if _, err := rand.Read(bytes); err != nil {
@@ -164,17 +245,17 @@ func Load(path string) (*Config, error) {
 		}
 	}
 
-	// Устанавливаем дефолты для GC (если не заданы)
+	// Set defaults for GC
 	if cfg.Server.GCPercent == 0 {
 		cfg.Server.GCPercent = 50
 	}
 
-	// Устанавливаем дефолты для HLS (минимум 3 по RFC 8216)
+	// Set defaults for HLS (minimum 3 per RFC 8216)
 	if cfg.Server.HLS.LiveSegmentsInMemory < 3 {
 		cfg.Server.HLS.LiveSegmentsInMemory = 3
 	}
 
-	// Устанавливаем дефолты для gRPC
+	// Set defaults for gRPC
 	if cfg.Server.GRPC.Port == 0 {
 		cfg.Server.GRPC.Port = 50051
 	}
@@ -182,7 +263,8 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
-// Save сохраняет текущую конфигурацию в файл с правами 0600.
+// Save serializes and writes the configuration to the specified file path in YAML format
+// with restricted file permissions (0600) to protect authentication secrets.
 func (c *Config) Save(path string) error {
 	cleanPath := filepath.Clean(path)
 	file, err := os.OpenFile(cleanPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600) // #nosec G304

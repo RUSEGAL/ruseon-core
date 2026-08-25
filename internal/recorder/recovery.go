@@ -13,12 +13,12 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
-// ValidateFMP4File проверяет структурную целостность fMP4 файла:
-// 1. Размер файла не менее 32 байт.
-// 2. Все box'ы корректно укладываются в физический размер файла (box.offset + box.size <= fileSize).
-// 3. Файл завершается ровно по границе box'ов (нет оборванных trailing данных).
-// 4. Наличие валидного блока инициализации (moov).
-// 5. Наличие хотя бы одного медиа-фрагмента (moof + mdat).
+// ValidateFMP4File checks structural integrity of an fMP4 recording file:
+//  1. Minimum filesize (>= 32 bytes).
+//  2. ISO BMFF box boundaries conform strictly to physical file size.
+//  3. File ends cleanly on a box boundary without trailing garbage.
+//  4. Contains a valid movie initialization box (`moov`).
+//  5. Contains at least one valid media fragment (`moof` + `mdat`).
 func ValidateFMP4File(path string) (bool, error) {
 	file, err := registry.CurrentBlobStore.Open(path)
 	if err != nil {
@@ -82,11 +82,10 @@ func ValidateFMP4File(path string) (bool, error) {
 	return true, nil
 }
 
-// RecoverCrashedFiles сканирует директорию с архивами при старте сервера и переименовывает
-// незавершенные файлы (закончившиеся на _ongoing.mp4) в нормальный формат, используя
-// время последнего изменения файла как время окончания записи.
-// Это решает проблему резких сбоев питания: так как мы пишем fMP4 (fragmented MP4),
-// сам файл внутри валиден и проигрывается, нужно только дать ему корректное имя.
+// RecoverCrashedFiles scans the archive directories on server startup and repairs unclosed
+// recordings (named with `_ongoing.mp4` suffix) resulting from unexpected power outages.
+// Since recordings are written in fragmented MP4 (fMP4) format, the captured fragments remain fully playable;
+// this function validates their box structure and renames them to standard `start_to_end.mp4` naming.
 func RecoverCrashedFiles(recordDir string) {
 	log.Info().Msg("Scanning for crashed/ongoing MP4 recordings to recover...")
 

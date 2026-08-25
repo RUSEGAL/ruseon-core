@@ -4,18 +4,24 @@ import (
 	"sync"
 )
 
-// Broadcaster distributes log messages to all active SSE subscribers.
+// Broadcaster distributes log messages concurrently to all active Server-Sent Events (SSE) subscribers.
+//
+// Thread-safety: Broadcaster is fully synchronized with an internal mutex.
+// Non-blocking writes: slow subscriber channels are skipped to prevent logger stalls.
 type Broadcaster struct {
 	clients map[chan []byte]struct{}
 	mu      sync.Mutex
 }
 
-// GlobalBroadcaster is the singleton instance used by the logger.
+// GlobalBroadcaster is the singleton Broadcaster instance wired into the root zerolog logger.
 var GlobalBroadcaster = &Broadcaster{
 	clients: make(map[chan []byte]struct{}),
 }
 
-// Write implements io.Writer so it can be used with zerolog.MultiLevelWriter.
+// Write implements io.Writer so Broadcaster can be directly registered with zerolog.MultiLevelWriter.
+//
+// It makes a defensive copy of the byte slice p before dispatching to prevent data corruption
+// if zerolog reuses write buffers across log lines.
 func (b *Broadcaster) Write(p []byte) (n int, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -38,7 +44,8 @@ func (b *Broadcaster) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// Subscribe returns a channel that receives log messages.
+// Subscribe registers a new subscriber channel with a buffer of 100 log messages.
+// The caller must call Unsubscribe when finished to release resources.
 func (b *Broadcaster) Subscribe() chan []byte {
 	ch := make(chan []byte, 100)
 	b.mu.Lock()
@@ -47,7 +54,7 @@ func (b *Broadcaster) Subscribe() chan []byte {
 	return ch
 }
 
-// Unsubscribe removes a client channel idempotently.
+// Unsubscribe removes a client channel and closes it idempotently.
 func (b *Broadcaster) Unsubscribe(ch chan []byte) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

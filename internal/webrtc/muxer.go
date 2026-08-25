@@ -17,7 +17,8 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
 )
 
-// WHEPHandler обрабатывает подключение по WebRTC.
+// WHEPHandler handles client WebRTC sessions following the WHEP (WebRTC-HTTP Egress Protocol) specification.
+// It delivers ultra-low-latency (<500ms) H.264 video frames and synchronized AI inference DataChannel metadata.
 type WHEPHandler struct {
 	streamID string
 	rb       *buffer.RingBuffer
@@ -26,6 +27,7 @@ type WHEPHandler struct {
 	engine   *Engine
 }
 
+// NewWHEPHandler constructs a new WHEPHandler for the given camera stream and frame buffer.
 func NewWHEPHandler(streamID string, rb *buffer.RingBuffer, mb *stream.MetadataBroadcaster, cfg *config.Config, engine ...*Engine) *WHEPHandler {
 	var eng *Engine
 	if len(engine) > 0 && engine[0] != nil {
@@ -40,7 +42,8 @@ func NewWHEPHandler(streamID string, rb *buffer.RingBuffer, mb *stream.MetadataB
 	}
 }
 
-// HandleOffer принимает SDP Offer клиента, создает PeerConnection и возвращает SDP Answer.
+// HandleOffer processes an incoming SDP Offer string from a WHEP client, configures ICE and DTLS,
+// establishes a PeerConnection, sets up H.264 video and metadata DataChannels, and returns the SDP Answer string.
 func (h *WHEPHandler) HandleOffer(_ context.Context, offerSDP string) (string, error) {
 	params := h.rb.GetCodecParams()
 	if params == nil || params.SPS == nil || params.PPS == nil {

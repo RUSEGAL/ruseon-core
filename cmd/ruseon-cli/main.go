@@ -1,3 +1,4 @@
+// Package main implements the ruseon-cli command-line management client for RUSEON Core.
 package main
 
 import (

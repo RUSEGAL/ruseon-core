@@ -1,3 +1,9 @@
+// Package auth provides authentication, token issuance, and role-based access
+// control (RBAC) middleware for RUSEON Core.
+//
+// It implements JWT-based local authentication with bcrypt password verification,
+// short-lived stream token generation for secure media playback, and continuous
+// state verification against the underlying StateStore.
 package auth
 
 import (
@@ -17,6 +23,10 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
+// LocalAuthenticator implements registry.Authenticator using local bcrypt-hashed
+// credentials stored in StateStore and HMAC-SHA256 signed JSON Web Tokens (JWT).
+//
+// All methods are thread-safe and designed for concurrent invocation by HTTP handlers.
 type LocalAuthenticator struct {
 	cfg *config.Config
 }
@@ -33,6 +43,11 @@ func generateRandomPassword(length int) string {
 	return string(b)
 }
 
+// NewLocalAuthenticator creates a new LocalAuthenticator instance using the provided configuration.
+//
+// On the very first startup when no users exist in the StateStore, it automatically generates
+// a secure, random 16-character initial administrator password, saves the admin user to the database,
+// and prints the one-time credentials to stdout for initial system setup.
 func NewLocalAuthenticator(cfg *config.Config) *LocalAuthenticator {
 	auth := &LocalAuthenticator{
 		cfg: cfg,
@@ -70,12 +85,18 @@ func NewLocalAuthenticator(cfg *config.Config) *LocalAuthenticator {
 	return auth
 }
 
-// Request модель запроса логина
+// Request represents the incoming JSON login payload containing user credentials.
 type Request struct {
+	// Username is the unique account identifier.
 	Username string `json:"username"`
+	// Password is the plaintext password to be verified against the stored bcrypt hash.
 	Password string `json:"password"`
 }
 
+// Login is a Gin handler that authenticates user credentials and issues a signed JWT access token.
+//
+// On successful authentication, it returns an HTTP 200 OK response with a token valid for 1 hour.
+// If credentials are invalid, it responds with HTTP 401 Unauthorized and writes an audit log event.
 func (a *LocalAuthenticator) Login(c *gin.Context) {
 	var req Request
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -119,6 +140,13 @@ func (a *LocalAuthenticator) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": tokenString})
 }
 
+// Middleware returns a Gin middleware handler that validates the "Authorization: Bearer <token>" header.
+//
+// The middleware enforces:
+//   - Valid HMAC-SHA256 signature and expiration time.
+//   - Rejection of short-lived stream tokens (which cannot be used for general REST API access).
+//   - Real-time revocation/role verification against StateStore to ensure deleted users or demoted roles cannot act.
+//   - Injects "username" and "role" values into the Gin context for downstream handlers.
 func (a *LocalAuthenticator) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -176,7 +204,11 @@ func (a *LocalAuthenticator) Middleware() gin.HandlerFunc {
 	}
 }
 
-// RequireRole checks if the authenticated user has one of the allowed roles
+// RequireRole creates a Gin middleware that ensures the authenticated user possesses
+// at least one of the specified allowed roles.
+//
+// If the user's role does not match, the request is aborted with HTTP 403 Forbidden
+// and an audit log entry is recorded.
 func RequireRole(allowedRoles ...models.Role) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userRole, exists := c.Get("role")
@@ -198,19 +230,28 @@ func RequireRole(allowedRoles ...models.Role) gin.HandlerFunc {
 	}
 }
 
-// GenerateStreamToken создает короткоживущий токен для доступа к потоку камеры
+// GenerateStreamToken creates a short-lived (60 seconds) signed JWT token scoped exclusively
+// for accessing media playback endpoints (HLS, WebRTC, WebSocket) of the specified cameraID.
+//
+// Returns the signed token string or an error if JWT signing fails.
 func (a *LocalAuthenticator) GenerateStreamToken(cameraID string) (string, error) {
 	now := time.Now()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"stream_id": cameraID,
 		"iat":       now.Unix(),
 		"nbf":       now.Unix(),
-		"exp":       now.Add(time.Second * 60).Unix(), // 60 секунд
+		"exp":       now.Add(time.Second * 60).Unix(), // 60 seconds TTL
 	})
 	return token.SignedString([]byte(a.cfg.Auth.Secret))
 }
 
-// StreamMiddleware проверяет короткоживущие токены для видео-потоков
+// StreamMiddleware returns a Gin middleware that validates short-lived stream tokens provided
+// via the "?token=..." query parameter on video streaming endpoints.
+//
+// It verifies that:
+//   - The token is present, signed, and not expired.
+//   - The token contains a "stream_id" claim matching the requested URL camera parameter ":id".
+//   - General API access tokens are rejected to prevent token leakage from media players.
 func (a *LocalAuthenticator) StreamMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.Query("token")

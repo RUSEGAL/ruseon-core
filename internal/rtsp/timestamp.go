@@ -6,8 +6,10 @@ import (
 	"time"
 )
 
-// TimestampUnwrapper преобразует 32-битные циклические RTP-таймстампы (переполняющиеся каждые ~13.2 часа при 90 кГц)
-// в непрерывную монотонно возрастающую 64-битную временную шкалу.
+// TimestampUnwrapper tracks 32-bit cyclic RTP timestamps (which wrap around every ~13.2 hours at 90 kHz)
+// and transforms them into a continuous, monotonically increasing 64-bit timeline.
+//
+// Thread-safety: fully synchronized with an internal mutex.
 type TimestampUnwrapper struct {
 	mu          sync.Mutex
 	lastTS      uint32
@@ -15,12 +17,13 @@ type TimestampUnwrapper struct {
 	initialized bool
 }
 
-// NewTimestampUnwrapper создает новый экземпляр разворачивателя таймстампов.
+// NewTimestampUnwrapper allocates and returns an uninitialized TimestampUnwrapper.
 func NewTimestampUnwrapper() *TimestampUnwrapper {
 	return &TimestampUnwrapper{}
 }
 
-// Unwrap принимает 32-битный RTP timestamp и возвращает 64-битный развернутый timestamp.
+// Unwrap translates a raw 32-bit RTP timestamp into a monotonic 64-bit unwrapped timestamp,
+// detecting forward and backward rollover boundaries across the 0x80000000 half-range threshold.
 func (u *TimestampUnwrapper) Unwrap(ts uint32) uint64 {
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -32,12 +35,12 @@ func (u *TimestampUnwrapper) Unwrap(ts uint32) uint64 {
 		return uint64(ts)
 	}
 
-	// Переполнение вперед через границу 2^32-1 -> 0
-	// Если новое значение меньше предыдущего более чем на половину диапазона (0x80000000)
+	// Forward rollover past 2^32-1 -> 0
+	// Detected when new timestamp is smaller than previous by more than half the 32-bit integer range
 	if ts < u.lastTS && (u.lastTS-ts) > 0x80000000 {
 		u.epoch += 1 << 32
 	} else if ts > u.lastTS && (ts-u.lastTS) > 0x80000000 {
-		// Переполнение назад (редкий скачок часов назад через границу)
+		// Backward rollover (rare backward clock jump)
 		if u.epoch >= (1 << 32) {
 			u.epoch -= 1 << 32
 		}
@@ -47,8 +50,8 @@ func (u *TimestampUnwrapper) Unwrap(ts uint32) uint64 {
 	return u.epoch + uint64(ts)
 }
 
-// RTP90kToDuration переводит 90kHz RTP timestamp (uint64) в time.Duration.
-// Полностью исключает промежуточное переполнение uint64 и гарантирует точную шкалу до наносекунд.
+// RTP90kToDuration converts a 90kHz RTP timestamp (uint64) into a nanosecond-precision time.Duration.
+// It avoids intermediate uint64 multiplication overflow and clamps cleanly at math.MaxInt64.
 func RTP90kToDuration(ts uint64) time.Duration {
 	sec := ts / 90000
 	rem := ts % 90000
@@ -59,8 +62,8 @@ func RTP90kToDuration(ts uint64) time.Duration {
 	return time.Duration(int64(sec))*time.Second + time.Duration(int64(rem))*time.Second/90000
 }
 
-// DurationTo90k переводит time.Duration (int64) в тики 90kHz.
-// Безопасный диапазон превышает 3.2 миллиона лет без риска знакового переполнения int64.
+// DurationTo90k converts a time.Duration into 90kHz RTP clock ticks.
+// Safe for durations exceeding 3.2 million years without int64 signed integer overflow.
 func DurationTo90k(d time.Duration) int64 {
 	sec := int64(d / time.Second)
 	rem := int64(d % time.Second)

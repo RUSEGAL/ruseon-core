@@ -10,14 +10,25 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
 )
 
-// CodecParams хранит иммутабельные параметры видеокодека (VPS, SPS, PPS).
+// CodecParams holds immutable video codec initialization parameters (H.264 SPS/PPS or H.265 VPS/SPS/PPS).
 type CodecParams struct {
+	// VPS holds the Video Parameter Set NALU (for H.265 / HEVC).
 	VPS []byte
+	// SPS holds the Sequence Parameter Set NALU.
 	SPS []byte
+	// PPS holds the Picture Parameter Set NALU.
 	PPS []byte
 }
 
-// RingBuffer хранит последние N кадров и раздает их подписчикам (Router/Broadcaster).
+// RingBuffer implements a thread-safe circular in-memory frame buffer and real-time frame broadcaster.
+//
+// Concurrency & Architectural design:
+//   - Single-producer, multi-consumer architecture.
+//   - Non-blocking broadcasts: if a subscriber's channel is saturated, frames are dropped for that
+//     slow reader only, without stalling the main RTSP ingest loop or other active subscribers.
+//   - Subscribers automatically synchronize to the nearest previous I-Frame on cold start, and require
+//     a fresh I-Frame after experiencing frame drops.
+//   - Atomic pointer storage for CodecParams allows lock-free reads on high-throughput hot paths.
 type RingBuffer struct {
 	mu       sync.Mutex
 	frames   []*Frame
@@ -30,14 +41,15 @@ type RingBuffer struct {
 
 	params atomic.Pointer[CodecParams]
 
-	// Подписчики
+	// Subscribers map and slice for fast iteration
 	subs      map[*Reader]struct{}
 	subsSlice []*Reader
 
 	totalDrops atomic.Uint64
 }
 
-// NewRingBuffer создает новый буфер заданного размера.
+// NewRingBuffer allocates a new circular RingBuffer with the given frame capacity.
+// If capacity <= 0, a default buffer size of 100 frames is used.
 func NewRingBuffer(capacity int) *RingBuffer {
 	if capacity <= 0 {
 		capacity = 100
@@ -53,18 +65,21 @@ func NewRingBuffer(capacity int) *RingBuffer {
 	return rb
 }
 
-// SetCameraID sets the camera ID for metrics.
+// SetCameraID associates the buffer with a specific camera ID for Prometheus drop metric labeling.
 func (rb *RingBuffer) SetCameraID(id string) {
 	rb.cameraID = id
 	rb.metricDrops = metrics.RingbufferDropsTotal.WithLabelValues(id)
 }
 
-// GetTotalDrops возвращает суммарное число дропнутых кадров за все время существования буфера.
+// GetTotalDrops returns the total number of frames dropped across all readers since buffer creation.
 func (rb *RingBuffer) GetTotalDrops() uint64 {
 	return rb.totalDrops.Load()
 }
 
-// Write добавляет новый кадр в буфер и рассылает его подписчикам без блокировок чтения подписчиков.
+// Write stores the frame in the circular history buffer and non-blockingly dispatches it to all active readers.
+//
+// If a reader's channel is full, the frame is dropped for that reader, its drop counter and
+// Prometheus metrics are incremented, and NeedsIFrame is flagged so playback resumes cleanly on the next keyframe.
 func (rb *RingBuffer) Write(f *Frame) {
 	rb.mu.Lock()
 	defer rb.mu.Unlock()
@@ -73,17 +88,17 @@ func (rb *RingBuffer) Write(f *Frame) {
 		return
 	}
 
-	// 1. Сохраняем в кольцевой буфер (для истории новым клиентам)
+	// 1. Store into circular history buffer
 	// #nosec G115 -- rb.capacity is always positive
 	idx := rb.head % uint64(rb.capacity)
 	rb.frames[idx] = f
 	rb.head++
 
-	// 2. Рассылаем всем текущим подписчикам
+	// 2. Broadcast to all active subscribers
 	for _, sub := range rb.subsSlice {
 		if sub.NeedsIFrame.Load() {
 			if !f.IsKeyFrame {
-				continue // Ждем ключевой кадр после обрыва (drop)
+				continue // Await keyframe after drop/resync
 			}
 			sub.NeedsIFrame.Store(false)
 		}
@@ -91,13 +106,13 @@ func (rb *RingBuffer) Write(f *Frame) {
 		// Non-blocking send
 		select {
 		case sub.C <- f:
-			// Успешно доставили
+			// Successfully delivered
 		default:
-			// Клиент тормозит, канал забит. Пропускаем кадр (Drop).
+			// Reader is lagging; drop frame and require I-frame resync
 			atomic.AddUint64(&sub.Drops, 1)
 			rb.metricDrops.Inc()
 			rb.totalDrops.Add(1)
-			sub.NeedsIFrame.Store(true) // Требуем I-Frame для возобновления
+			sub.NeedsIFrame.Store(true)
 		}
 	}
 }
@@ -111,7 +126,7 @@ func cloneBytes(b []byte) []byte {
 	return c
 }
 
-// SetParams сохраняет параметры кодека (VPS, SPS, PPS), атомарно создавая иммутабельную структуру.
+// SetParams atomically stores immutable copies of the video codec parameters (VPS, SPS, PPS).
 func (rb *RingBuffer) SetParams(vps, sps, pps []byte) {
 	p := &CodecParams{
 		VPS: cloneBytes(vps),
@@ -121,14 +136,13 @@ func (rb *RingBuffer) SetParams(vps, sps, pps []byte) {
 	rb.params.Store(p)
 }
 
-// GetCodecParams возвращает иммутабельный указатель на текущие параметры кодека (Zero-Alloc, Zero-Lock, Zero-Copy).
-// Используется во внутренних высоконагруженных hot-path (WebRTC, gRPC, HLS), где слайсы только читаются.
+// GetCodecParams returns an immutable pointer to the current CodecParams without memory allocation or locking.
+// Intended for hot paths in streaming protocols (WebRTC, gRPC, HLS).
 func (rb *RingBuffer) GetCodecParams() *CodecParams {
 	return rb.params.Load()
 }
 
-// GetParams возвращает защитные копии текущих параметров кодека (VPS, SPS, PPS).
-// Гарантирует обратную совместимость и изоляцию от мутаций вызывающего кода.
+// GetParams returns defensive deep copies of the current VPS, SPS, and PPS byte slices.
 func (rb *RingBuffer) GetParams() ([]byte, []byte, []byte) {
 	p := rb.params.Load()
 	if p == nil {
@@ -137,7 +151,8 @@ func (rb *RingBuffer) GetParams() ([]byte, []byte, []byte) {
 	return cloneBytes(p.VPS), cloneBytes(p.SPS), cloneBytes(p.PPS)
 }
 
-// Close закрывает буфер и каналы всех читателей.
+// Close closes the ring buffer and terminates all reader channels.
+// Any subsequent Write or Subscribe calls are no-ops.
 func (rb *RingBuffer) Close() {
 	rb.mu.Lock()
 	defer rb.mu.Unlock()
@@ -153,10 +168,13 @@ func (rb *RingBuffer) Close() {
 	rb.subsSlice = nil
 }
 
-// Reader предоставляет интерфейс для чтения из RingBuffer через неблокирующий канал.
+// Reader provides a subscription handle for receiving video frames from a RingBuffer.
 type Reader struct {
-	C           chan *Frame
-	Drops       uint64
+	// C is the non-blocking buffered receive channel of frames.
+	C chan *Frame
+	// Drops is the atomic count of frames dropped for this specific consumer.
+	Drops uint64
+	// NeedsIFrame indicates whether the reader is waiting for an IDR keyframe before accepting delta frames.
 	NeedsIFrame atomic.Bool
 	rb          *RingBuffer
 }
@@ -179,8 +197,9 @@ func (rb *RingBuffer) findLastIFrameLocked() (uint64, bool, uint64) {
 	return head, false, head
 }
 
-// Subscribe создает нового читателя. Если в истории есть кадры,
-// он начинает чтение с ближайшего прошлого ключевого кадра (I-frame).
+// Subscribe registers a new Reader subscriber.
+// If historical frames exist in the buffer, the subscriber is preloaded starting from
+// the most recent keyframe (I-frame) to ensure immediate decoder playback.
 func (rb *RingBuffer) Subscribe() *Reader {
 	r := &Reader{
 		C:  make(chan *Frame, rb.capacity),
@@ -213,7 +232,7 @@ func (rb *RingBuffer) Subscribe() *Reader {
 	return r
 }
 
-// Close отписывает читателя от рассылки.
+// Close unregisters the reader and removes it from the broadcast subscriber list.
 func (r *Reader) Close() {
 	r.rb.mu.Lock()
 	defer r.rb.mu.Unlock()
@@ -230,12 +249,13 @@ func (r *Reader) Close() {
 	}
 }
 
-// NewReader - обратная совместимость со старым API.
+// NewReader is an alias for Subscribe for backwards compatibility.
 func (rb *RingBuffer) NewReader() *Reader {
 	return rb.Subscribe()
 }
 
-// ReadContext возвращает следующий кадр с поддержкой отмены по контексту.
+// ReadContext waits for and returns the next frame, respecting context cancellation.
+// Returns io.EOF if the underlying RingBuffer is closed.
 func (r *Reader) ReadContext(ctx context.Context) (*Frame, error) {
 	select {
 	case <-ctx.Done():
@@ -248,7 +268,7 @@ func (r *Reader) ReadContext(ctx context.Context) (*Frame, error) {
 	}
 }
 
-// Read - блокирует выполнение до получения следующего кадра или закрытия буфера.
+// Read blocks until the next frame arrives or the buffer closes (returning nil).
 func (r *Reader) Read() *Frame {
 	f, _ := r.ReadContext(context.Background())
 	return f

@@ -1,3 +1,5 @@
+// Package rtsp provides an RTSP/RTP media client wrapper around gortsplib with support for
+// H.264/H.265 video demuxing, automatic dial rate limiting, and 64-bit RTP timestamp unwrapping.
 package rtsp
 
 import (
@@ -13,16 +15,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// OnFrameCallback вызывается при получении полного кадра (Access Unit).
+// OnFrameCallback is invoked on every fully assembled video frame (Access Unit).
 type OnFrameCallback func(nalus [][]byte, pts time.Duration, isKeyFrame bool)
 
-// OnParamsCallback вызывается при получении параметров кодека.
+// OnParamsCallback is invoked when SPS/PPS (H.264) or VPS/SPS/PPS (H.265) parameter sets are extracted.
 type OnParamsCallback func(vps, sps, pps []byte)
 
-// Ограничиваем одновременные попытки установки RTSP соединения (Защита от Thundering Herd)
+// dialSemaphore limits concurrent camera RTSP connection handshakes (protects against thundering herds).
 var dialSemaphore = make(chan struct{}, 10)
 
-// Client обертка над gortsplib.Client
+// Client manages an RTSP ingest connection to a remote IP camera using gortsplib.
+//
+// Concurrency & Lifecycle:
+//   - Thread-safe Close() can be called concurrently to cancel an active Start() loop.
+//   - Start() blocks until the remote camera disconnects, encounters a fatal network error, or the ctx is cancelled.
 type Client struct {
 	client *gortsplib.Client
 	url    string
@@ -32,12 +38,14 @@ type Client struct {
 	closed    bool
 }
 
-// NewClient создает новый RTSP клиент.
+// NewClient creates and configures a new RTSP Client instance.
+//
+// transportStr specifies the underlying transport: "tcp", "udp", or "auto" (defaults to TCP for reliable packet delivery).
 func NewClient(id, url string, transportStr string) *Client {
 	c := &Client{
 		url: url,
 		client: &gortsplib.Client{
-			// Разрешаем любой порт для приема RTP/RTCP
+			// Allow any available port for receiving RTP/RTCP packets
 			AnyPortEnable: true,
 		},
 	}
@@ -47,12 +55,12 @@ func NewClient(id, url string, transportStr string) *Client {
 		t := gortsplib.TransportUDP
 		c.client.Transport = &t
 	default:
-		// "tcp", "auto" или любая другая строка: по умолчанию TCP
+		// "tcp", "auto" or any other value defaults to TCP
 		t := gortsplib.TransportTCP
 		c.client.Transport = &t
 	}
 
-	// Настраиваем перехват ошибок потерянных пакетов и декодирования
+	// Intercept packet loss and decode errors for telemetry logging
 	c.client.OnPacketLost = func(err error) {
 		log.Warn().Str("id", id).Str("url", url).Msg(err.Error())
 	}
@@ -63,7 +71,7 @@ func NewClient(id, url string, transportStr string) *Client {
 	return c
 }
 
-// Close закрывает соединение
+// Close disconnects the RTSP client and releases network sockets idempotently.
 func (c *Client) Close() {
 	c.mu.Lock()
 	c.closed = true
@@ -75,14 +83,20 @@ func (c *Client) Close() {
 	}
 }
 
-// Start подключается к камере и блокирует выполнение до отключения.
+// Start initiates the RTSP handshake (DESCRIBE, SETUP, PLAY) and begins RTP packet reception.
+//
+// Flow and concurrency guarantees:
+//   - Acquires dialSemaphore during TCP/RTSP handshake to prevent camera load spikes.
+//   - Detects H.264 or H.265 video tracks and hooks up the respective RTP packet decoders.
+//   - Unwraps 32-bit 90kHz RTP timestamps into continuous 64-bit presentation durations.
+//   - Blocks until ctx is cancelled, the camera terminates the RTSP session, or a network failure occurs.
 func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams OnParamsCallback) error {
 	u, err := base.ParseURL(c.url)
 	if err != nil {
 		return fmt.Errorf("failed to parse url: %w", err)
 	}
 
-	// Захватываем семафор перед коннектом
+	// Acquire dial semaphore before connecting
 	dialSemaphore <- struct{}{}
 	semaphoreReleased := false
 	releaseSemaphore := func() {
@@ -115,20 +129,18 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 		return fmt.Errorf("failed to describe: %w", err)
 	}
 
-	// Настраиваем все медиа-треки (видео и аудио)
+	// Setup media tracks
 	err = c.client.SetupAll(session.BaseURL, session.Medias)
 	if err != nil {
 		return fmt.Errorf("failed to setup all: %w", err)
 	}
 	
-	// Отпускаем семафор, так как тяжелая фаза установки (TCP handshake, DESCRIBE, SETUP) завершена.
-	// Мы не хотим держать его во время Play и чтения пакетов.
+	// Release dial semaphore now that handshake is complete
 	releaseSemaphore()
-
 
 	tsUnwrapper := NewTimestampUnwrapper()
 
-	// Ищем видео трек (H264 или H265) и подписываемся на него
+	// Locate video track (H.264 or H.265) and subscribe to RTP packets
 	for _, media := range session.Medias {
 		for _, forma := range media.Formats {
 			switch f := forma.(type) {
@@ -202,7 +214,7 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 		return fmt.Errorf("failed to play: %w", err)
 	}
 
-	// Ожидаем завершения сессии или отмены контекста
+	// Await session completion or context cancellation
 	errChan := make(chan error, 1)
 	go func() {
 		defer func() {
@@ -218,9 +230,7 @@ func (c *Client) Start(ctx context.Context, onFrame OnFrameCallback, onParams On
 	case err := <-errChan:
 		return err
 	case <-ctx.Done():
-		// Явно закрываем клиент, чтобы разблокировать Wait() в фоновой горутине
 		c.client.Close()
-		// Дожидаемся завершения горутины, чтобы исключить утечку
 		<-errChan
 		return ctx.Err()
 	}

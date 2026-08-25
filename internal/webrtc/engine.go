@@ -1,3 +1,5 @@
+// Package webrtc provides high-throughput WebRTC WHEP (WebRTC-HTTP Egress Protocol) streaming,
+// pre-warmed DTLS certificate handling, UDP port multiplexing, and zero-allocation sendmmsg batching.
 package webrtc
 
 import (
@@ -15,7 +17,13 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/config"
 )
 
-// Engine инкапсулирует переиспользуемый WebRTC API, предсгенерированные сертификаты и UDP Muxer.
+// Engine encapsulates reusable Pion WebRTC instances, pre-generated DTLS certificates,
+// and single-port UDP ICE multiplexing.
+//
+// Concurrency & Performance:
+//   - Pre-generates DTLS ECDSA P-256 certificates on startup, eliminating ~15-30ms CPU crypto spikes per client.
+//   - Shares a single UDP listener port across thousands of concurrent WebRTC sessions via ICEUDPMux.
+//   - Adapts packet egress with kernel-level batching (sendmmsg on Linux).
 type Engine struct {
 	api         *webrtc.API
 	certificate *webrtc.Certificate
@@ -24,9 +32,9 @@ type Engine struct {
 	mu          sync.Mutex
 }
 
-// NewEngine создает и инициализирует высокопроизводительный WebRTC Engine.
+// NewEngine initializes and configures a global WebRTC Engine with optimal media codecs and network socket buffers.
 func NewEngine(cfg *config.Config) (*Engine, error) {
-	// 1. Предгенерация DTLS сертификата (0 ms при последующих подключениях)
+	// 1. Pre-generate DTLS certificate for zero-latency handshake
 	sk, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, err
@@ -36,13 +44,13 @@ func NewEngine(cfg *config.Config) (*Engine, error) {
 		return nil, err
 	}
 
-	// 2. MediaEngine с регистрацией стандартных кодеков
+	// 2. MediaEngine with standard H.264/Opus codecs
 	mediaEngine := &webrtc.MediaEngine{}
 	if err := mediaEngine.RegisterDefaultCodecs(); err != nil {
 		return nil, err
 	}
 
-	// 3. SettingEngine: UDP Muxing и NAT 1:1 IPs
+	// 3. SettingEngine: UDP Muxing and 1:1 NAT candidate mapping
 	settingEngine := webrtc.SettingEngine{}
 
 	var udpListener *net.UDPConn
@@ -56,7 +64,7 @@ func NewEngine(cfg *config.Config) (*Engine, error) {
 		log.Warn().Err(err).Int("port", listenPort).Msg("Failed to bind WebRTC UDP Mux port, falling back to dynamic ports")
 	} else {
 		udpListener = l
-		// Оптимизация системных буферов сокетов UDP для сглаживания всплесков трафика
+		// Expand system socket buffer size to smooth packet burst spikes
 		_ = udpListener.SetReadBuffer(4 * 1024 * 1024)
 		_ = udpListener.SetWriteBuffer(4 * 1024 * 1024)
 		batchConn := NewBatchingUDPMuxConn(udpListener)
@@ -71,7 +79,7 @@ func NewEngine(cfg *config.Config) (*Engine, error) {
 		log.Info().Strs("ips", cfg.Server.WebRTC.NAT1To1IPs).Msg("WebRTC configured with NAT 1:1 IPs")
 	}
 
-	// 4. Облегченный Interceptor Registry: компактный NACK responder (256 пакетов = ~500-1000мс истории)
+	// 4. Compact NACK responder interceptor (256 packets history buffer)
 	ir := &interceptor.Registry{}
 	if nackResponder, err := nack.NewResponderInterceptor(nack.ResponderSize(256)); err == nil {
 		ir.Add(nackResponder)
@@ -91,7 +99,7 @@ func NewEngine(cfg *config.Config) (*Engine, error) {
 	}, nil
 }
 
-// NewPeerConnection создает PeerConnection с предсгенерированным сертификатом и переиспользуемым API.
+// NewPeerConnection allocates and configures a new WebRTC PeerConnection injecting the pre-generated DTLS certificate.
 func (e *Engine) NewPeerConnection(baseConfig webrtc.Configuration) (*webrtc.PeerConnection, error) {
 	if len(baseConfig.Certificates) == 0 && e.certificate != nil {
 		baseConfig.Certificates = []webrtc.Certificate{*e.certificate}
@@ -99,7 +107,7 @@ func (e *Engine) NewPeerConnection(baseConfig webrtc.Configuration) (*webrtc.Pee
 	return e.api.NewPeerConnection(baseConfig)
 }
 
-// Close закрывает UDP listener при остановке сервера.
+// Close gracefully closes the UDP listener socket and frees multiplexing resources.
 func (e *Engine) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

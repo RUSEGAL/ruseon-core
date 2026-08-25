@@ -8,7 +8,7 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
-// ExportMP4 читает нужные фрагменты из fMP4 файла и напрямую стримит их в `io.Writer` (например, HTTP-ответ)
+// ExportMP4 streams a range of contiguous media fragments from an fMP4 recording directly to an io.Writer (e.g. HTTP response writer) without re-encoding.
 func ExportMP4(recordDir, cameraID, filename string, startSeq, endSeq int, w io.Writer) error {
 	path := filepath.Join(recordDir, cameraID, filename)
 	idx, err := getFileIndex(path)

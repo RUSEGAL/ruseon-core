@@ -1,3 +1,5 @@
+// Package engine orchestrates the lifecycle, subsystem initialization, background workers,
+// network servers, and graceful shutdown of RUSEON Core.
 package engine
 
 import (
@@ -16,15 +18,30 @@ import (
 	"github.com/RUSEGAL/ruseon-core/internal/backup"
 	"github.com/RUSEGAL/ruseon-core/internal/grpc"
 	"github.com/RUSEGAL/ruseon-core/internal/mqtt"
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
 	"github.com/RUSEGAL/ruseon-core/internal/recorder"
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 	"github.com/RUSEGAL/ruseon-core/internal/stream"
 	"github.com/RUSEGAL/ruseon-core/internal/webrtc"
+	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
-// Run запускает все подсистемы ядра (стриминг, API, воркеры).
-// Ожидается, что все зависимости (StateStore, BlobStore, Authenticator) уже зарегистрированы в registry.
+// Run initializes and executes all core streaming subsystems, background workers, and API servers.
+//
+// Prerequisites:
+//   - Dependency injection providers (registry.CurrentStateStore, registry.CurrentBlobStore,
+//     registry.CurrentAuthenticator, and registry.CurrentEventBus) must be registered prior to calling Run.
+//
+// Lifecycle flow:
+//  1. Migrates initial YAML camera/tag definitions to the persistent StateStore (BadgerDB).
+//  2. Initializes the stream.Manager and loads active camera streams.
+//  3. Starts the optional MQTT metadata publisher worker.
+//  4. Starts the gRPC frame extractor & AI metadata ingestion server.
+//  5. Launches background periodic tasks (archive retention cleanup, billing metrics aggregation, database backup).
+//  6. Initializes the WebRTC engine (pregenerating ECDSA certificates and UDP muxing).
+//  7. Launches the primary HTTP/REST/HLS/WHEP API server (and optional pprof server).
+//  8. Blocks until a termination signal (SIGINT or SIGTERM) is received.
+//  9. Executes an ordered graceful shutdown (terminates background tasks, allows 5s for active HTTP requests,
+//     stops gRPC server, and closes all camera ingest/playback streams).
 func Run(cfg *config.Config) {
 	ctx, cancelAll := context.WithCancel(context.Background())
 	defer cancelAll()

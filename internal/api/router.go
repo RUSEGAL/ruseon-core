@@ -37,7 +37,8 @@ func init() {
 	_ = mime.AddExtensionType(".wasm", "application/wasm")
 }
 
-// SetupRouter инициализирует маршруты Gin.
+// SetupRouter initializes and configures the Gin HTTP engine with CORS middleware, zerolog access logging,
+// Prometheus metrics, Swagger UI endpoints, Pprof/Statsviz debugging tools, REST API routes, and embedded SPA static file serving.
 func SetupRouter(h *Handler, auth registry.Authenticator, debug bool, corsOrigins []string) *gin.Engine {
 	if !debug {
 		gin.SetMode(gin.ReleaseMode)

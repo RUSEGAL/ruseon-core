@@ -1,3 +1,5 @@
+// Package api implements the RESTful HTTP API, Gin router configuration, WebSocket WebCodecs streaming,
+// WHEP WebRTC negotiation, HLS segment endpoints, and Prometheus metrics handlers.
 package api
 
 import (
@@ -28,8 +30,11 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
+// ClientInfo represents an active media stream viewer's IP address and viewed stream ID.
 type ClientInfo struct {
-	IP       string `json:"ip"`
+	// IP is the remote client IP address.
+	IP string `json:"ip"`
+	// StreamID is the camera identifier the client is consuming.
 	StreamID string `json:"streamId"`
 }
 
@@ -40,10 +45,12 @@ type clientShard struct {
 	clients map[string]map[string]time.Time
 }
 
+// ClientTracker maintains a sharded, thread-safe registry of active streaming viewers per camera.
 type ClientTracker struct {
 	shards [clientTrackerShards]clientShard
 }
 
+// NewClientTracker allocates a new 32-shard ClientTracker.
 func NewClientTracker() *ClientTracker {
 	ct := &ClientTracker{}
 	for i := range ct.shards {
@@ -63,11 +70,12 @@ func (c *ClientTracker) getShard(ip, streamID string) *clientShard {
 	return &c.shards[h%clientTrackerShards]
 }
 
+// Mark records client stream activity, updating the last seen timestamp with 5-second rate limiting.
 func (c *ClientTracker) Mark(ip, streamID string) {
 	shard := c.getShard(ip, streamID)
 	now := time.Now()
 
-	// Fast path: если активность уже обновлялась недавно (< 5с назад), пропускаем блокировку на запись
+	// Fast path: if activity updated recently (< 5s ago), skip write lock
 	shard.mu.RLock()
 	if streams, ok := shard.clients[ip]; ok {
 		if lastSeen, ok := streams[streamID]; ok && now.Sub(lastSeen) < 5*time.Second {
@@ -77,7 +85,7 @@ func (c *ClientTracker) Mark(ip, streamID string) {
 	}
 	shard.mu.RUnlock()
 
-	// Slow path: обновляем временную метку
+	// Slow path: update timestamp
 	shard.mu.Lock()
 	if shard.clients[ip] == nil {
 		shard.clients[ip] = make(map[string]time.Time)
@@ -86,6 +94,7 @@ func (c *ClientTracker) Mark(ip, streamID string) {
 	shard.mu.Unlock()
 }
 
+// GetActiveClients scans all shards and returns a list of clients active within the given timeout window.
 func (c *ClientTracker) GetActiveClients(timeout time.Duration) []ClientInfo {
 	now := time.Now()
 	var active []ClientInfo
@@ -120,7 +129,7 @@ type cachedMemStatsResponse struct {
 	timestamp time.Time
 }
 
-// Handler хранит зависимости для API.
+// Handler contains dependencies and state for processing REST and media API requests.
 type Handler struct {
 	manager       *stream.Manager
 	cfg           *config.Config
@@ -134,7 +143,7 @@ type Handler struct {
 	memStatsCache atomic.Pointer[cachedMemStatsResponse]
 }
 
-// NewHandler создает новый обработчик API.
+// NewHandler instantiates and configures a new HTTP API Handler.
 func NewHandler(manager *stream.Manager, cfg *config.Config, store registry.StateStore, webrtcEngine ...*webrtc.Engine) *Handler {
 	var engine *webrtc.Engine
 	if len(webrtcEngine) > 0 && webrtcEngine[0] != nil {
@@ -154,7 +163,7 @@ func NewHandler(manager *stream.Manager, cfg *config.Config, store registry.Stat
 	}
 }
 
-// InvalidateCamerasCache сбрасывает кэш списка камер.
+// InvalidateCamerasCache invalidates the atomic camera list response cache.
 func (h *Handler) InvalidateCamerasCache() {
 	h.camerasCache.Store(nil)
 }

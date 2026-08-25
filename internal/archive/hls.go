@@ -28,15 +28,22 @@ var tsBufferPool = sync.Pool{
 	},
 }
 
+// PartInfo records the physical file byte offset and presentation duration of an fMP4 fragment (`moof` + `mdat`).
 type PartInfo struct {
-	Offset   int64
-	Duration uint32 // In 90kHz ticks
+	// Offset is the byte position of the fragment's `moof` box in the MP4 file.
+	Offset int64
+	// Duration is the cumulative sample duration in 90kHz RTP timescale ticks.
+	Duration uint32
 }
 
+// FileIndex stores the movie initialization box offsets and media fragment table for an fMP4 recording.
 type FileIndex struct {
+	// InitOffset is the starting byte offset of the `ftyp` + `moov` initialization header.
 	InitOffset int64
-	InitSize   int64
-	Parts      []PartInfo
+	// InitSize is the total byte size of the initialization header.
+	InitSize int64
+	// Parts contains indexed metadata for each sequential media fragment in the file.
+	Parts []PartInfo
 }
 
 type lruEntry struct {
@@ -44,7 +51,7 @@ type lruEntry struct {
 	value *FileIndex
 }
 
-// IndexLRUCache реализует потокобезопасный LRU-кэш для индексов fMP4 файлов.
+// IndexLRUCache provides a thread-safe LRU cache of parsed FileIndex structures to avoid repeated disk header parsing.
 type IndexLRUCache struct {
 	mu        sync.Mutex
 	capacity  int
@@ -52,7 +59,7 @@ type IndexLRUCache struct {
 	evictList *list.List
 }
 
-// NewIndexLRUCache создает новый LRU-кэш индексов заданной емкости.
+// NewIndexLRUCache creates an IndexLRUCache with the specified item capacity.
 func NewIndexLRUCache(capacity int) *IndexLRUCache {
 	if capacity <= 0 {
 		capacity = defaultCacheCapacity
@@ -64,7 +71,7 @@ func NewIndexLRUCache(capacity int) *IndexLRUCache {
 	}
 }
 
-// Get возвращает индекс файла из кэша.
+// Get retrieves a FileIndex by file path, updating its LRU position.
 func (c *IndexLRUCache) Get(key string) (*FileIndex, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -75,7 +82,7 @@ func (c *IndexLRUCache) Get(key string) (*FileIndex, bool) {
 	return nil, false
 }
 
-// Add сохраняет индекс файла в кэш с вытеснением наименее используемых элементов.
+// Add stores a FileIndex in the LRU cache, evicting the least recently used element when capacity is exceeded.
 func (c *IndexLRUCache) Add(key string, value *FileIndex) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -99,7 +106,7 @@ func (c *IndexLRUCache) Add(key string, value *FileIndex) {
 	c.items[key] = elem
 }
 
-// Remove удаляет запись из кэша.
+// Remove deletes a file index from the cache.
 func (c *IndexLRUCache) Remove(key string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -109,7 +116,7 @@ func (c *IndexLRUCache) Remove(key string) {
 	}
 }
 
-// Clear очищает весь кэш.
+// Clear flushes all cached file indices.
 func (c *IndexLRUCache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -117,7 +124,7 @@ func (c *IndexLRUCache) Clear() {
 	c.evictList.Init()
 }
 
-// Len возвращает текущее количество элементов в кэше.
+// Len returns the current number of cached file indices.
 func (c *IndexLRUCache) Len() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -126,12 +133,12 @@ func (c *IndexLRUCache) Len() int {
 
 var globalIndexCache = NewIndexLRUCache(defaultCacheCapacity)
 
-// InvalidateFileIndex удаляет файл из глобального кэша индексов (например, при удалении файла).
+// InvalidateFileIndex removes an entry from the global file index cache (e.g. when an MP4 file is deleted).
 func InvalidateFileIndex(path string) {
 	globalIndexCache.Remove(path)
 }
 
-// ClearIndexCache полностью очищает глобальный кэш индексов.
+// ClearIndexCache clears all entries from the global file index cache.
 func ClearIndexCache() {
 	globalIndexCache.Clear()
 }
@@ -270,7 +277,7 @@ func getFileIndex(path string) (*FileIndex, error) {
 	return idx, nil
 }
 
-// GenerateHLSPlaylist генерирует M3U8 манифест для конкретного MP4 файла
+// GenerateHLSPlaylist compiles a VOD M3U8 manifest representing each fMP4 fragment as an individual HLS TS segment.
 func GenerateHLSPlaylist(recordDir, cameraID, filename string) (string, error) {
 	path := filepath.Join(recordDir, cameraID, filename)
 	idx, err := getFileIndex(path)
@@ -304,7 +311,7 @@ func GenerateHLSPlaylist(recordDir, cameraID, filename string) (string, error) {
 	return buf.String(), nil
 }
 
-// GenerateHLSSegment читает fMP4 фрагмент и перепаковывает его в MPEG-TS "на лету"
+// GenerateHLSSegment extracts an individual fMP4 media fragment and transcodes it on-the-fly into an MPEG-TS segment byte slice.
 func GenerateHLSSegment(recordDir, cameraID, filename string, seq int) ([]byte, error) {
 	path := filepath.Join(recordDir, cameraID, filename)
 	idx, err := getFileIndex(path)

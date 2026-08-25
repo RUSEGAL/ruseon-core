@@ -1,3 +1,5 @@
+// Package hls provides real-time HTTP Live Streaming (HLS RFC 8216) packaging from RingBuffer video frames,
+// sliding window M3U8 playlist generation, zero-copy ARC memory segment recycling, and WebVTT metadata streaming.
 package hls
 
 import (
@@ -20,23 +22,33 @@ import (
 
 var emptyVTTData = []byte("WEBVTT\n\n")
 
-// Segment представляет один HLS ts-сегмент.
+// Segment represents a single in-memory MPEG-TS media segment and accompanying WebVTT subtitle cue data.
+//
+// Memory optimization:
+// Uses Atomic Reference Counting (ARC). The underlying byte buffer is allocated from a sync.Pool
+// and automatically returned to the pool when all concurrent HTTP read handlers invoke Release().
 type Segment struct {
-	Name            string
-	Duration        time.Duration
-	Data            []byte
-	buf             *bytes.Buffer // ссылка для возврата в пул
-	refCount        atomic.Int32  // Reference counter для Zero-Copy
+	// Name is the segment filename (e.g. "segment_123.ts").
+	Name string
+	// Duration is the calculated playback duration of the segment.
+	Duration time.Duration
+	// Data is the raw MPEG-TS container binary payload.
+	Data []byte
+	buf *bytes.Buffer
+	refCount atomic.Int32
+	// IsDiscontinuity indicates whether an #EXT-X-DISCONTINUITY tag precedes this segment.
 	IsDiscontinuity bool
-	VTTData         []byte
+	// VTTData holds the WebVTT subtitle track cues for AI bounding boxes and detections.
+	VTTData []byte
 }
 
-// Retain увеличивает счетчик ссылок на сегмент.
+// Retain increments the atomic reference counter of the segment.
 func (s *Segment) Retain() {
 	s.refCount.Add(1)
 }
 
-// Release уменьшает счетчик ссылок. Когда счетчик падает до 0, буфер возвращается в sync.Pool.
+// Release decrements the atomic reference counter.
+// When the counter drops to zero, the underlying buffer is reset and returned to sync.Pool.
 func (s *Segment) Release() {
 	if s.refCount.Add(-1) == 0 {
 		if s.buf != nil {
@@ -61,7 +73,13 @@ var playlistPool = sync.Pool{
 	},
 }
 
-// Muxer читает кадры из RingBuffer и упаковывает их в HLS (MPEG-TS сегменты).
+// Muxer consumes video frames from a RingBuffer, muxes them into MPEG-TS chunks,
+// maintains a sliding window playlist, and serves cached M3U8 manifests.
+//
+// Concurrency & Zero-Copy guarantees:
+//   - Manifest generation is lock-free and zero-alloc via atomic.Pointer caching.
+//   - Segments are retrieved with O(1) hash map indexing and ARC memory protection.
+//   - Inactivity and freeze watchdogs ensure stream continuity across RTSP dropouts.
 type Muxer struct {
 	streamID       string
 	ringBuffer     *buffer.RingBuffer
@@ -91,7 +109,8 @@ type Muxer struct {
 	cachedSubsPlaylist atomic.Pointer[string]
 }
 
-// NewMuxer создает новый Muxer для потока с настраиваемым скользящим окном сегментов.
+// NewMuxer constructs and launches a new HLS Muxer with the specified sliding window segment limit.
+// If maxSegments is omitted, a default sliding window of 3 live segments is maintained (RFC 8216).
 func NewMuxer(streamID string, rb *buffer.RingBuffer, metaChan <-chan *pb.MetadataRequest, unsubscribe func(), maxSegments ...int) *Muxer {
 	ctx, cancel := context.WithCancel(context.Background())
 	maxSegs := 3
@@ -340,7 +359,7 @@ func (m *Muxer) run() {
 	}
 }
 
-// Stop останавливает работу Muxer'а и очищает оставшиеся сегменты.
+// Stop terminates the HLS muxing loop, cancels background readers, and releases all active segments back to sync.Pool.
 func (m *Muxer) Stop() {
 	if m.unsubscribe != nil {
 		m.unsubscribe()
@@ -358,10 +377,9 @@ func (m *Muxer) Stop() {
 	m.mu.Unlock()
 }
 
-// CheckWatchdog следит за поступлением новых кадров. Если кадров нет больше 5 секунд (обрыв связи),
-// он берет последний готовый сегмент и добавляет его дубликат в плейлист с флагом Discontinuity.
-// Это заставляет сторонние плееры (VLC, OBS) "заморозить" последний кадр и не вылетать по таймауту.
-// Метод вызывается централизованным шедулером Manager раз в секунду.
+// CheckWatchdog monitors stream arrival times. If no frames arrive for >5 seconds (e.g. RTSP dropout),
+// it duplicates the last segment in the playlist with an #EXT-X-DISCONTINUITY tag.
+// This prevents external players (VLC, OBS, browsers) from stalling or disconnecting during temporary interruptions.
 func (m *Muxer) CheckWatchdog(now time.Time) {
 	lastTime := m.lastFrameTime.Load()
 	if lastTime == 0 || now.Sub(time.Unix(0, lastTime)) <= 5*time.Second {
@@ -383,7 +401,7 @@ func (m *Muxer) CheckWatchdog(now time.Time) {
 				Duration:        lastSeg.Duration,
 				Data:            dataCopy,
 				buf:             nil,
-				IsDiscontinuity: true, // Сигнал для плеера, что PTS может прыгнуть
+				IsDiscontinuity: true, // Signal to player that PTS discontinuity occurred
 			}
 			seg.refCount.Store(1)
 			m.segments = append(m.segments, seg)
@@ -394,30 +412,29 @@ func (m *Muxer) CheckWatchdog(now time.Time) {
 				oldSeg.Release()
 			}
 			m.rebuildPlaylistsLocked()
-			// Сбрасываем таймер, чтобы следующий дубликат добавился еще через 5 секунд
+			// Reset watchdog timer for next 5-second interval
 			m.lastFrameTime.Store(now.UnixNano())
-			// Следующий РЕАЛЬНЫЙ сегмент (когда связь восстановится) тоже должен начаться с разрыва,
-			// так как его PTS будет отличаться от PTS дубликата.
+			// Flag next real segment with discontinuity as PTS will jump
 			m.needsDiscontinuity = true
 		}
 	}
 }
 
-// rebuildPlaylistsLocked генерирует строки манифестов M3U8 и атомарно обновляет их кэш.
-// Вызывается ТОЛЬКО под удержанием m.mu.Lock() при смене сегментов (раз в 2 секунды).
+// rebuildPlaylistsLocked renders M3U8 playlist strings and updates atomic cached pointers.
+// Must be invoked exclusively under m.mu.Lock().
 func (m *Muxer) rebuildPlaylistsLocked() {
 	if len(m.segments) == 0 {
 		m.segIndex = make(map[string]*Segment)
 		return
 	}
 
-	// Обновляем O(1) хэш-индекс сегментов
+	// Update O(1) hash index for fast segment lookups
 	m.segIndex = make(map[string]*Segment, len(m.segments))
 	for _, seg := range m.segments {
 		m.segIndex[seg.Name] = seg
 	}
 
-	// 1. Сборка основного видео-манифеста
+	// 1. Build video M3U8 manifest
 	pBuf := playlistPool.Get().(*[]byte)
 	buf := (*pBuf)[:0]
 
@@ -457,7 +474,7 @@ func (m *Muxer) rebuildPlaylistsLocked() {
 	playlistPool.Put(pBuf)
 	m.cachedPlaylist.Store(&res)
 
-	// 2. Сборка манифеста субтитров (VTT)
+	// 2. Build WebVTT subtitle M3U8 manifest
 	pBufSubs := playlistPool.Get().(*[]byte)
 	bufSubs := (*pBufSubs)[:0]
 
@@ -491,10 +508,12 @@ func (m *Muxer) rebuildPlaylistsLocked() {
 	m.cachedSubsPlaylist.Store(&subsRes)
 }
 
-// GetPlaylist возвращает M3U8 манифест за 0 ns из атомарного кэша (Zero-Alloc, Zero-Lock).
-// Принимает ctx для отслеживания отмены запроса клиентом при холодном старте.
+// GetPlaylist retrieves the active M3U8 manifest string from the atomic cache (lock-free, zero-allocation).
+//
+// If invoked on a freshly started muxer where no segments have completed yet, it awaits the first
+// completed segment or context cancellation.
 func (m *Muxer) GetPlaylist(ctx context.Context) (string, bool) {
-	// Fast-path: если кэшированный манифест уже готов (99.9% запросов)
+	// Fast-path: pre-rendered manifest from atomic pointer cache
 	if p := m.cachedPlaylist.Load(); p != nil {
 		return *p, true
 	}
@@ -508,7 +527,7 @@ func (m *Muxer) GetPlaylist(ctx context.Context) (string, bool) {
 	m.mu.RUnlock()
 
 	if !hasSegments {
-		// Ждем первого сегмента эффективно через channel
+		// Await first segment completion via channel
 		select {
 		case <-m.firstSegReady:
 		case <-m.ctx.Done():
@@ -522,7 +541,7 @@ func (m *Muxer) GetPlaylist(ctx context.Context) (string, bool) {
 		return *p, true
 	}
 
-	// Fallback при ручном добавлении сегментов (в unit-тестах)
+	// Fallback for tests
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if len(m.segments) == 0 {
@@ -536,7 +555,7 @@ func (m *Muxer) GetPlaylist(ctx context.Context) (string, bool) {
 	return "", false
 }
 
-// GetSubsPlaylist возвращает M3U8 манифест субтитров из атомарного кэша.
+// GetSubsPlaylist retrieves the cached WebVTT subtitle M3U8 manifest string.
 func (m *Muxer) GetSubsPlaylist() string {
 	if p := m.cachedSubsPlaylist.Load(); p != nil {
 		return *p
@@ -554,8 +573,10 @@ func (m *Muxer) GetSubsPlaylist() string {
 	return ""
 }
 
-// AcquireSegment возвращает сегмент без копирования памяти с атомарным захватом ссылки (Zero-Alloc, Zero-Copy).
-// Использует O(1) хэш-индекс для быстрого поиска сегмента.
+// AcquireSegment looks up a media segment or WebVTT cue by filename in O(1) time
+// and increments its ARC reference count to guarantee safe concurrent reads without memory copying.
+//
+// The caller MUST call seg.Release() after serving the HTTP payload to return the buffer to the pool.
 func (m *Muxer) AcquireSegment(name string) (*Segment, string) {
 	isVTT := len(name) > 4 && name[len(name)-4:] == ".vtt"
 	tsName := name
@@ -566,7 +587,6 @@ func (m *Muxer) AcquireSegment(name string) (*Segment, string) {
 	m.mu.RLock()
 	seg := m.segIndex[tsName]
 	if seg == nil {
-		// Fallback при ручном добавлении сегментов в тестах без rebuildPlaylistsLocked
 		for _, s := range m.segments {
 			if s.Name == tsName {
 				seg = s
@@ -588,8 +608,9 @@ func (m *Muxer) AcquireSegment(name string) (*Segment, string) {
 	return seg, "video/mp2t"
 }
 
-// Deprecated: GetSegment copies the entire segment payload into a newly allocated heap slice.
-// Use AcquireSegment() for high-performance zero-copy access with ARC (Atomic Reference Count).
+// GetSegment copies the segment payload into a newly allocated heap byte slice.
+//
+// Deprecated: Use AcquireSegment instead for zero-copy memory access with ARC reference counting.
 func (m *Muxer) GetSegment(name string) ([]byte, string) {
 	seg, mimeType := m.AcquireSegment(name)
 	if seg == nil {

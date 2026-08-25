@@ -1,3 +1,5 @@
+// Package mqtt provides non-blocking asynchronous publication of AI metadata and event detections
+// to external MQTT message brokers.
 package mqtt
 
 import (
@@ -12,7 +14,8 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
 )
 
-// Publisher handles publishing AI metadata to an MQTT broker.
+// Publisher handles non-blocking asynchronous dispatch of AI metadata to an MQTT broker.
+// If the internal queue fills up, old items are dropped to ensure real-time producers are never blocked.
 type Publisher struct {
 	client    mqtt.Client
 	config    config.MQTTConfig
@@ -21,7 +24,7 @@ type Publisher struct {
 	cancel    context.CancelFunc
 }
 
-// NewPublisher creates and starts a new MQTT publisher if enabled.
+// NewPublisher initializes and connects an asynchronous MQTT Publisher if MQTTConfig.Enabled is true.
 func NewPublisher(cfg config.MQTTConfig) (*Publisher, error) {
 	if !cfg.Enabled {
 		return nil, nil
@@ -61,7 +64,7 @@ func NewPublisher(cfg config.MQTTConfig) (*Publisher, error) {
 	return pub, nil
 }
 
-// Push adds metadata to the channel queue for asynchronous publishing.
+// Push non-blockingly queues a metadata request for transmission to the configured MQTT topic.
 func (p *Publisher) Push(meta *pb.MetadataRequest) {
 	if p == nil || meta == nil {
 		return
@@ -73,7 +76,7 @@ func (p *Publisher) Push(meta *pb.MetadataRequest) {
 	}
 }
 
-// Close stops the worker and disconnects the client.
+// Close gracefully disconnects from the MQTT broker and terminates background worker goroutines.
 func (p *Publisher) Close() {
 	if p == nil {
 		return

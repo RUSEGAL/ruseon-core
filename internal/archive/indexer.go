@@ -1,3 +1,5 @@
+// Package archive provides indexing, on-demand MPEG-TS transcoding for HLS VOD archive playback,
+// LRU index caching, and zero-re-encoding fMP4 clip exporting.
 package archive
 
 import (
@@ -9,14 +11,17 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
-// RecordInterval представляет один записанный отрезок видео
+// RecordInterval describes a contiguous recorded video segment with wall-clock start/end timestamps and filename.
 type RecordInterval struct {
+	// StartTime is the beginning timestamp of the recording.
 	StartTime time.Time `json:"start"`
-	EndTime   time.Time `json:"end"`
-	Filename  string    `json:"filename"`
+	// EndTime is the completion timestamp of the recording.
+	EndTime time.Time `json:"end"`
+	// Filename is the relative basename of the MP4 file in the camera directory.
+	Filename string `json:"filename"`
 }
 
-// GetCameraArchive сканирует директорию камеры и возвращает доступные отрезки
+// GetCameraArchive scans the camera's storage archive directory and parses all completed and ongoing recording intervals.
 func GetCameraArchive(recordDir, cameraID string) ([]RecordInterval, error) {
 	dir := filepath.Join(recordDir, cameraID)
 	entries, err := registry.CurrentBlobStore.ReadDir(dir)

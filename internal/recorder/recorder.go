@@ -1,3 +1,5 @@
+// Package recorder provides continuous fragmented MP4 (fMP4 / ISO BMFF) archive recording,
+// power-loss crash recovery, page cache dropping on Linux, and automated retention cleanup.
 package recorder
 
 import (
@@ -17,7 +19,12 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
-// Recorder читает кадры из RingBuffer и пишет их в fMP4 архив.
+// Recorder continuously consumes video frames from a RingBuffer and writes them into fragmented MP4 files (fMP4).
+//
+// Concurrency & Durability:
+//   - Flushes each GOP into independent fMP4 `moof` + `mdat` fragments.
+//   - Drops Linux page cache after writing each GOP to avoid starving OS memory buffers.
+//   - Guarantees playable recordings across sudden power failures or server reboots.
 type Recorder struct {
 	streamID   string
 	ringBuffer *buffer.RingBuffer
@@ -28,7 +35,7 @@ type Recorder struct {
 	wg         sync.WaitGroup
 }
 
-// NewRecorder создает и запускает архиватор для потока.
+// NewRecorder creates and launches a new fMP4 video archive recorder for the given stream.
 func NewRecorder(streamID string, rb *buffer.RingBuffer, recordDir string, onDegraded func(bool)) *Recorder {
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &Recorder{
@@ -337,7 +344,7 @@ ExitLoop:
 	}
 }
 
-// Stop останавливает архиватор и ждет завершения.
+// Stop halts archive recording, flushes the trailing GOP samples to disk, and waits for background workers to finish.
 func (r *Recorder) Stop() {
 	r.cancel()
 	r.wg.Wait()

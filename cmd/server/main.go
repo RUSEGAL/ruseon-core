@@ -1,3 +1,4 @@
+// Package main implements the entrypoint for the RUSEON Core media server daemon.
 package main
 
 import (

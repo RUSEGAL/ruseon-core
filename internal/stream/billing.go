@@ -10,7 +10,9 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
-// StartBillingTask запускает фоновую задачу для трекинга трафика с пакетной записью в базу.
+// StartBillingTask launches a background ticker goroutine (1-minute interval) that accumulates
+// camera bandwidth deltas in memory and commits aggregated traffic batches to the StateStore.
+// On context shutdown, it ensures all pending traffic deltas are flushed to storage.
 func StartBillingTask(ctx context.Context, _ *config.Config, manager *Manager, store registry.StateStore) {
 	lastBytes := make(map[string]uint64)
 	pendingDelta := make(map[string]uint64)

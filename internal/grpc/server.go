@@ -1,3 +1,5 @@
+// Package grpc implements high-performance gRPC streaming services for raw H.264/H.265 video frame
+// extraction (for external AI inference microservices) and bidirectional metadata ingestion.
 package grpc
 
 import (
@@ -14,7 +16,7 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
 )
 
-// Server реализует gRPC API для трансляции сырых видеокадров.
+// Server implements pb.FrameServiceServer to expose low-latency gRPC frame streams and ingest AI detections.
 type Server struct {
 	pb.UnimplementedFrameServiceServer
 	manager *stream.Manager
@@ -22,7 +24,7 @@ type Server struct {
 	mqttPub *mqtt.Publisher
 }
 
-// NewServer создает новый экземпляр gRPC сервера.
+// NewServer creates a new gRPC Server instance, optionally configuring TLS transport credentials if certFile/keyFile are provided.
 func NewServer(manager *stream.Manager, mqttPub *mqtt.Publisher, certFile, keyFile string) *Server {
 	var opts []grpc.ServerOption
 	if certFile != "" && keyFile != "" {
@@ -40,7 +42,7 @@ func NewServer(manager *stream.Manager, mqttPub *mqtt.Publisher, certFile, keyFi
 	}
 }
 
-// Start запускает gRPC сервер на указанном адресе (напр. ":50051").
+// Start binds a TCP listener to addr and serves incoming gRPC RPC connections.
 func (s *Server) Start(addr string) error {
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -51,14 +53,15 @@ func (s *Server) Start(addr string) error {
 	return s.grpcSrv.Serve(lis)
 }
 
-// Stop останавливает gRPC сервер.
+// Stop gracefully stops the gRPC server and closes active client streams.
 func (s *Server) Stop() {
 	if s.grpcSrv != nil {
 		s.grpcSrv.GracefulStop()
 	}
 }
 
-// StreamFrames реализует RPC метод для подписки на кадры конкретной камеры.
+// StreamFrames handles client subscriptions to raw video frames for a given camera ID.
+// Codec parameter sets (VPS/SPS/PPS) are prepended before keyframes to guarantee decodability.
 func (s *Server) StreamFrames(req *pb.StreamRequest, srv pb.FrameService_StreamFramesServer) error {
 	st, exists := s.manager.GetStream(req.CameraId)
 	if !exists {
@@ -131,7 +134,7 @@ func (s *Server) StreamFrames(req *pb.StreamRequest, srv pb.FrameService_StreamF
 	}
 }
 
-// PushMetadata принимает поток метаданных от ИИ-модулей и рассылает их зрителям.
+// PushMetadata receives client-streamed AI detections and broadcasts them to active viewers and MQTT subscribers.
 func (s *Server) PushMetadata(srv pb.FrameService_PushMetadataServer) error {
 	for {
 		req, err := srv.Recv()

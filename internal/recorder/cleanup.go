@@ -15,7 +15,9 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
-// StartCleanupTask запускает фоновую горутину для очистки старых записей.
+// StartCleanupTask starts background maintenance goroutines for:
+//   - Purging expired archive recordings hourly based on per-camera or global retention settings.
+//   - Checking storage filesystem usage every 5 minutes and publishing warnings on the EventBus when usage exceeds 90%.
 func StartCleanupTask(ctx context.Context, recordDir string, cfg *config.Config, store registry.StateStore) {
 	go func() {
 		defer func() {

@@ -1,3 +1,9 @@
+// Package eventbus provides an asynchronous, non-blocking event distribution
+// pipeline for internal server events and outbound HTTP webhooks.
+//
+// Features include consistent hashing by Camera ID to maintain strict per-stream
+// event ordering across concurrent workers, non-blocking queueing with drop-newest
+// semantics on overload, and per-endpoint Circuit Breakers for failure isolation.
 package eventbus
 
 import (
@@ -13,25 +19,41 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Event представляет единицу события в системе
+// Event represents an individual system or telemetry notification.
 type Event struct {
-	ID          string `json:"id"`
-	TimestampMs int64  `json:"timestamp_ms"`
-	Topic       string `json:"topic"`
-	CameraID    string `json:"camera_id,omitempty"`
-	Data        any    `json:"data,omitempty"`
+	// ID is the unique event identifier (optional).
+	ID string `json:"id,omitempty"`
+	// TimestampMs is the Unix epoch timestamp in milliseconds when the event was generated.
+	TimestampMs int64 `json:"timestamp_ms"`
+	// Topic describes the event type (e.g. "camera_online", "camera_offline", "storage_warning", "recording_failed").
+	Topic string `json:"topic"`
+	// CameraID is the optional identifier of the camera associated with the event.
+	CameraID string `json:"camera_id,omitempty"`
+	// Data holds arbitrary structured event payload.
+	Data any `json:"data,omitempty"`
 }
 
+// Bus defines the common interface for publishing events and terminating the event bus.
 type Bus interface {
+	// Publish dispatches an event asynchronously across worker queues.
 	Publish(topic string, cameraID string, data any)
+	// Stop gracefully terminates all background workers and waits for in-flight deliveries.
 	Stop()
 }
 
+// EventBus implements Bus and handles concurrent distribution of events to configured HTTP webhooks.
+//
+// Concurrency guarantees:
+//   - Safe for concurrent calls by multiple goroutines.
+//   - Uses consistent hashing on CameraID to ensure all events for a given camera are processed
+//     sequentially in FIFO order by the same worker goroutine.
+//   - Non-blocking publishing: if a worker's buffer (1000 events) is full, new events are dropped
+//     and recorded via metrics.EventbusDropsTotal to protect producers from stalling.
 type EventBus struct {
 	mu              sync.RWMutex
 	webhooks        []config.WebhookConfig
 	workers         []chan Event
-	circuitBreakers map[string]time.Time // Общий Circuit Breaker для всех воркеров (URL -> время разблокировки)
+	circuitBreakers map[string]time.Time // Shared Circuit Breaker state across workers (URL -> unlock time)
 	wg              sync.WaitGroup
 
 	stopMu   sync.RWMutex
@@ -39,10 +61,11 @@ type EventBus struct {
 	stopOnce sync.Once
 }
 
-// New создает новую шину событий и запускает воркеры.
+// New creates and starts a new EventBus with the specified worker pool size and webhook configuration.
+// If numWorkers is <= 0, a default pool of 4 workers is spawned.
 func New(cfg config.EventsConfig, numWorkers int) Bus {
 	if numWorkers <= 0 {
-		numWorkers = 4 // Дефолтное количество воркеров
+		numWorkers = 4
 	}
 
 	bus := &EventBus{
@@ -52,7 +75,7 @@ func New(cfg config.EventsConfig, numWorkers int) Bus {
 	}
 
 	for i := 0; i < numWorkers; i++ {
-		bus.workers[i] = make(chan Event, 1000) // Буфер на 1000 событий на воркер
+		bus.workers[i] = make(chan Event, 1000) // Buffer of 1000 events per worker
 		bus.wg.Add(1)
 		go bus.workerLoop(i, bus.workers[i])
 	}
@@ -60,9 +83,13 @@ func New(cfg config.EventsConfig, numWorkers int) Bus {
 	return bus
 }
 
+// Publish enqueues a new event onto the worker corresponding to the hash of cameraID (or topic).
+//
+// The operation is non-blocking. If the targeted worker's channel buffer is full, the event
+// is dropped and metrics.EventbusDropsTotal is incremented.
 func (b *EventBus) Publish(topic string, cameraID string, data any) {
 	if b.stopped.Load() || len(b.webhooks) == 0 {
-		return // Нет смысла рассылать, если шина остановлена или нет подписчиков
+		return
 	}
 
 	b.stopMu.RLock()
@@ -79,8 +106,8 @@ func (b *EventBus) Publish(topic string, cameraID string, data any) {
 		Data:        data,
 	}
 
-	// Consistent hashing по CameraID (или Topic, если CameraID пустой)
-	// Гарантирует сохранение порядка обработки для одной камеры
+	// Consistent hashing by CameraID (or Topic if CameraID is empty)
+	// Guarantees strict FIFO processing order for any single camera
 	key := event.CameraID
 	if key == "" {
 		key = event.Topic
@@ -93,14 +120,17 @@ func (b *EventBus) Publish(topic string, cameraID string, data any) {
 	// Non-blocking send (Drop-Newest)
 	select {
 	case b.workers[workerID] <- event:
-		// Успешно отправлено
+		// Successfully enqueued
 	default:
-		// Очередь воркера переполнена, дропаем событие
+		// Queue full, drop event to prevent producer blocking
 		metrics.EventbusDropsTotal.Inc()
 		log.Warn().Str("topic", event.Topic).Str("camera_id", event.CameraID).Int("worker_id", workerID).Msg("EventBus worker queue full, dropping event")
 	}
 }
 
+// Stop gracefully shuts down all event bus workers.
+// It closes all worker channels and blocks until all pending buffered events are processed.
+// Subsequent calls to Stop or Publish are safe no-ops.
 func (b *EventBus) Stop() {
 	b.stopOnce.Do(func() {
 		b.stopMu.Lock()
@@ -117,7 +147,7 @@ func (b *EventBus) Stop() {
 func (b *EventBus) workerLoop(_ int, ch <-chan Event) {
 	defer b.wg.Done()
 
-	// Настраиваем жесткий HTTP клиент с таймаутом и лимитами
+	// Dedicated HTTP client with connection pooling and timeouts
 	client := &http.Client{
 		Timeout: 3 * time.Second,
 		Transport: &http.Transport{
@@ -127,10 +157,6 @@ func (b *EventBus) workerLoop(_ int, ch <-chan Event) {
 		},
 	}
 
-	// Состояние Circuit Breaker'ов теперь общее для всех воркеров (b.circuitBreakers)
-	// Доступ к нему будет контролироваться через b.mu
-
-	// Читаем из канала пока он не будет закрыт (Graceful Shutdown)
 	for event := range ch {
 		payload, err := json.Marshal(event)
 		if err != nil {
@@ -138,32 +164,29 @@ func (b *EventBus) workerLoop(_ int, ch <-chan Event) {
 			continue
 		}
 
-		// Рассылка по всем вебхукам
 		for _, wh := range b.webhooks {
-			// Проверка топика
 			if !matchesTopic(wh.Topics, event.Topic) {
 				continue
 			}
 
-			// Проверка Circuit Breaker
+			// Circuit breaker check
 			b.mu.RLock()
 			unlockTime, isOpen := b.circuitBreakers[wh.URL]
 			b.mu.RUnlock()
 
 			if isOpen && time.Now().Before(unlockTime) {
-				continue // Circuit is Open, пропускаем отправку
+				continue // Circuit is Open, skip attempt
 			}
 
-			// Отправка (синхронно внутри воркера, чтобы сохранять порядок)
 			err := sendWebhook(client, wh, payload)
 			if err != nil {
 				log.Warn().Err(err).Str("url", wh.URL).Msg("Webhook delivery failed, opening circuit for 30s")
-				// Включаем Circuit Breaker на 30 секунд
+				// Trip circuit breaker for 30 seconds
 				b.mu.Lock()
 				b.circuitBreakers[wh.URL] = time.Now().Add(30 * time.Second)
 				b.mu.Unlock()
 			} else if isOpen {
-				// Сбрасываем Circuit Breaker при успехе, если он был
+				// Reset circuit breaker on successful delivery
 				b.mu.Lock()
 				delete(b.circuitBreakers, wh.URL)
 				b.mu.Unlock()

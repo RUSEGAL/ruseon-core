@@ -1,3 +1,6 @@
+// Package localfs provides an OS filesystem implementation of registry.BlobStore
+// with directory traversal sanitization, restricted file permissions, and Linux
+// page cache purging optimizations.
 package localfs
 
 import (
@@ -11,11 +14,18 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
-// LocalFS реализует registry.BlobStore поверх локальной файловой системы.
+// LocalFS implements registry.BlobStore on top of the local operating system filesystem.
+//
+// Security guarantees:
+//   - When baseDir is configured, all relative path queries are strictly verified to ensure
+//     they cannot escape baseDir via directory traversal (".."), absolute paths, or volume names.
+//   - Directories are created with 0750 permissions and files with 0600 permissions.
 type LocalFS struct {
 	baseDir string
 }
 
+// NewLocalFS creates a new LocalFS instance rooted at baseDir.
+// If baseDir is empty, paths are treated relative to the working directory.
 func NewLocalFS(baseDir string) *LocalFS {
 	return &LocalFS{
 		baseDir: baseDir,
@@ -58,6 +68,7 @@ func (l *LocalFS) fullPath(p string) (string, error) {
 	return target, nil
 }
 
+// Write creates any missing parent directories and writes data to path with 0600 permissions.
 func (l *LocalFS) Write(path string, data []byte) error {
 	fp, err := l.fullPath(path)
 	if err != nil {
@@ -69,6 +80,7 @@ func (l *LocalFS) Write(path string, data []byte) error {
 	return os.WriteFile(fp, data, 0600) // #nosec G304
 }
 
+// Read reads and returns the full content of the file at path.
 func (l *LocalFS) Read(path string) ([]byte, error) {
 	fp, err := l.fullPath(path)
 	if err != nil {
@@ -77,6 +89,7 @@ func (l *LocalFS) Read(path string) ([]byte, error) {
 	return os.ReadFile(fp) // #nosec G304
 }
 
+// Delete removes the file or empty directory at path.
 func (l *LocalFS) Delete(path string) error {
 	fp, err := l.fullPath(path)
 	if err != nil {
@@ -85,6 +98,7 @@ func (l *LocalFS) Delete(path string) error {
 	return os.Remove(fp)
 }
 
+// Stat returns the fs.FileInfo describing the file at path.
 func (l *LocalFS) Stat(path string) (fs.FileInfo, error) {
 	fp, err := l.fullPath(path)
 	if err != nil {
@@ -93,6 +107,7 @@ func (l *LocalFS) Stat(path string) (fs.FileInfo, error) {
 	return os.Stat(fp)
 }
 
+// ReadDir reads and returns the directory entries at path.
 func (l *LocalFS) ReadDir(path string) ([]fs.DirEntry, error) {
 	fp, err := l.fullPath(path)
 	if err != nil {
@@ -101,6 +116,7 @@ func (l *LocalFS) ReadDir(path string) ([]fs.DirEntry, error) {
 	return os.ReadDir(fp)
 }
 
+// Create creates or truncates the named file at path, returning a registry.WriteSeekCloser wrapped with NewFileWrapper.
 func (l *LocalFS) Create(path string) (registry.WriteSeekCloser, error) {
 	fp, err := l.fullPath(path)
 	if err != nil {
@@ -116,6 +132,7 @@ func (l *LocalFS) Create(path string) (registry.WriteSeekCloser, error) {
 	return NewFileWrapper(f), nil
 }
 
+// Open opens the named file at path for reading, returning an io.ReadSeekCloser.
 func (l *LocalFS) Open(path string) (io.ReadSeekCloser, error) {
 	fp, err := l.fullPath(path)
 	if err != nil {
@@ -124,6 +141,7 @@ func (l *LocalFS) Open(path string) (io.ReadSeekCloser, error) {
 	return os.Open(fp) // #nosec G304
 }
 
+// MkdirAll creates a directory hierarchy along with any necessary parents.
 func (l *LocalFS) MkdirAll(path string) error {
 	fp, err := l.fullPath(path)
 	if err != nil {
@@ -132,6 +150,7 @@ func (l *LocalFS) MkdirAll(path string) error {
 	return os.MkdirAll(fp, 0750)
 }
 
+// Rename moves or renames a file from oldPath to newPath.
 func (l *LocalFS) Rename(oldPath, newPath string) error {
 	oldFp, err := l.fullPath(oldPath)
 	if err != nil {

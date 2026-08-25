@@ -1,3 +1,8 @@
+// Package storage provides embedded key-value persistence and transactional metadata
+// management for RUSEON Core using BadgerDB.
+//
+// Features include ACID-compliant transactions, sync WAL writes, atomic in-memory caching
+// with defensive cloning for lock-free camera lookups, and scheduled nightly value-log GC.
 package storage
 
 import (
@@ -19,44 +24,60 @@ import (
 	rocron "github.com/samber/ro/plugins/cron"
 )
 
+// ErrNotFound is returned by retrieval methods when a requested key or entity does not exist.
 var ErrNotFound = errors.New("not found")
 
 const (
+	// PrefixCamera is the key prefix for camera configuration entries in BadgerDB.
 	PrefixCamera = "camera:"
-	PrefixTag    = "tag:"
+	// PrefixTag is the key prefix for metadata tag entries in BadgerDB.
+	PrefixTag = "tag:"
+	// PrefixFolder is the key prefix for folder group entries in BadgerDB.
 	PrefixFolder = "folder:"
-	PrefixUser   = "user:"
+	// PrefixUser is the key prefix for user credential entries in BadgerDB.
+	PrefixUser = "user:"
 )
 
-// Storage обертка над BadgerDB
+// Storage wraps a BadgerDB instance and implements registry.StateStore.
+//
+// Thread-safety: Storage is fully thread-safe for concurrent read and write operations.
+// Read operations on cameras utilize an atomic pointer cache (atomic.Pointer) to serve
+// ListCameras queries with zero lock contention.
 type Storage struct {
 	db            *badger.DB
 	cachedCameras atomic.Pointer[[]config.CameraConfig]
 	cancel        context.CancelFunc
 }
 
-// NewStorage открывает или создает БД в указанной директории.
+// NewStorage opens or initializes a BadgerDB database in the specified directory path.
+//
+// It tunes BadgerDB memory and disk parameters for resource-constrained embedded systems:
+//   - MemTableSize: 16 MB
+//   - ValueLogFileSize: 64 MB
+//   - SyncWrites: true (ensures durability via fsync on every write)
+//   - Schedules a nightly value-log garbage collection run (at 03:00 daily).
+//
+// Returns a new Storage instance or an error if opening the database fails.
 func NewStorage(dir string) (*Storage, error) {
 	opts := badger.DefaultOptions(dir)
-	opts.Logger = nil // Отключаем дефолтные логи Badger (они слишком шумные)
+	opts.Logger = nil // Disable verbose default Badger logs
 	
-	// Оптимизация потребления ресурсов (Этап 23.2)
-	opts.MemTableSize = 16 << 20          // Уменьшаем MemTable с 64MB до 16MB
-	opts.ValueLogFileSize = 64 << 20      // Уменьшаем файлы логов с 1GB до 64MB
-	opts.NumMemtables = 1                 // Держим максимум 1 memtable в памяти (вместо 5)
-	opts.NumLevelZeroTables = 1           // Меньше таблиц нулевого уровня в памяти
-	opts.NumLevelZeroTablesStall = 2      // Сброс на диск происходит быстрее
-	opts.SyncWrites = true                // Синхронная запись WAL для надежности контрольного слоя (ACID/fsync)
+	opts.MemTableSize = 16 << 20          // Reduce MemTable from 64MB to 16MB
+	opts.ValueLogFileSize = 64 << 20      // Reduce value log file size from 1GB to 64MB
+	opts.NumMemtables = 1                 // Keep at most 1 memtable in memory
+	opts.NumLevelZeroTables = 1           // Minimize level zero tables in memory
+	opts.NumLevelZeroTablesStall = 2      // Flush to disk quickly
+	opts.SyncWrites = true                // Synchronous WAL writes for ACID durability
 	
 	db, err := badger.Open(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	// Запускаем периодический Garbage Collection для BadgerDB (каждую ночь в 03:00)
+	// Schedule nightly Garbage Collection for BadgerDB (at 03:00 every night)
 	sub := rocron.NewScheduler(gocron.CronJob("0 3 * * *", false)).Subscribe(ro.NewObserver(
 		func(_ rocron.ScheduleJob) {
-			// Лимит на работу GC - 30 минут, чтобы не создавать нагрузку днем
+			// Limit GC run to 30 minutes to prevent background IOPS spike
 			gcCtx, gcCancel := context.WithTimeout(context.Background(), 30*time.Minute)
 			defer gcCancel()
 
@@ -93,9 +114,10 @@ func NewStorage(dir string) (*Storage, error) {
 	return &Storage{db: db, cancel: cancel}, nil
 }
 
-// Close закрывает БД.
+// Close gracefully cancels background GC schedules and closes the underlying BadgerDB database,
+// releasing all filesystem lock files.
 func (s *Storage) Close() error {
-	s.cancel() // Остановка горутины GC
+	s.cancel() // Stop GC background cron
 	return s.db.Close()
 }
 
@@ -103,7 +125,8 @@ func (s *Storage) invalidateCameraCache() {
 	s.cachedCameras.Store(nil)
 }
 
-// Ping проверяет доступность базы данных через открытие read-only транзакции.
+// Ping verifies that the BadgerDB storage is open, uncorrupted, and responsive to read queries.
+// It respects context cancellation and deadlines.
 func (s *Storage) Ping(ctx context.Context) error {
 	if s.db == nil || s.db.IsClosed() {
 		return errors.New("badger database is closed or uninitialized")
@@ -120,7 +143,7 @@ func (s *Storage) Ping(ctx context.Context) error {
 	})
 }
 
-// Sync сбрасывает все буферизованные записи BadgerDB на постоянный диск.
+// Sync commits all dirty write-ahead log (WAL) entries and in-memory tables to permanent disk storage.
 func (s *Storage) Sync() error {
 	if s.db == nil || s.db.IsClosed() {
 		return errors.New("badger database is closed or uninitialized")
@@ -128,7 +151,8 @@ func (s *Storage) Sync() error {
 	return s.db.Sync()
 }
 
-// SaveCamera сохраняет или обновляет камеру.
+// SaveCamera inserts or updates a camera stream configuration in BadgerDB.
+// It automatically invalidates the atomic camera list cache to guarantee fresh reads.
 func (s *Storage) SaveCamera(cam *config.CameraConfig) error {
 	s.invalidateCameraCache()
 	data, err := json.Marshal(cam)
@@ -142,7 +166,10 @@ func (s *Storage) SaveCamera(cam *config.CameraConfig) error {
 	})
 }
 
-// UpdateCameraTx атомарно обновляет камеру. updateFn должна вернуть true, если нужно сохранить изменения.
+// UpdateCameraTx executes updateFn inside an atomic BadgerDB transaction for the specified camera ID.
+//
+// If updateFn modifies the camera and returns true, the mutated record is committed and
+// the in-memory camera cache is invalidated. If updateFn returns false, the transaction is rolled back.
 func (s *Storage) UpdateCameraTx(id string, updateFn func(cam *config.CameraConfig) bool) error {
 	s.invalidateCameraCache()
 	key := []byte(PrefixCamera + id)
@@ -172,7 +199,11 @@ func (s *Storage) UpdateCameraTx(id string, updateFn func(cam *config.CameraConf
 	})
 }
 
-// BatchUpdateTraffic пакетно обновляет TrafficUsed для списка камер пачками по 200 штук в одной транзакции.
+// BatchUpdateTraffic accumulates bandwidth usage counters across multiple camera streams
+// in chunks of 200 items per database transaction, minimizing write overhead and disk wear.
+//
+// If a camera enters a new billing cycle (nowMonth differs from LastResetMonth), its TrafficUsed counter
+// is atomically reset to zero before applying the delta.
 func (s *Storage) BatchUpdateTraffic(updates map[string]uint64, nowMonth string) error {
 	if len(updates) == 0 {
 		return nil
@@ -244,7 +275,9 @@ func (s *Storage) BatchUpdateTraffic(updates map[string]uint64, nowMonth string)
 	return nil
 }
 
-// GetCamera возвращает камеру по ID.
+// GetCamera retrieves a camera configuration by its unique ID.
+//
+// Returns a pointer to CameraConfig or an error (e.g. badger.ErrKeyNotFound).
 func (s *Storage) GetCamera(id string) (*config.CameraConfig, error) {
 	key := []byte(PrefixCamera + id)
 	var cam config.CameraConfig
@@ -265,7 +298,8 @@ func (s *Storage) GetCamera(id string) (*config.CameraConfig, error) {
 	return &cam, nil
 }
 
-// DeleteCamera удаляет камеру по ID.
+// DeleteCamera deletes the camera configuration associated with id from BadgerDB.
+// It also clears the in-memory camera list cache.
 func (s *Storage) DeleteCamera(id string) error {
 	s.invalidateCameraCache()
 	key := []byte(PrefixCamera + id)
@@ -274,7 +308,12 @@ func (s *Storage) DeleteCamera(id string) error {
 	})
 }
 
-// ListCameras возвращает список всех камер с in-memory атомарным кэшированием и защитным глубоким копированием.
+// ListCameras returns all stored camera configurations.
+//
+// Performance and concurrency design:
+//   - Uses atomic.Pointer caching to serve repeated read requests with zero database transaction locks.
+//   - Applies defensive deep cloning (CameraConfig.Clone()) to returned items to prevent data races
+//     if caller goroutines mutate slice fields (Tags, history).
 func (s *Storage) ListCameras() ([]config.CameraConfig, error) {
 	if cached := s.cachedCameras.Load(); cached != nil {
 		res := make([]config.CameraConfig, len(*cached))
@@ -319,7 +358,7 @@ func (s *Storage) ListCameras() ([]config.CameraConfig, error) {
 	return res, err
 }
 
-// SaveTag сохраняет тег.
+// SaveTag creates or updates a metadata tag in BadgerDB.
 func (s *Storage) SaveTag(tag *config.TagConfig) error {
 	data, err := json.Marshal(tag)
 	if err != nil {
@@ -332,7 +371,7 @@ func (s *Storage) SaveTag(tag *config.TagConfig) error {
 	})
 }
 
-// DeleteTag удаляет тег.
+// DeleteTag removes a metadata tag from BadgerDB by its ID.
 func (s *Storage) DeleteTag(id string) error {
 	key := []byte(PrefixTag + id)
 	return s.db.Update(func(txn *badger.Txn) error {
@@ -340,7 +379,7 @@ func (s *Storage) DeleteTag(id string) error {
 	})
 }
 
-// GetTag возвращает тег по ID.
+// GetTag retrieves a metadata tag by its unique ID. Returns ErrNotFound if missing.
 func (s *Storage) GetTag(id string) (*config.TagConfig, error) {
 	key := []byte(PrefixTag + id)
 	var tag config.TagConfig
@@ -361,7 +400,7 @@ func (s *Storage) GetTag(id string) (*config.TagConfig, error) {
 	return &tag, nil
 }
 
-// ListTags возвращает список всех тегов.
+// ListTags returns all stored metadata tags.
 func (s *Storage) ListTags() ([]config.TagConfig, error) {
 	tags := make([]config.TagConfig, 0)
 
@@ -390,7 +429,7 @@ func (s *Storage) ListTags() ([]config.TagConfig, error) {
 	return tags, err
 }
 
-// SaveFolder сохраняет папку.
+// SaveFolder creates or updates a folder/group in BadgerDB.
 func (s *Storage) SaveFolder(folder *config.FolderConfig) error {
 	data, err := json.Marshal(folder)
 	if err != nil {
@@ -403,7 +442,7 @@ func (s *Storage) SaveFolder(folder *config.FolderConfig) error {
 	})
 }
 
-// DeleteFolder удаляет папку.
+// DeleteFolder removes a folder from BadgerDB by its ID.
 func (s *Storage) DeleteFolder(id string) error {
 	key := []byte(PrefixFolder + id)
 	return s.db.Update(func(txn *badger.Txn) error {
@@ -411,7 +450,7 @@ func (s *Storage) DeleteFolder(id string) error {
 	})
 }
 
-// GetFolder возвращает папку по ID.
+// GetFolder retrieves a folder by its unique ID. Returns ErrNotFound if missing.
 func (s *Storage) GetFolder(id string) (*config.FolderConfig, error) {
 	key := []byte(PrefixFolder + id)
 	var folder config.FolderConfig
@@ -432,7 +471,7 @@ func (s *Storage) GetFolder(id string) (*config.FolderConfig, error) {
 	return &folder, nil
 }
 
-// ListFolders возвращает список всех папок.
+// ListFolders returns all stored folders.
 func (s *Storage) ListFolders() ([]config.FolderConfig, error) {
 	folders := make([]config.FolderConfig, 0)
 
@@ -461,7 +500,7 @@ func (s *Storage) ListFolders() ([]config.FolderConfig, error) {
 	return folders, err
 }
 
-// SaveUser сохраняет объект пользователя.
+// SaveUser creates or updates a user credential record in BadgerDB.
 func (s *Storage) SaveUser(user *models.User) error {
 	key := []byte(PrefixUser + user.Username)
 	data, err := json.Marshal(user)
@@ -473,7 +512,7 @@ func (s *Storage) SaveUser(user *models.User) error {
 	})
 }
 
-// GetUser возвращает объект пользователя по имени.
+// GetUser retrieves a user account by username. Returns ErrNotFound if the user does not exist.
 func (s *Storage) GetUser(username string) (*models.User, error) {
 	key := []byte(PrefixUser + username)
 	var user models.User
@@ -495,7 +534,7 @@ func (s *Storage) GetUser(username string) (*models.User, error) {
 	return &user, nil
 }
 
-// ListUsers возвращает список всех пользователей.
+// ListUsers returns all user accounts stored in the database.
 func (s *Storage) ListUsers() ([]models.User, error) {
 	var users []models.User
 	err := s.db.View(func(txn *badger.Txn) error {
@@ -522,7 +561,7 @@ func (s *Storage) ListUsers() ([]models.User, error) {
 	return users, nil
 }
 
-// DeleteUser удаляет пользователя по имени.
+// DeleteUser deletes a user account by username.
 func (s *Storage) DeleteUser(username string) error {
 	key := []byte(PrefixUser + username)
 	return s.db.Update(func(txn *badger.Txn) error {
@@ -530,7 +569,7 @@ func (s *Storage) DeleteUser(username string) error {
 	})
 }
 
-// HasUsers возвращает true, если в БД есть хотя бы один пользователь.
+// HasUsers reports whether any user records are present in BadgerDB.
 func (s *Storage) HasUsers() (bool, error) {
 	hasUsers := false
 	err := s.db.View(func(txn *badger.Txn) error {
@@ -546,8 +585,8 @@ func (s *Storage) HasUsers() (bool, error) {
 	return hasUsers, err
 }
 
-
-// MigrateFromConfig атомарно переносит данные из config.yaml в БД при первом старте.
+// MigrateFromConfig atomically imports cameras and global tags from the YAML config into BadgerDB
+// if no existing records are detected.
 func (s *Storage) MigrateFromConfig(cfg *config.Config) error {
 	if cfg == nil {
 		return nil
@@ -555,7 +594,7 @@ func (s *Storage) MigrateFromConfig(cfg *config.Config) error {
 	s.invalidateCameraCache()
 
 	return s.db.Update(func(txn *badger.Txn) error {
-		// Проверяем наличие существующих камер внутри транзакции
+		// Check for existing cameras inside the transaction
 		optsCam := badger.DefaultIteratorOptions
 		optsCam.PrefetchValues = false
 		optsCam.Prefix = []byte(PrefixCamera)
@@ -578,7 +617,7 @@ func (s *Storage) MigrateFromConfig(cfg *config.Config) error {
 			}
 		}
 
-		// Проверяем наличие существующих тегов внутри той же транзакции
+		// Check for existing tags inside the same transaction
 		optsTag := badger.DefaultIteratorOptions
 		optsTag.PrefetchValues = false
 		optsTag.Prefix = []byte(PrefixTag)
@@ -605,14 +644,17 @@ func (s *Storage) MigrateFromConfig(cfg *config.Config) error {
 	})
 }
 
-// BackupData представляет структуру JSON-файла для ручного бэкапа.
+// BackupData represents the JSON-serializable backup payload containing cameras, tags, and folders.
 type BackupData struct {
+	// Cameras lists all exported camera configurations.
 	Cameras []config.CameraConfig `json:"cameras"`
-	Tags    []config.TagConfig    `json:"tags"`
+	// Tags lists all exported metadata tags.
+	Tags []config.TagConfig `json:"tags"`
+	// Folders lists all exported camera grouping folders.
 	Folders []config.FolderConfig `json:"folders,omitempty"`
 }
 
-// ExportJSON собирает все конфигурации камер и тегов в JSON-дамп.
+// ExportJSON serializes all cameras, tags, and folders into a human-readable indented JSON payload.
 func (s *Storage) ExportJSON() ([]byte, error) {
 	cams, err := s.ListCameras()
 	if err != nil {
@@ -631,11 +673,10 @@ func (s *Storage) ExportJSON() ([]byte, error) {
 		Tags:    tags,
 		Folders: folders,
 	}
-	// Используем отступы для человекочитаемости
 	return json.MarshalIndent(data, "", "  ")
 }
 
-// ImportJSON парсит JSON-дамп и атомарно записывает все камеры и теги.
+// ImportJSON parses a JSON backup payload and atomically restores all cameras, tags, and folders.
 func (s *Storage) ImportJSON(data []byte) error {
 	var backup BackupData
 	if err := json.Unmarshal(data, &backup); err != nil {
@@ -678,7 +719,7 @@ func (s *Storage) ImportJSON(data []byte) error {
 	})
 }
 
-// BackupBadger делает нативный дамп БД и пишет его в переданный io.Writer.
+// BackupBadger generates a raw, consistent BadgerDB streaming backup and writes it to w.
 func (s *Storage) BackupBadger(w io.Writer) error {
 	_, err := s.db.Backup(w, 0)
 	return err

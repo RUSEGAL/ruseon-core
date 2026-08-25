@@ -13,7 +13,8 @@ import (
 	"github.com/RUSEGAL/ruseon-core/pkg/registry"
 )
 
-// Manager управляет списком всех потоков и запускает централизованный шедулер фоновых задач.
+// Manager coordinates all active camera streams, provides thread-safe access and synchronization
+// against StateStore, tracks cumulative lifetime telemetry metrics, and runs a centralized 1-second housekeeping loop.
 type Manager struct {
 	mu      sync.RWMutex
 	streams map[string]*Stream
@@ -29,8 +30,7 @@ type Manager struct {
 	wg     sync.WaitGroup
 }
 
-
-// NewManager создает новый менеджер потоков и запускает фоновый цикл обслуживания.
+// NewManager creates and initializes a new Stream Manager and starts its centralized 1-second housekeeping loop.
 func NewManager() *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{
@@ -71,7 +71,7 @@ func (m *Manager) housekeepingLoop() {
 	}
 }
 
-// Ready проверяет работоспособность менеджера потоков.
+// Ready verifies that the stream manager is initialized and healthy.
 func (m *Manager) Ready(ctx context.Context) error {
 	if m == nil {
 		return errors.New("stream manager is not initialized")
@@ -84,7 +84,8 @@ func (m *Manager) Ready(ctx context.Context) error {
 	}
 }
 
-// AddStream добавляет новый поток (камеру) в менеджер.
+// AddStream instantiates and registers a new camera stream under the given unique ID.
+// Returns an error if a stream with the specified ID is already registered.
 func (m *Manager) AddStream(id, url string, record bool, lazyHLS bool, transport string, tokenAuth bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -98,7 +99,10 @@ func (m *Manager) AddStream(id, url string, record bool, lazyHLS bool, transport
 	return nil
 }
 
-// RemoveStream останавливает и удаляет поток без удержания блокировки менеджера во время Stop().
+// RemoveStream removes a stream from the registry and stops its background ingest loop.
+//
+// Concurrency note: stream.Stop() is invoked outside the Manager mutex lock to prevent deadlocks.
+// Cumulative counters from the terminated stream are preserved in the manager's lifetime pool.
 func (m *Manager) RemoveStream(id string) {
 	var toStop *Stream
 
@@ -106,8 +110,7 @@ func (m *Manager) RemoveStream(id string) {
 	if st, ok := m.streams[id]; ok {
 		delete(m.streams, id)
 		toStop = st
-		// Сохраняем исторические метрики удаляемого потока в кумулятивный пул менеджера,
-		// чтобы они не терялись при реконнектах или динамическом редактировании камер.
+		// Retain historical metrics from the removed stream into the manager's cumulative pool
 		m.cumFrames.Add(st.framesReceived.Load())
 		m.cumBytes.Add(st.bytesReceived.Load())
 		m.cumBytesSent.Add(st.bytesSent.Load())
@@ -123,8 +126,8 @@ func (m *Manager) RemoveStream(id string) {
 	}
 }
 
-// GetCumulativeStats возвращает агрегированные счетчики за все время работы сервера.
-// Суммирует исторически накопленные данные удаленных потоков (cum*) и живые метрики активных потоков.
+// GetCumulativeStats returns total lifetime metrics aggregated across both past (deleted/restarted)
+// streams and currently active streams.
 func (m *Manager) GetCumulativeStats() (frames, bytesIn, bytesOut, drops, reconnects uint64) {
 	frames = m.cumFrames.Load()
 	bytesIn = m.cumBytes.Load()
@@ -145,8 +148,8 @@ func (m *Manager) GetCumulativeStats() (frames, bytesIn, bytesOut, drops, reconn
 	return
 }
 
-
-// GetStream возвращает поток по ID, если он существует.
+// GetStream retrieves an active Stream instance by camera ID.
+// Returns the stream pointer and true if found, or nil and false otherwise.
 func (m *Manager) GetStream(id string) (*Stream, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -155,7 +158,7 @@ func (m *Manager) GetStream(id string) (*Stream, bool) {
 	return s, ok
 }
 
-// GetStreams возвращает все потоки.
+// GetStreams returns a snapshot slice of all currently registered active streams.
 func (m *Manager) GetStreams() []*Stream {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -167,7 +170,7 @@ func (m *Manager) GetStreams() []*Stream {
 	return result
 }
 
-// HasStream проверяет, зарегистрирован ли поток в менеджере.
+// HasStream reports whether a stream with the specified ID is registered.
 func (m *Manager) HasStream(id string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -175,8 +178,8 @@ func (m *Manager) HasStream(id string) bool {
 	return exists
 }
 
-// UpsertStream атомарно создает, обновляет или останавливает поток в зависимости от конфигурации.
-// Остановка старого потока вынесена за пределы блокировки менеджера.
+// UpsertStream creates, reconfigures, or removes a camera stream to match updated settings.
+// If existing parameters have changed, the old stream is cleanly stopped and replaced.
 func (m *Manager) UpsertStream(id, url string, record bool, lazyHLS bool, transport string, tokenAuth bool, disabled bool) {
 	var toStop *Stream
 	var newStream *Stream
@@ -211,7 +214,8 @@ func (m *Manager) UpsertStream(id, url string, record bool, lazyHLS bool, transp
 	}
 }
 
-// SyncWithStorage синхронизирует состояние потоков с базой без удержания блокировки во время остановок.
+// SyncWithStorage reconciles active in-memory streams with the camera configurations stored in StateStore.
+// Cameras missing or marked as disabled in storage are stopped and removed.
 func (m *Manager) SyncWithStorage(store registry.StateStore) error {
 	log.Info().Msg("Syncing stream manager with storage...")
 	
@@ -241,7 +245,7 @@ func (m *Manager) SyncWithStorage(store registry.StateStore) error {
 		}
 	}
 	
-	// Остановка потоков, которых больше нет в активном списке
+	// Stop streams no longer present in active store list
 	for id, st := range m.streams {
 		if _, ok := activeIDs[id]; !ok {
 			toStop = append(toStop, st)
@@ -251,7 +255,7 @@ func (m *Manager) SyncWithStorage(store registry.StateStore) error {
 	}
 	m.mu.Unlock()
 
-	// Останавливаем потоки вне блокировки менеджера
+	// Stop obsolete streams outside of manager mutex lock
 	for _, st := range toStop {
 		st.Stop()
 	}
@@ -259,7 +263,7 @@ func (m *Manager) SyncWithStorage(store registry.StateStore) error {
 	return nil
 }
 
-// Close останавливает фоновый шедулер и все зарегистрированные потоки.
+// Close terminates the background housekeeping loop and stops all registered camera streams.
 func (m *Manager) Close() {
 	m.cancel()
 	m.wg.Wait()
