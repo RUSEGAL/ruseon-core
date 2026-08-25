@@ -10,7 +10,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
 )
 
 // ValidateFMP4File checks structural integrity of an fMP4 recording file:

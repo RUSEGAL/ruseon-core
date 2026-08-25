@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/RUSEGAL/ruseon-core/pkg/auth"
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/auth"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
 )
 
 func TestRouterCORS(t *testing.T) {

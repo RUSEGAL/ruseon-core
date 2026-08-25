@@ -9,9 +9,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/RUSEGAL/ruseon-core/internal/buffer"
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
-	"github.com/RUSEGAL/ruseon-core/pkg/storage"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/storage"
 )
 
 func TestManager_Concurrency(t *testing.T) {

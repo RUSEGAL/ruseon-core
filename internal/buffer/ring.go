@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/metrics"
 )
 
 // CodecParams holds immutable video codec initialization parameters (H.264 SPS/PPS or H.265 VPS/SPS/PPS).

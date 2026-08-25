@@ -10,9 +10,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/v4/disk"
 
-	"github.com/RUSEGAL/ruseon-core/internal/archive"
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/archive"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
 )
 
 // StartCleanupTask starts background maintenance goroutines for:

@@ -5,7 +5,7 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
 )
 
 // ExportMP4 streams a range of contiguous media fragments from an fMP4 recording directly to an io.Writer (e.g. HTTP response writer) without re-encoding.

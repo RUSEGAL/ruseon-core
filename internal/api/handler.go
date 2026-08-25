@@ -20,14 +20,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/sync/singleflight"
 
-	"github.com/RUSEGAL/ruseon-core/internal/archive"
-	"github.com/RUSEGAL/ruseon-core/internal/models"
-	"github.com/RUSEGAL/ruseon-core/internal/stream"
-	"github.com/RUSEGAL/ruseon-core/internal/webrtc"
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
-	"github.com/RUSEGAL/ruseon-core/pkg/logger"
-	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/archive"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/models"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/webrtc"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/logger"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/metrics"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
 )
 
 // ClientInfo represents an active media stream viewer's IP address and viewed stream ID.

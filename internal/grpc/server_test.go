@@ -9,9 +9,9 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/RUSEGAL/ruseon-core/internal/buffer"
-	"github.com/RUSEGAL/ruseon-core/internal/stream"
-	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/grpc/pb"
 	"google.golang.org/grpc/metadata"
 )
 

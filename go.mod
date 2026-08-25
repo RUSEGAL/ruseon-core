@@ -1,4 +1,4 @@
-module github.com/RUSEGAL/ruseon-core
+module github.com/RUSEGAL/ruseon-core/v2
 
 go 1.26
 

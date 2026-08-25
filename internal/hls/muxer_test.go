@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/RUSEGAL/ruseon-core/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/buffer"
 )
 
 func TestMuxer_LazyGetPlaylist_Wait(t *testing.T) {

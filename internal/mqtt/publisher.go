@@ -10,8 +10,8 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
-	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/grpc/pb"
 )
 
 // Publisher handles non-blocking asynchronous dispatch of AI metadata to an MQTT broker.

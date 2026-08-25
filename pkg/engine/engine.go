@@ -14,15 +14,15 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/ruseon-core/internal/api"
-	"github.com/RUSEGAL/ruseon-core/internal/backup"
-	"github.com/RUSEGAL/ruseon-core/internal/grpc"
-	"github.com/RUSEGAL/ruseon-core/internal/mqtt"
-	"github.com/RUSEGAL/ruseon-core/internal/recorder"
-	"github.com/RUSEGAL/ruseon-core/internal/stream"
-	"github.com/RUSEGAL/ruseon-core/internal/webrtc"
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/api"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/backup"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/grpc"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/mqtt"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/recorder"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/webrtc"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
 )
 
 // Run initializes and executes all core streaming subsystems, background workers, and API servers.

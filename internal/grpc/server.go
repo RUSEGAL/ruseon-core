@@ -11,9 +11,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/RUSEGAL/ruseon-core/internal/mqtt"
-	"github.com/RUSEGAL/ruseon-core/internal/stream"
-	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/mqtt"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/grpc/pb"
 )
 
 // Server implements pb.FrameServiceServer to expose low-latency gRPC frame streams and ingest AI detections.

@@ -12,8 +12,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/RUSEGAL/ruseon-core/internal/models"
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/models"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
 )
 
 // StateStore defines the persistence interface for application metadata, stream definitions,

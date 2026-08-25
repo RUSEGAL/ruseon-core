@@ -10,7 +10,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
 )
 
 func BenchmarkEventBus_Publish(b *testing.B) {

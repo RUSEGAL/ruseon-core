@@ -13,20 +13,20 @@ import (
 
 // Required coverage percentages for critical subsystem packages
 var criticalThresholds = map[string]float64{
-	"github.com/RUSEGAL/ruseon-core/pkg/logger":          90.0,
-	"github.com/RUSEGAL/ruseon-core/pkg/eventbus":        90.0,
-	"github.com/RUSEGAL/ruseon-core/pkg/registry":        90.0,
-	"github.com/RUSEGAL/ruseon-core/pkg/storage/localfs": 85.0,
-	"github.com/RUSEGAL/ruseon-core/pkg/auth":            80.0,
-	"github.com/RUSEGAL/ruseon-core/pkg/storage":         75.0,
-	"github.com/RUSEGAL/ruseon-core/pkg/config":          70.0,
-	"github.com/RUSEGAL/ruseon-core/internal/archive":    80.0,
-	"github.com/RUSEGAL/ruseon-core/internal/buffer":     70.0,
-	"github.com/RUSEGAL/ruseon-core/internal/backup":     70.0,
-	"github.com/RUSEGAL/ruseon-core/internal/stream":     65.0,
-	"github.com/RUSEGAL/ruseon-core/internal/grpc":       65.0,
-	"github.com/RUSEGAL/ruseon-core/internal/recorder":   65.0,
-	"github.com/RUSEGAL/ruseon-core/internal/mqtt":       80.0,
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/logger":          90.0,
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/eventbus":        90.0,
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry":        90.0,
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/storage/localfs": 85.0,
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/auth":            80.0,
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/storage":         75.0,
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config":          70.0,
+	"github.com/RUSEGAL/ruseon-core/v2/internal/archive":    80.0,
+	"github.com/RUSEGAL/ruseon-core/v2/internal/buffer":     70.0,
+	"github.com/RUSEGAL/ruseon-core/v2/internal/backup":     70.0,
+	"github.com/RUSEGAL/ruseon-core/v2/internal/stream":     65.0,
+	"github.com/RUSEGAL/ruseon-core/v2/internal/grpc":       65.0,
+	"github.com/RUSEGAL/ruseon-core/v2/internal/recorder":   65.0,
+	"github.com/RUSEGAL/ruseon-core/v2/internal/mqtt":       80.0,
 }
 
 const globalMinimumThreshold = 50.0
@@ -54,7 +54,7 @@ func parseCoverage(coverageFile string) (map[string]*packageStats, int, int, err
 			continue
 		}
 
-		// Format: github.com/RUSEGAL/ruseon-core/pkg/storage/storage.go:37.45,40.16 2 1
+		// Format: github.com/RUSEGAL/ruseon-core/v2/pkg/storage/storage.go:37.45,40.16 2 1
 		colonIdx := strings.LastIndex(line, ":")
 		if colonIdx == -1 {
 			continue

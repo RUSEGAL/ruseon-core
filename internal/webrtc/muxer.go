@@ -11,10 +11,10 @@ import (
 	"github.com/pion/webrtc/v4/pkg/media"
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/ruseon-core/internal/buffer"
-	"github.com/RUSEGAL/ruseon-core/internal/stream"
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
-	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/metrics"
 )
 
 // WHEPHandler handles client WebRTC sessions following the WHEP (WebRTC-HTTP Egress Protocol) specification.

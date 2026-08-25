@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
 )
 
 func TestEventBus_DeliveryAndHMAC(t *testing.T) {

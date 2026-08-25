@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RUSEGAL/ruseon-core/internal/buffer"
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
 )
 
 // ChaosBlobStore эмулирует медленный или зависший диск (Throttling/Freeze).

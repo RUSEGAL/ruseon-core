@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
 )
 
 // matchesTopic проверяет, подписан ли вебхук на данный топик

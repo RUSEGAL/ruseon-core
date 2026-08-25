@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
 )
 
 // RecordInterval describes a contiguous recorded video segment with wall-clock start/end timestamps and filename.

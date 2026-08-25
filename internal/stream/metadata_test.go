@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/grpc/pb"
 )
 
 func TestMetadataBroadcaster_SubscribeReceive(t *testing.T) {

@@ -17,8 +17,8 @@ import (
 	"github.com/dgraph-io/badger/v4"
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/ruseon-core/internal/models"
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/models"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
 	"github.com/go-co-op/gocron/v2"
 	"github.com/samber/ro"
 	rocron "github.com/samber/ro/plugins/cron"

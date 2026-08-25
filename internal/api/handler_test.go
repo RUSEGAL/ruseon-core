@@ -14,13 +14,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/RUSEGAL/ruseon-core/internal/models"
-	"github.com/RUSEGAL/ruseon-core/pkg/auth"
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
-	"github.com/RUSEGAL/ruseon-core/pkg/storage"
-	"github.com/RUSEGAL/ruseon-core/pkg/storage/localfs"
-	"github.com/RUSEGAL/ruseon-core/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/models"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/auth"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/storage"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/storage/localfs"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/stream"
 )
 
 func setupTestRouter(t *testing.T) (*gin.Engine, *Handler, registry.StateStore) {

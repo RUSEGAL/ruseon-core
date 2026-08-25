@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RUSEGAL/ruseon-core/internal/buffer"
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
 	"github.com/bluenviron/mediacommon/pkg/formats/fmp4"
 )
 

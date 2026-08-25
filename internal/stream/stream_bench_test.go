@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RUSEGAL/ruseon-core/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/buffer"
 )
 
 func BenchmarkStreamManager_GetStream(b *testing.B) {

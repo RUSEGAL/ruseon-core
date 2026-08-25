@@ -14,13 +14,13 @@ import (
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/RUSEGAL/ruseon-core/internal/api"
-	"github.com/RUSEGAL/ruseon-core/internal/stream"
-	"github.com/RUSEGAL/ruseon-core/pkg/auth"
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
-	"github.com/RUSEGAL/ruseon-core/pkg/storage"
-	"github.com/RUSEGAL/ruseon-core/pkg/storage/localfs"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/api"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/stream"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/auth"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/storage"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/storage/localfs"
 )
 
 const (

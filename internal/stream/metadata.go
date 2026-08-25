@@ -3,7 +3,7 @@ package stream
 import (
 	"sync"
 
-	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/grpc/pb"
 )
 
 // MetadataSubscriber represents an individual subscriber channel for AI metadata events.

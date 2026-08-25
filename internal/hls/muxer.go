@@ -15,9 +15,9 @@ import (
 	"github.com/bluenviron/mediacommon/pkg/formats/mpegts"
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/ruseon-core/internal/buffer"
-	"github.com/RUSEGAL/ruseon-core/internal/rtsp"
-	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/rtsp"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/grpc/pb"
 )
 
 var emptyVTTData = []byte("WEBVTT\n\n")

@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/RUSEGAL/ruseon-core/internal/models"
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
-	"github.com/RUSEGAL/ruseon-core/pkg/storage"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/models"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/storage"
 )
 
 func setupTestAuth(t *testing.T) (*LocalAuthenticator, *storage.Storage) {

@@ -13,10 +13,10 @@ import (
 	"github.com/bluenviron/mediacommon/pkg/formats/fmp4"
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/ruseon-core/internal/buffer"
-	"github.com/RUSEGAL/ruseon-core/internal/rtsp"
-	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/rtsp"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/metrics"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
 )
 
 // Recorder continuously consumes video frames from a RingBuffer and writes them into fragmented MP4 files (fMP4).

@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/RUSEGAL/ruseon-core/internal/models"
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/models"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
 )
 
 func TestStorage_CameraCRUD(t *testing.T) {

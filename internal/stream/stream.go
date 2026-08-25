@@ -14,13 +14,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/ruseon-core/internal/buffer"
-	"github.com/RUSEGAL/ruseon-core/internal/hls"
-	"github.com/RUSEGAL/ruseon-core/internal/models"
-	"github.com/RUSEGAL/ruseon-core/internal/recorder"
-	"github.com/RUSEGAL/ruseon-core/internal/rtsp"
-	"github.com/RUSEGAL/ruseon-core/pkg/metrics"
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/hls"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/models"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/recorder"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/rtsp"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/metrics"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
 )
 
 // Stream manages the full lifecycle of an individual camera ingest session.

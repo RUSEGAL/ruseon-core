@@ -6,8 +6,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
 )
 
 // StartBillingTask launches a background ticker goroutine (1-minute interval) that accumulates

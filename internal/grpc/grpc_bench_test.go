@@ -6,8 +6,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/RUSEGAL/ruseon-core/internal/buffer"
-	"github.com/RUSEGAL/ruseon-core/pkg/grpc/pb"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/buffer"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/grpc/pb"
 )
 
 func BenchmarkGRPC_FrameResponseMarshal(b *testing.B) {

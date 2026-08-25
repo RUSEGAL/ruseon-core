@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
 )
 
 func TestFileWrapper_WriteAndClose(t *testing.T) {

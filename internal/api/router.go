@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RUSEGAL/ruseon-core/web"
+	"github.com/RUSEGAL/ruseon-core/v2/web"
 
 	"github.com/arl/statsviz"
 	"github.com/gin-contrib/pprof"
@@ -19,11 +19,11 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	// init swagger docs
-	_ "github.com/RUSEGAL/ruseon-core/internal/api/docs"
+	_ "github.com/RUSEGAL/ruseon-core/v2/internal/api/docs"
 
-	"github.com/RUSEGAL/ruseon-core/internal/models"
-	pkgauth "github.com/RUSEGAL/ruseon-core/pkg/auth"
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/internal/models"
+	pkgauth "github.com/RUSEGAL/ruseon-core/v2/pkg/auth"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
 )
 
 func init() {

@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
 )
 
 func TestHandler_CameraLifecycleInvariants(t *testing.T) {

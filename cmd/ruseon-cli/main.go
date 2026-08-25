@@ -11,7 +11,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"github.com/RUSEGAL/ruseon-core/pkg/config"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/config"
 )
 
 var (

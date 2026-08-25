@@ -10,7 +10,7 @@ import (
 	
 	"github.com/rs/zerolog/log"
 	
-	"github.com/RUSEGAL/ruseon-core/pkg/registry"
+	"github.com/RUSEGAL/ruseon-core/v2/pkg/registry"
 )
 
 // Manager coordinates all active camera streams, provides thread-safe access and synchronization
