@@ -53,12 +53,14 @@ sboms:
 dockers:
   - image_templates:
       - "ghcr.io/rusegal/ruseon-core:{{ .Tag }}-amd64"
+      - "docker.io/rusegal/ruseon-core:{{ .Tag }}-amd64"
     dockerfile: Dockerfile.goreleaser
     use: buildx
     build_flag_templates:
       - "--platform=linux/amd64"
   - image_templates:
       - "ghcr.io/rusegal/ruseon-core:{{ .Tag }}-arm64"
+      - "docker.io/rusegal/ruseon-core:{{ .Tag }}-arm64"
     dockerfile: Dockerfile.goreleaser
     use: buildx
     build_flag_templates:
@@ -73,6 +75,14 @@ docker_manifests:
     image_templates:
       - "ghcr.io/rusegal/ruseon-core:{{ .Tag }}-amd64"
       - "ghcr.io/rusegal/ruseon-core:{{ .Tag }}-arm64"
+  - name_template: "docker.io/rusegal/ruseon-core:{{ .Tag }}"
+    image_templates:
+      - "docker.io/rusegal/ruseon-core:{{ .Tag }}-amd64"
+      - "docker.io/rusegal/ruseon-core:{{ .Tag }}-arm64"
+  - name_template: "docker.io/rusegal/ruseon-core:latest"
+    image_templates:
+      - "docker.io/rusegal/ruseon-core:{{ .Tag }}-amd64"
+      - "docker.io/rusegal/ruseon-core:{{ .Tag }}-arm64"
 
 changelog:
   sort: asc

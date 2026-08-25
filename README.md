@@ -125,9 +125,10 @@ The following baseline metrics reflect an uninterrupted **8-hour continuous soak
 
 ### 1. Run with Docker
 
-Launch RUSEON Core in a container with persistent storage volumes:
+Launch RUSEON Core in a container with persistent storage volumes (available on Docker Hub and GitHub Container Registry):
 
 ```bash
+# From Docker Hub:
 docker run -d \
   --name ruseon-core \
   -p 8080:8080 \
@@ -135,7 +136,10 @@ docker run -d \
   -p 50051:50051 \
   -v ruseon_data:/app/data \
   -v ruseon_recordings:/app/recordings \
-  ghcr.io/rusegal/ruseon-core:latest
+  rusegal/ruseon-core:latest
+
+# Or from GitHub Container Registry (GHCR):
+# docker run -d ... ghcr.io/rusegal/ruseon-core:latest
 ```
 
 On first startup, RUSEON Core automatically initializes the database, generates a secure initial administrator password, and logs it to `stdout`:

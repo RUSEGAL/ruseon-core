@@ -125,9 +125,10 @@ flowchart TD
 
 ### 1. Запуск в Docker
 
-Запустите контейнер RUSEON Core с постоянными томами для данных и записей:
+Запустите контейнер RUSEON Core с постоянными томами для данных и записей (доступен в Docker Hub и GitHub Container Registry):
 
 ```bash
+# Из Docker Hub:
 docker run -d \
   --name ruseon-core \
   -p 8080:8080 \
@@ -135,7 +136,10 @@ docker run -d \
   -p 50051:50051 \
   -v ruseon_data:/app/data \
   -v ruseon_recordings:/app/recordings \
-  ghcr.io/rusegal/ruseon-core:latest
+  rusegal/ruseon-core:latest
+
+# Либо из GitHub Container Registry (GHCR):
+# docker run -d ... ghcr.io/rusegal/ruseon-core:latest
 ```
 
 При первом запуске RUSEON Core автоматически инициализирует базу данных, генерирует надежный пароль администратора и выводит его в журнал контейнера:
