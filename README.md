@@ -5,8 +5,8 @@
 <h1 align="center">RUSEON Core</h1>
 
 <p align="center">
-  <strong>High-Performance Video Infrastructure & AI Media Pipeline</strong><br>
-  RTSP Ingest &bull; Lock-Free In-Memory Demuxing &bull; HLS &bull; WebRTC (WHEP) &bull; fMP4 Archive &bull; gRPC AI Streaming
+  <strong>High-Performance Video Infrastructure & AI Media Pipeline Engine</strong><br>
+  Open-Source Media Server &bull; RTSP Gateway &bull; WebRTC (WHEP) &bull; fMP4 Archive &bull; NVR/VMS Backend &bull; gRPC AI Streaming
 </p>
 
 <p align="center">
@@ -25,43 +25,64 @@
 
 ## What is RUSEON?
 
-**RUSEON Core** is an open-source video infrastructure engine built in Go for IP camera fleets, edge compute appliances, and computer vision pipelines. It ingests H.264 and H.265 video streams over RTSP (TCP/UDP) and multiplexes them directly in memory into HLS (fMP4/TS), WebRTC (WHEP), local fMP4 storage archives, and gRPC frame streams without performing server-side video transcoding.
+**RUSEON Core** is an open-source, high-performance video infrastructure engine and media server written in Go, designed for IP camera fleets, CCTV recording systems, edge appliances, and computer vision pipelines.
 
-By eliminating video decoding and re-encoding on the server, RUSEON Core operates with predictable CPU utilization and low-overhead playlist generation, serving as a unified bridge between CCTV camera hardware, web clients, and AI inference models.
+It serves as a unified, lightweight streaming backend: ingesting H.264 and H.265 video streams from IP cameras over RTSP (TCP/UDP) and multiplexing them directly in memory into low-latency WebRTC (WHEP), HLS (fMP4/TS), WebSocket (WebCodecs Canvas), continuous local fMP4 storage archives, and high-throughput gRPC video frame streams for real-time AI inference.
+
+### Who is it for?
+* **Video & Media Infrastructure Engineers:** Building scalable, low-latency live streaming, RTSP proxying, and camera restreaming services.
+* **VMS & NVR Developers:** Creating self-hosted or cloud-native video surveillance platforms, CCTV recording backends, and multi-camera management solutions.
+* **Computer Vision & AI Teams:** Deploying real-time video analytics, object detection, and neural network inference pipelines requiring low-overhead frame extraction.
+* **Edge & IoT Architects:** Deploying private, on-premise video processing nodes and embedded Linux media servers with strict CPU and memory constraints.
+
+### How does it differ from traditional Media Servers and NVRs?
+Traditional media servers often treat video either as broadcast-only streams or rely on CPU-heavy server-side video transcoding pipelines that limit stream density. Traditional NVRs, on the other hand, couple user interfaces, storage, and video processing into monolithic systems that struggle with high camera counts or Linux disk cache exhaustion. 
+
+RUSEON Core operates strictly via **zero-transcoding transmuxing** and **lock-free single-buffer distribution**, operating as an unopinionated, high-density infrastructure engine that bridges IP camera hardware with modern web browsers, storage disks, and AI inference runtimes.
 
 ---
 
 ## Why RUSEON?
 
-Traditional media servers either focus strictly on live video rebroadcasting or require CPU-heavy server-side transcoding pipelines. RUSEON Core approaches video as continuous structured data:
+* **Transmuxing Pipeline (Zero-Transcoding Architecture):** Video packets are parsed at the NALU level and repackaged directly into client-requested container formats (fMP4, TS, RTP) in memory without CPU-heavy video decoding or pixel re-encoding.
+* **Lock-Free Single-Buffer Distribution:** Ingested frames are written once to a bounded, lock-free ring buffer per stream. Downstream consumers (HLS packager, WebRTC track sender, fMP4 recorder, gRPC AI frame extractors) read concurrently from this buffer without allocating duplicate frame payloads in RAM.
+* **Slow-Consumer Isolation:** Individual reader channels isolate slow clients and network drops. If a consumer falls behind, frames are dropped exclusively for that reader without stalling the ingestion engine, affecting live CCTV viewers, or delaying recording.
+* **Page Cache-Aware Storage & 24/7 Archiving:** The local fMP4 recording archiver optimizes disk writes on Linux using POSIX kernel primitives (`posix_fadvise(FADV_DONTNEED)` and sliding-window `sync_file_range`), preventing continuous video surveillance recording from evicting the OS Page Cache and causing memory bloat or I/O stalls.
+* **Crash-Proof Self-Indexed fMP4 Storage:** Video archives are stored as standalone fragmented MP4 chunks (`moof` + `mdat`) with sidecar keyframe indices (`.idx`). Unfinished recordings remain fully playable after power outages without requiring file repair utilities.
+* **Embedded Durable State Store:** Configuration, camera metadata, folders, tags, and user credentials persist in an embedded BadgerDB LSM-tree key-value store with synchronous write-ahead logging (`SyncWrites = true`), coupled with startup archive recovery routines (`RecoverCrashedFiles`).
+* **Real-Time AI Inference & Metadata Synchronization:** Video frames extracted via server-streaming gRPC feed external computer vision workers (YOLO, custom inference services), while incoming detection metadata (bounding boxes, telemetry) ingested over client-streaming gRPC is synchronized with video timelines and pushed to clients via WebRTC DataChannels, HLS WebVTT tracks, MQTT brokers, and Webhooks.
+* **Operational Transparency & Observability:** Native Prometheus metrics, deterministic `/livez` and `/readyz` probes reflecting actual subsystem readiness, and structured JSON telemetry.
 
-* **Transmuxing Pipeline (No Transcoding):** Video packets are parsed at the NALU level and repackaged directly into client-requested container formats (fMP4, TS, RTP) in memory without video decoding or pixel re-encoding.
-* **Lock-Free Single-Buffer Distribution:** Ingested frames are written once to a bounded, lock-free ring buffer per stream. Downstream consumers (HLS packager, WebRTC track sender, MP4 recorder, gRPC AI extractors) read concurrently from this buffer without allocating duplicate frame payloads.
-* **Slow-Consumer Protection:** Individual reader channels isolate slow clients. If a consumer falls behind, frames are dropped exclusively for that reader without stalling the ingestion engine or affecting other viewers.
-* **Page Cache-Managed Streaming I/O:** The local fMP4 archiver optimizes disk writes on Linux using POSIX kernel primitives (`posix_fadvise(FADV_DONTNEED)` and sliding-window `sync_file_range`), preventing continuous video recording writes from evicting the OS Page Cache and causing I/O stalls.
-* **Embedded Durable State:** Configuration, camera metadata, and user credentials persist in an embedded BadgerDB key-value store with synchronous write-ahead logging (`SyncWrites = true`), coupled with startup archive recovery routines (`RecoverCrashedFiles`).
-* **AI Metadata Synchronization:** Neural network inference results (bounding boxes, telemetry) ingested over gRPC client streams are synchronized with video timelines and pushed to clients via WebRTC DataChannels and HLS WebVTT tracks.
-* **Operational Transparency:** Provides native Prometheus metrics, deterministic `/livez` and `/readyz` probes reflecting actual subsystem readiness, and structured JSON telemetry.
+---
+
+## Use Cases
+
+* **Self-Hosted NVR & VMS Backend:** Acts as the high-density video ingestion, 24/7 continuous fMP4 recording, and timeline indexing backend for custom video surveillance and CCTV management platforms.
+* **IP Camera RTSP to WebRTC Gateway:** Ingests RTSP streams from multi-camera installations and delivers sub-second, low-latency live video directly to web browsers via WebRTC (WHEP) and WebCodecs (WebSocket).
+* **Edge Video Infrastructure & Analytics:** Functions as a lightweight, on-premise media server for edge compute appliances and industrial Linux devices with predictable CPU and memory footprints.
+* **Real-Time AI & Computer Vision Pipelines:** Delivers high-throughput gRPC frame extraction (`StreamFrames`) to external neural network inference workers (e.g., YOLO, TensorRT, PyTorch) and synchronizes detection metadata back to clients.
+* **CCTV Video Archive & Timeline Scrubbing:** Stores continuous, crash-resilient fragmented MP4 video with automated retention cleanup, sidecar keyframe index seeking, and virtual HLS archive playback without duplicating files.
+* **Multi-Protocol Camera Restreaming:** Restreams camera feeds concurrently across HLS, WebRTC, and WebSocket subscribers, while publishing event notifications to MQTT brokers and Webhook endpoints.
 
 ---
 
 ## Key Capabilities
 
-* **RTSP Ingestion:** Ingests H.264 and H.265 streams over TCP or UDP with connection concurrency throttling and backoff reconnection.
-* **HLS Delivery:** Serves low-latency fMP4 and MPEG-TS live playlists with singleflight-cached master playlists and WebVTT metadata tracks.
-* **WebRTC / WHEP:** Delivers sub-second interactive H.264 video playback powered by Pion WebRTC over an optional unified UDP port multiplexer.
-* **Low-Latency WebCodecs:** Streams raw binary NALUs over WebSocket (`/stream/ws/:id`) for client-side hardware-accelerated Canvas rendering of H.264 and H.265 streams.
-* **fMP4 Archiving:** Continuous segmented fragmented MP4 recording with automated retention cleanup and timeline indexing.
-* **gRPC AI Streaming:** Exposes server-streaming RPCs for video frame extraction (`StreamFrames`) and client-streaming RPCs for AI metadata ingestion (`PushMetadata`).
-* **Event Integration:** Dispatches outbound HTTP webhooks with circuit breakers and publishes AI metadata to MQTT brokers via bounded queues.
-* **Embedded UI:** Includes an embedded dashboard (React 19, TypeScript) for stream visualization, camera management, and archive timeline playback.
-* **Authentication & RBAC:** Enforces JWT-based access control with role differentiation (Admin, Operator, Viewer, Service) for REST API and media stream endpoints.
+* **High-Density RTSP Ingestion:** Ingests H.264 and H.265 streams over TCP or UDP with connection concurrency throttling, keep-alive management, and backoff reconnection.
+* **Sub-Second WebRTC (WHEP) Streaming:** Delivers ultra-low-latency H.264 video playback powered by Pion WebRTC over an optional unified UDP port multiplexer with `sendmmsg` batching.
+* **HLS Live & Archive Delivery:** Serves low-latency fMP4 and MPEG-TS live playlists with singleflight-cached master playlists and synchronized WebVTT metadata tracks.
+* **Low-Latency WebCodecs & WebSocket:** Streams raw binary NALUs over WebSocket (`/stream/ws/:id`) for client-side hardware-accelerated Canvas rendering of H.264 and H.265 streams.
+* **fMP4 Archiving & Retention Engine:** Continuous segmented fragmented MP4 recording with Linux kernel Page Cache eviction, automated retention cleanup, and timeline scrubbing via `.idx` sidecar files.
+* **gRPC AI Video & Metadata Pipeline:** Exposes server-streaming RPCs for video frame extraction (`StreamFrames`) and client-streaming RPCs for real-time AI metadata ingestion (`PushMetadata`).
+* **IoT & Event Dispatching:** Publishes AI detection events and camera telemetry to MQTT brokers (v3.1.1/v5.0) and dispatches outbound HTTP webhooks with circuit breaker protection.
+* **Embedded Web UI & Camera Management:** Integrated dashboard (React 19, TypeScript) for live multi-camera viewing, stream configuration, tag management, and archive timeline playback.
+* **Authentication & RBAC:** Enforces JWT-based access control with granular roles (`Admin`, `Operator`, `Viewer`, `Service`) and separate scoped stream tokens for REST API and media endpoints.
 
 ---
 
 ## Architecture
 
-In RUSEON Core, inbound RTSP packets pass through demuxing and enter an isolated in-memory `RingBuffer`. Independent workers pull from the buffer concurrently to serve connected protocols and storage targets.
+In RUSEON Core, inbound RTSP packets pass through demuxing and enter an isolated in-memory `RingBuffer`. Independent workers pull from the buffer concurrently to serve connected protocols, storage targets, and AI consumers.
 
 ```mermaid
 flowchart TD
@@ -86,6 +107,26 @@ flowchart TD
     BUS --> WEBRTC
     BUS --> HLS
     BUS --> MQTT_WH["MQTT & Webhook Dispatcher"]
+```
+
+### AI Inference & Metadata Data Flow
+
+```text
+RTSP Camera Stream
+  ↓
+RUSEON RTSP Ingest
+  ↓
+NALU Parsing & RingBuffer
+  ↓
+gRPC Frame Streaming (StreamFrames)
+  ↓
+External AI / Computer Vision Worker (YOLO / TensorRT)
+  ↓
+gRPC Metadata Ingestion (PushMetadata)
+  ↓
+Metadata Broadcaster
+  ↓
+WebRTC DataChannels  |  HLS WebVTT  |  MQTT Events  |  HTTP Webhooks
 ```
 
 For complete technical specifications, see [Architecture & System Design](https://docs.ruseon.tech/architecture/system).
@@ -154,9 +195,9 @@ Navigate to `http://localhost:8080` in your browser. Log in with:
 * **Username:** `admin`
 * **Password:** *(Generated password from container logs)*
 
-### 3. Add a Camera via REST API
+### 3. Add an IP Camera via REST API
 
-You can add and manage camera streams dynamically without restarting the server:
+You can register and configure camera streams dynamically at runtime without restarting the server:
 
 ```bash
 # 1. Obtain JWT access token
@@ -294,3 +335,4 @@ We welcome community contributions. To get started:
 ## License
 
 RUSEON Core (Community Edition) is licensed under the [MIT License](LICENSE).
+
