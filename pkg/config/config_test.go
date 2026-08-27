@@ -94,14 +94,57 @@ server:
 	}
 }
 
-func TestLoad_Errors(t *testing.T) {
-	t.Run("non-existent file", func(t *testing.T) {
-		_, err := Load("non_existent_file_12345.yml")
-		if err == nil {
-			t.Errorf("expected error for non-existent file")
-		}
-	})
+func TestNewDefaultConfig(t *testing.T) {
+	cfg := NewDefaultConfig()
+	if cfg.Server.Port != 8080 {
+		t.Errorf("expected port 8080, got %d", cfg.Server.Port)
+	}
+	if cfg.Server.GCPercent != 50 {
+		t.Errorf("expected GCPercent 50, got %d", cfg.Server.GCPercent)
+	}
+	if cfg.Server.HLS.LiveSegmentsInMemory != 3 {
+		t.Errorf("expected HLS segments 3, got %d", cfg.Server.HLS.LiveSegmentsInMemory)
+	}
+	if cfg.Server.GRPC.Port != 50051 {
+		t.Errorf("expected gRPC port 50051, got %d", cfg.Server.GRPC.Port)
+	}
+	if len(cfg.GlobalTags) != 2 {
+		t.Errorf("expected 2 default global tags, got %d", len(cfg.GlobalTags))
+	}
+}
 
+func TestLoad_NonExistentFileAutoGenerate(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "auto_generated.yaml")
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("expected Load to auto-generate config without error, got: %v", err)
+	}
+
+	if cfg.Server.Port != 8080 {
+		t.Errorf("expected port 8080, got %d", cfg.Server.Port)
+	}
+	if cfg.Auth.Secret == "" {
+		t.Errorf("expected auto-generated JWT secret, got empty")
+	}
+
+	// Verify file was written to disk
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		t.Fatalf("expected file to be created on disk at %s", configPath)
+	}
+
+	// Reload and verify
+	reloaded, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to reload auto-generated config: %v", err)
+	}
+	if reloaded.Auth.Secret != cfg.Auth.Secret {
+		t.Errorf("expected preserved secret %s, got %s", cfg.Auth.Secret, reloaded.Auth.Secret)
+	}
+}
+
+func TestLoad_Errors(t *testing.T) {
 	t.Run("invalid yaml", func(t *testing.T) {
 		tempDir := t.TempDir()
 		invalidPath := filepath.Join(tempDir, "invalid.yml")

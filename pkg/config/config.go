@@ -217,12 +217,59 @@ func (c CameraConfig) Clone() CameraConfig {
 //
 // It performs initialization steps:
 //   - Generates and persists a secure random 32-byte JWT secret if not configured.
-//   - Applies defaults for GCPercent (50), HLS LiveSegmentsInMemory (3), and gRPC Port (50051).
+// NewDefaultConfig returns a Config struct initialized with production-ready defaults.
+func NewDefaultConfig() Config {
+	var cfg Config
+	cfg.Server.Port = 8080
+	cfg.Server.Debug = false
+	cfg.Server.PprofPort = 0
+	cfg.Server.RecordRetentionDays = 7
+	cfg.Server.GCPercent = 50
+	cfg.Server.GCMemoryLimitMB = 2048
+	cfg.Server.CORSAllowedOrigins = []string{"http://localhost:8080"}
+	cfg.Server.HLS.LiveSegmentsInMemory = 3
+	cfg.Server.GRPC.Address = "0.0.0.0"
+	cfg.Server.GRPC.Port = 50051
+	cfg.Server.WebRTC.ICEServers = []string{"stun:stun.l.google.com:19302"}
+	cfg.Server.WebRTC.ICETransportPolicy = "all"
+	cfg.GlobalTags = []TagConfig{
+		{ID: "indoor", Name: "Внутри помещения", Color: "#28a745"},
+		{ID: "outdoor", Name: "На улице", Color: "#dc3545"},
+	}
+	cfg.Cameras = make([]CameraConfig, 0)
+	return cfg
+}
+
+// Load reads and parses a YAML configuration file from the specified path.
 //
-// Returns a pointer to the populated Config or an error if file reading or decoding fails.
+// If the configuration file does not exist, Load automatically initializes
+// a new default configuration, generates a cryptographically secure JWT secret,
+// and attempts to persist it to disk at the given path.
+//
+// It performs initialization steps:
+//   - Generates and persists a secure random 32-byte JWT secret if not configured.
+//   - Applies defaults for Port (8080), GCPercent (50), HLS LiveSegmentsInMemory (3), and gRPC Port (50051).
+//
+// Returns a pointer to the populated Config or an error if file decoding fails.
 func Load(path string) (*Config, error) {
-	file, err := os.Open(filepath.Clean(path)) // #nosec G304
+	cleanPath := filepath.Clean(path)
+	file, err := os.Open(cleanPath) // #nosec G304
 	if err != nil {
+		if os.IsNotExist(err) {
+			cfg := NewDefaultConfig()
+			bytes := make([]byte, 32)
+			if _, randErr := rand.Read(bytes); randErr != nil {
+				return nil, fmt.Errorf("generate random JWT secret: %w", randErr)
+			}
+			cfg.Auth.Secret = hex.EncodeToString(bytes)
+
+			if saveErr := cfg.Save(cleanPath); saveErr != nil {
+				fmt.Fprintf(os.Stderr, "Warning: failed to persist auto-generated config to %s: %v (running with in-memory defaults)\n", cleanPath, saveErr)
+			} else {
+				fmt.Printf("Generated default configuration at %s\n", cleanPath)
+			}
+			return &cfg, nil
+		}
 		return nil, err
 	}
 	defer file.Close()
@@ -233,6 +280,10 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 
+	if cfg.Server.Port == 0 {
+		cfg.Server.Port = 8080
+	}
+
 	// Generate random JWT Secret if empty
 	if cfg.Auth.Secret == "" {
 		bytes := make([]byte, 32)
@@ -240,8 +291,8 @@ func Load(path string) (*Config, error) {
 			return nil, fmt.Errorf("generate random JWT secret: %w", err)
 		}
 		cfg.Auth.Secret = hex.EncodeToString(bytes)
-		if err := cfg.Save(path); err != nil {
-			return nil, fmt.Errorf("persist generated JWT secret: %w", err)
+		if err := cfg.Save(cleanPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to persist generated JWT secret to %s: %v\n", cleanPath, err)
 		}
 	}
 

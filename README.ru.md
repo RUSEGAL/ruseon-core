@@ -169,7 +169,6 @@ WebRTC DataChannels  |  HLS WebVTT  |  MQTT-события  |  HTTP Webhooks
 Запустите контейнер RUSEON Core с постоянными томами для данных и записей (доступен в Docker Hub и GitHub Container Registry):
 
 ```bash
-cp config.example.yaml config.yaml
 # Из Docker Hub:
 docker run -d \
   --name ruseon-core \

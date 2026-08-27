@@ -38,7 +38,7 @@ type packageStats struct {
 
 func parseCoverage(coverageFile string) (map[string]*packageStats, int, int, error) {
 	cleanPath := filepath.Clean(coverageFile)
-	file, err := os.Open(cleanPath)
+	file, err := os.Open(cleanPath) // #nosec G304 G703
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("error opening coverage profile %s: %w", cleanPath, err)
 	}

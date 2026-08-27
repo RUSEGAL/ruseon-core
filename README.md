@@ -169,7 +169,6 @@ The following baseline metrics reflect an uninterrupted **8-hour continuous soak
 Launch RUSEON Core in a container with persistent storage volumes (available on Docker Hub and GitHub Container Registry):
 
 ```bash
-cp config.example.yaml config.yaml
 # From Docker Hub:
 docker run -d \
   --name ruseon-core \
