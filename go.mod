@@ -3,7 +3,7 @@ module github.com/RUSEGAL/ruseon-core/v2
 go 1.26
 
 require (
-	github.com/arl/statsviz v0.8.1
+	github.com/arl/statsviz v0.8.2
 	github.com/bluenviron/gortsplib/v4 v4.12.2
 	github.com/bluenviron/mediacommon v1.13.3
 	github.com/dgraph-io/badger/v4 v4.9.5
