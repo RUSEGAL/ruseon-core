@@ -1,6 +1,6 @@
 module github.com/RUSEGAL/ruseon-core/v2
 
-go 1.26
+go 1.26.0
 
 require (
 	github.com/arl/statsviz v0.8.1
@@ -30,7 +30,7 @@ require (
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.54.0
 	golang.org/x/net v0.57.0
-	golang.org/x/sync v0.22.0
+	golang.org/x/sync v0.23.0
 	golang.org/x/sys v0.47.0
 	google.golang.org/grpc v1.83.0
 	google.golang.org/protobuf v1.36.11
