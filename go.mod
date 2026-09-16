@@ -18,7 +18,7 @@ require (
 	github.com/pion/webrtc/v4 v4.2.18
 	github.com/prometheus/client_golang v1.24.1
 	github.com/rs/zerolog v1.32.0
-	github.com/samber/ro v0.4.0
+	github.com/samber/ro v0.4.1
 	github.com/samber/ro/plugins/cron v0.0.0-20260809183515-1fb54ba10cbf
 	github.com/shirou/gopsutil/v4 v4.26.6
 	github.com/spf13/cobra v1.10.2
